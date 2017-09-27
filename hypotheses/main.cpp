@@ -1,16 +1,17 @@
 
-#include <aftermath/probability/empirical_measure.hpp>
-#include <aftermath/algebra/matrix.hpp>
-#include <aftermath/format/matstream.hpp>
-#include <aftermath/format/matstream_v4.hpp>
+#include <aftermath/algebra.hpp>
+#include <aftermath/format.hpp>
+#include <aftermath/not_an_error.hpp>
+#include <aftermath/probability.hpp>
 #include <nlohmann/json.hpp>
 
 #include "config.hpp"
 #include "model.hpp"
-#include "not_an_error.hpp"
 #include "process.hpp"
 #include "signals.hpp"
 #include "observer_bunch.hpp"
+
+#include "moment_statistic.hpp"
 
 #include <chrono>
 #include <cstddef>
@@ -21,13 +22,13 @@
 
 typedef ropufu::sequential::hypotheses::config config_type;
 typedef ropufu::sequential::hypotheses::constant_signal constant_signal_type;
-typedef ropufu::sequential::hypotheses::not_an_error not_an_error_type;
+
 typedef ropufu::aftermath::probability::empirical_measure<double, std::size_t, double> empirical_measure_type;
 typedef ropufu::aftermath::format::matstream<4> matstream_type;
 typedef ropufu::aftermath::algebra::matrix<double> matrix_type;
+typedef ropufu::aftermath::not_an_error not_an_error_type;
+typedef ropufu::aftermath::quiet_error quiet_error_type;
 
-template <typename t_return_type>
-using quiet_return_t = ropufu::sequential::hypotheses::quiet_return<t_return_type>;
 template <typename t_stopping_time_type>
 using observer_t = ropufu::sequential::hypotheses::stopping_time_observer<t_stopping_time_type>;
 template <typename t_signal_type>
@@ -38,8 +39,9 @@ template <typename t_signal_type>
 using bunch_t = ropufu::sequential::hypotheses::observer_bunch<t_signal_type>;
 
 template <typename t_function_type>
-void benchmark(t_function_type&& action)
+void benchmark(t_function_type&& action) noexcept
 {
+    if (!quiet_error_type::instance().good()) return;
     typedef std::chrono::high_resolution_clock clock_type;
     auto tic = clock_type::now();
     action();
@@ -50,17 +52,10 @@ void benchmark(t_function_type&& action)
     std::cout << "Elapsed time " << seconds << " s." << std::endl << std::flush;
 }
 
-template <typename t_return_type>
-bool check_for_error(const quiet_return_t<t_return_type>& x)
-{
-    if (x.error() == not_an_error_type::all_good) return false;
-    std::cout << "Quiet error: " << static_cast<std::size_t>(x.error()) << std::endl;
-    return true;
-}
-
 template <typename t_signal_type>
-void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch, std::size_t m)
+void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch, std::size_t m) noexcept
 {
+    if (!quiet_error_type::instance().good()) return;
     std::ostringstream caption_stream;
 
     // Brief caption.
@@ -77,19 +72,19 @@ void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch
     process.reset(); // Make sure the process starts from scratch.
     bunch.clear(); // Make sure the observers don't have any lingering data.
 
-    //empirical_measure_type adjusted_process = { };
+    if (!quiet_error_type::instance().good()) return;
     for (std::size_t i = 0; i < m; i++)
     {
         while (bunch.is_running())
         {
             process.tic();
-            //adjusted_process.observe(process.adjusted_process(process.count() - 1));
-            if (check_for_error(bunch.tic(process))) return;
+            bunch.tic(process);
+            if (!quiet_error_type::instance().good()) return;
         }
-        if (check_for_error(bunch.toc(process))) return;
+        bunch.toc(process);
         process.reset();
+        if (!quiet_error_type::instance().good()) return;
     }
-    //std::cout << "adjusted process: " << adjusted_process.mean() << " pm " << adjusted_process.compute_standard_deviation() << std::endl;
     std::cout << bunch;
 
     // ~~ Clean up ~~
@@ -97,47 +92,11 @@ void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch
     bunch.clear(); // Make sure the observed data does not escape the scope of this function.
 }
 
-double a_element_at(std::size_t i, std::size_t j) { return 10 * (i + 1) + (j + 1); }
-double b_element_at(std::size_t i, std::size_t j) { return 10 * (i + 1) - (j + 1); }
-
-void test_write_mat()
+std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept
 {
-    matrix_type a(5, 3);
-    matrix_type b(2, 4);
+    //if (argc > 1) std::cout << argv[1] << std::endl;
 
-    for (std::size_t i = 0; i < a.height(); i++) for (std::size_t j = 0; j < a.width(); j++) a(i, j) = a_element_at(i, j);
-    for (std::size_t i = 0; i < b.height(); i++) for (std::size_t j = 0; j < b.width(); j++) b(i, j) = b_element_at(i, j);
-
-    matstream_type mat("./hypotheses.mat");
-    mat.clear();
-    mat << "baka" << a;
-    mat << "greg" << b;
-}
-
-bool test_read_mat()
-{
-    matrix_type a;
-    matrix_type b;
-    std::string name1;
-    std::string name2;
-    matstream_type mat("./hypotheses.mat");
-    mat.load(name1, a);
-    mat.load(name2, b);
-    std::cout << name1 << " is a " << a.height() << " by " << a.width() << " matrix." << std::endl;
-    std::cout << name2 << " is a " << b.height() << " by " << b.width() << " matrix." << std::endl;
-    
-    for (std::size_t i = 0; i < a.height(); i++) for (std::size_t j = 0; j < a.width(); j++) if (a(i, j) != a_element_at(i, j)) return false;
-    for (std::size_t i = 0; i < b.height(); i++) for (std::size_t j = 0; j < b.width(); j++) if (b(i, j) != b_element_at(i, j)) return false;
-    return true;
-}
-
-std::int32_t main(std::int32_t argc, char* argv[], char* envp[])
-{
-    if (argc > 1) std::cout << argv[1] << std::endl;
-    test_write_mat();
-    std::cout << "Matrix test: " << (test_read_mat() ? "passed" : "failed") << std::endl;
-    return 0;
-
+    quiet_error_type& quiet_error = quiet_error_type::instance();
     const config_type& config = config_type::instance();
     //std::cout << config << std::endl;
     // ~~ Noise ~~
@@ -150,6 +109,7 @@ std::int32_t main(std::int32_t argc, char* argv[], char* envp[])
     std::size_t monte_carlo_count = config["monte carlo"];
     double analyzed_mu = config["analyzed mu"];
     double simulated_mu = config["simulated mu"];
+    double expected_run_length = config["expected run length"];
     //bool do_change_of_measure = analyzed_mu != simulated_mu;
 
     // ~~ Signal ~~
@@ -163,13 +123,12 @@ std::int32_t main(std::int32_t argc, char* argv[], char* envp[])
 
         process_t<decltype(signal)> process(model, simulated_mu);
         bunch_t<decltype(signal)> bunch(model);
-        bunch.look_for(analyzed_mu);
+        bunch.look_for(analyzed_mu, expected_run_length);
         bunch.clear_log();
         // ~~ Contains information relevant to construction of stopping times and decision makers ~~
         for (const nlohmann::json& desc : config["procedures"])
         {
-            quiet_return_t<void> q = bunch.try_parse(desc);
-            if (q.error() != not_an_error_type::all_good) std::cout << "Failed to parse " << desc << std::endl;
+            if (!bunch.try_parse(desc)) std::cout << "Failed to parse " << desc << std::endl;
         }
 
         benchmark([&](){
@@ -178,6 +137,16 @@ std::int32_t main(std::int32_t argc, char* argv[], char* envp[])
         });
     }
 
+    if (quiet_error.good()) std::cout << "~~ Oh no! Errors encoutered: ~~" << std::endl;
+    else if (quiet_error.empty()) std::cout << "~~ Something to keep in mind: ~~" << std::endl;
+    while (!quiet_error.empty())
+    {
+        std::string message = "";
+        std::string function_name = "";
+        std::size_t line = 0;
+        not_an_error_type err = quiet_error.pop(message, function_name, line);
+        std::cout << '\t' << static_cast<std::size_t>(err) << " on line " << line << " of <" << function_name << ">:\t" << message << std::endl;
+    }
     //std::cout << "Press any key to continue . . ." << std::endl;
     return 0;
 }

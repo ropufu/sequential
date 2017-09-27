@@ -2,9 +2,8 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_PROCESS_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_PROCESS_HPP_INCLUDED
 
-#include <aftermath/probability/dist_normal.hpp>
-#include <aftermath/random/sampler_normal.hpp>
-#include <aftermath/random/ziggurat_normal.hpp>
+#include <aftermath/probability.hpp>
+#include <aftermath/random.hpp>
 
 #include "model.hpp"
 #include "time_window.hpp"
@@ -33,7 +32,7 @@ namespace ropufu
                 template <>
                 struct sampler_switch<aftermath::probability::dist_normal>
                 {
-                    typedef aftermath::random::sampler_normal_from_engine<1024, std::default_random_engine>::type type;
+                    typedef aftermath::random::default_sampler_normal_t<std::default_random_engine>::type type;
                 };
             }
 

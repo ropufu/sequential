@@ -2,7 +2,7 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_MODEL_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_MODEL_HPP_INCLUDED
 
-#include <aftermath/probability/dist_normal.hpp>
+#include <aftermath/probability.hpp>
 
 #include <cstddef>
 #include <iostream>

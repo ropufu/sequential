@@ -2,7 +2,8 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_ADAPTIVE_SPRT_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_ADAPTIVE_SPRT_HPP_INCLUDED
 
-#include "not_an_error.hpp"
+#include <aftermath/not_an_error.hpp>
+
 #include "process.hpp"
 #include "two_sprt.hpp"
 
@@ -34,13 +35,6 @@ namespace ropufu
                 double m_unscaled_distance_from_null = 0; // Latest (unscaled) LLR vs. null estimator.
                 double m_unscaled_distance_from_null_with_alt_init = 0; // Latest (unscaled) LLR vs. null estimator with an alt initial guess for signal "strength".
                 double m_unscaled_distance_from_alt = 0; // Latest (unscaled) LLR vs. alt estimator.
-
-                void post_process_thresholds(std::vector<double>& null_thresholds, std::vector<double>& alt_thresholds) noexcept
-                {
-                    double factor = this->model().log_likelihood_scale();
-                    for (double& a : null_thresholds) a *= factor;
-                    for (double& a : alt_thresholds) a *= factor;
-                }
 
                 void observe_unchecked(const process_type& proc) noexcept
                 {

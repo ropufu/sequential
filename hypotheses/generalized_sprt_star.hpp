@@ -2,7 +2,8 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_GENERALIZED_SPRT_STAR_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_GENERALIZED_SPRT_STAR_HPP_INCLUDED
 
-#include "not_an_error.hpp"
+#include <aftermath/not_an_error.hpp>
+
 #include "process.hpp"
 #include "two_sprt.hpp"
 
@@ -32,13 +33,6 @@ namespace ropufu
                 double m_unscaled_distance_from_alt = 0; // Latest (unscaled) LLR vs. alt estimator.
                 bool m_is_estimator_low = false; // Indicator if the latest estimator of mu is below the threshold.
                 bool m_is_estimator_high = false; // Indicator if the latest estimator of mu is above the threshold.
-
-                void post_process_thresholds(std::vector<double>& null_thresholds, std::vector<double>& alt_thresholds) noexcept
-                {
-                    double factor = this->model().log_likelihood_scale();
-                    for (double& a : null_thresholds) a *= factor;
-                    for (double& a : alt_thresholds) a *= factor;
-                }
 
                 void observe_unchecked(const process_type& proc) noexcept
                 {

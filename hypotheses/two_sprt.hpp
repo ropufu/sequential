@@ -2,8 +2,10 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_TWO_SPRT_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_TWO_SPRT_HPP_INCLUDED
 
+#include <aftermath/algebra.hpp>
+#include <aftermath/not_an_error.hpp>
+
 #include "model.hpp"
-#include "not_an_error.hpp"
 #include "process.hpp"
 
 #include <algorithm>
@@ -30,24 +32,19 @@ namespace ropufu
                 typedef model<signal_type> model_type;
                 typedef process<signal_type> process_type;
 
+                template <typename t_data_type>
+                using matrix_t = aftermath::algebra::matrix<t_data_type>;
+
             private:
                 model_type m_model;
-                std::vector<std::size_t> m_counts = { 0 }; // Counts the number of observations prior to crossing either of the thresholds.
-                std::vector<double> m_null_thresholds = { 0 };
-                std::vector<double> m_alt_thresholds = { 0 };
-                std::vector<bool> m_have_crossed_null = { false }; // Indicates if the null thresholds have been crossed.
-                std::vector<bool> m_have_crossed_alt = { false }; // Indicates if the alt thresholds have been crossed.
-                std::size_t m_first_uncrossed_index = 0; // Index of the first uncrossed threshold (either null or alt).
-
-                void post_process_thresholds(std::vector<double>& null_thresholds, std::vector<double>& alt_thresholds) noexcept
-                {
-                    constexpr bool is_overwritten = std::is_same<
-                        decltype(&derived_type::post_process_thresholds), 
-                        decltype(&type::post_process_thresholds)>::value;
-                    static_assert(!is_overwritten, "static polymorphic function <post_process_thresholds> was not overwritten.");
-                    derived_type* that = static_cast<derived_type*>(this);
-                    that->post_process_thresholds(null_thresholds, alt_thresholds);
-                }
+                bool m_is_initialized = false;
+                bool m_is_running = false;
+                matrix_t<double> m_unscaled_null_thresholds = { }; // m-by-1 vector of null thresholds.
+                matrix_t<double> m_unscaled_alt_thresholds = { };  // 1-by-n vector of alt thresholds.
+                matrix_t<bool> m_have_crossed_null = { }; // m-by-n matrix indicating if the null thresholds have been crossed.
+                matrix_t<bool> m_have_crossed_alt = { };  // m-by-n matrix indicating if the alt thresholds have been crossed.
+                matrix_t<std::size_t> m_counts = { };     // m-by-n matrix counting the number of observations prior to stopping.
+                matrix_t<std::size_t> m_first_uncrossed_alt_index = { }; // m-by-1 vector of indices of the first uncrossed alt threshold for a fixed null threshold.
 
                 void observe_unchecked(const process_type& proc) noexcept
                 {
@@ -78,14 +75,12 @@ namespace ropufu
             public:
                 void reset() noexcept
                 {
-                    std::size_t size = this->m_counts.size();
-                    for (std::size_t k = 0; k < size; k++)
-                    {
-                        this->m_counts[k] = 0;
-                        this->m_have_crossed_null[k] = false;
-                        this->m_have_crossed_alt[k] = false;
-                    }
-                    this->m_first_uncrossed_index = 0;
+                    this->m_have_crossed_null.erase();
+                    this->m_have_crossed_alt.erase();
+                    this->m_counts.erase();
+                    this->m_first_uncrossed_alt_index.erase();
+                    this->m_is_running = true;
+                    
                     this->reset_unchecked();
                 }
 
@@ -106,64 +101,83 @@ namespace ropufu
                 }
 
                 /** @remark Thresholds have to be of the same size; they are independently(!) sorted and then paired up. */
-                quiet_return<void> set_thresholds(const std::vector<double>& null_thresholds, const std::vector<double>& alt_thresholds) noexcept
+                void set_thresholds(const std::vector<double>& null_thresholds, const std::vector<double>& alt_thresholds) noexcept
                 {
-                    if (this->m_counts.back() != 0) return not_an_error::logic_error; // Thresholds have to be set prior to first observation.
-                    if (null_thresholds.size() != alt_thresholds.size()) return not_an_error::invalid_argument; // Threshold sizes have to match.
-                    if (null_thresholds.empty()) return not_an_error::logic_error; // At least one threshold has to be specified.
-                    if (alt_thresholds.empty()) return not_an_error::logic_error; // At least one threshold has to be specified.
+                    if (this->m_is_initialized)  aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "Thresholds have to be set prior to first observation.", __FUNCTION__, __LINE__);
+                    if (null_thresholds.empty()) aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "At least one null threshold has to be specified.", __FUNCTION__, __LINE__);
+                    if (alt_thresholds.empty())  aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "At least one alt threshold has to be specified.", __FUNCTION__, __LINE__);
+                    if (!aftermath::quiet_error::instance().good()) return;
 
-                    this->m_counts.resize(null_thresholds.size(), 0); // Align observation counts to thresholds.
-                    this->m_have_crossed_null.resize(null_thresholds.size(), false); // Align cross indicators to thresholds.
-                    this->m_have_crossed_alt.resize(null_thresholds.size(), false); // Align cross indicators to thresholds.
+                    this->m_is_initialized = true;
+                    this->m_is_running = true;
 
-                    this->m_null_thresholds = null_thresholds;
-                    this->m_alt_thresholds = alt_thresholds;
+                    std::size_t m = null_thresholds.size(); // Height of the threshold matrix.
+                    std::size_t n = alt_thresholds.size(); // Width of the threshold matrix.
+
+                    this->m_have_crossed_null = matrix_t<bool>(m, n); // Align cross indicators to thresholds.
+                    this->m_have_crossed_alt = matrix_t<bool>(m, n); // Align cross indicators to thresholds.
+                    this->m_counts = matrix_t<size_t>(m, n); // Align observation counts to thresholds.
+                    this->m_first_uncrossed_alt_index = matrix_t<size_t>(m, 1); // Align indices of uncrossed alt thresholds.
+
+                    std::vector<double> unscaled_null_thresholds = null_thresholds;
+                    std::vector<double> unscaled_alt_thresholds = alt_thresholds;
                     // ~~ Sort the thresholds ~~
-                    std::sort(this->m_null_thresholds.begin(), this->m_null_thresholds.end());
-                    std::sort(this->m_alt_thresholds.begin(), this->m_alt_thresholds.end());
+                    std::sort(unscaled_null_thresholds.begin(), unscaled_null_thresholds.end());
+                    std::sort(unscaled_alt_thresholds.begin(), unscaled_alt_thresholds.end());
                     // ~~ Rescale ~~
-                    this->post_process_thresholds(this->m_null_thresholds, this->m_alt_thresholds);
+                    double factor = this->m_model.log_likelihood_scale();
+                    for (double& a : unscaled_null_thresholds) a *= factor;
+                    for (double& a : unscaled_alt_thresholds) a *= factor;
 
-                    return not_an_error::all_good;
+                    this->m_unscaled_null_thresholds = unscaled_null_thresholds;
+                    this->m_unscaled_alt_thresholds = unscaled_alt_thresholds;
+                    this->m_unscaled_null_thresholds.reshape(m, 1);
+                    this->m_unscaled_alt_thresholds.reshape(1, n);
                 }
 
-                const std::vector<double>& null_thresholds() const noexcept { return this->m_null_thresholds; }
-                const std::vector<double>& alt_thresholds() const noexcept { return this->m_alt_thresholds; }
+                const matrix_t<double>& unscaled_null_thresholds() const noexcept { return this->m_unscaled_null_thresholds; }
+                const matrix_t<double>& unscaled_alt_thresholds() const noexcept { return this->m_unscaled_alt_thresholds; }
 
                 const model_type& model() const noexcept { return this->m_model; }
-                const std::vector<std::size_t>& run_lengths() const noexcept { return this->m_counts; }
-                const std::vector<bool>& have_crossed_null() const noexcept { return this->m_have_crossed_null; }
-                const std::vector<bool>& have_crossed_alt() const noexcept { return this->m_have_crossed_alt; }
-                bool has_stopped() const noexcept { return this->m_have_crossed_null.back() || this->m_have_crossed_alt.back(); }
-                bool is_running() const noexcept { return !this->has_stopped(); }
+                const matrix_t<std::size_t>& run_lengths() const noexcept { return this->m_counts; }
+                const matrix_t<bool>& have_crossed_null() const noexcept { return this->m_have_crossed_null; }
+                const matrix_t<bool>& have_crossed_alt() const noexcept { return this->m_have_crossed_alt; }
+                bool has_stopped() const noexcept { return !this->m_is_running; }
+                bool is_running() const noexcept { return this->m_is_running; }
 
-                quiet_return<void> observe(const process_type& proc) noexcept
+                void observe(const process_type& proc) noexcept
                 {
-                    if (proc.empty()) return not_an_error::all_good; // Do nothing if the process hasn't collected any observations.
-                    if (this->has_stopped()) return not_an_error::all_good; // Do nothing if the process hasn't collected any observations.
+                    if (proc.empty()) return; // Do nothing if the process hasn't collected any observations.
+                    if (this->has_stopped()) return; // Do nothing if the process hasn't collected any observations.
 
-                    std::size_t count = proc.count();
-                    std::size_t time_index = count - 1;
-                    if (time_index != this->m_counts.back()) return not_an_error::logic_error; // Make sure counts are in sync! Otherwise, quietly do nothing.
+                    std::size_t time_index = proc.count() - 1;
+                    if (time_index != this->m_counts.back()) aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "Process and stopping time are out of sync.", __FUNCTION__, __LINE__);
+                    if (!aftermath::quiet_error::instance().good()) return;
 
                     this->observe_unchecked(proc);
 
-                    bool could_cross = true;
-                    for (std::size_t k = this->m_first_uncrossed_index; k < this->m_counts.size(); k++) 
+                    bool is_still_running = false;
+                    std::size_t m = this->m_unscaled_null_thresholds.size(); // Height of the threshold matrix.
+                    std::size_t n = this->m_unscaled_alt_thresholds.size(); // Width of the threshold matrix.
+                    for (std::size_t i = 0; i < m; i++)
                     {
-                        this->m_counts[k]++;
-                        bool has_crossed_null = could_cross && this->do_decide_null(this->m_null_thresholds[k]);
-                        bool has_crossed_alt = could_cross && this->do_decide_alt(this->m_alt_thresholds[k]);
-                        this->m_have_crossed_null[k] = has_crossed_null;
-                        this->m_have_crossed_alt[k] = has_crossed_alt;
+                        bool could_cross_next = true;
+                        for (std::size_t j = this->m_first_uncrossed_alt_index.at(i, 0); j < n; j++)
+                        {
+                            this->m_counts.at(i, j)++;
+                            // Next line can be moved outside the j-loop.
+                            bool has_crossed_null = could_cross_next && this->do_decide_null(this->m_unscaled_null_thresholds.at(i, 0));
+                            bool has_crossed_alt = could_cross_next && this->do_decide_alt(this->m_unscaled_alt_thresholds.at(0, j));
+                            this->m_have_crossed_null.at(i, j) = has_crossed_null;
+                            this->m_have_crossed_alt.at(i, j) = has_crossed_alt;
 
-                        // If the current two thresholds were not crossed, then the following (higher) thresholds surely will not be crossed.
-                        could_cross = has_crossed_null || has_crossed_alt;
-                        if (could_cross) this->m_first_uncrossed_index++;
+                            // If the current two thresholds were not crossed, then the following (higher) thresholds surely will not be crossed.
+                            could_cross_next = has_crossed_null || has_crossed_alt;
+                            if (could_cross_next) this->m_first_uncrossed_alt_index.at(i, 0)++;
+                            else is_still_running = true;
+                        }
                     }
-
-                    return not_an_error::all_good;
+                    this->m_is_running = is_still_running;
                 }
             };
         }
