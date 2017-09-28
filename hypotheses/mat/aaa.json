@@ -1,0 +1,94 @@
+{
+    "AR parameters": [],
+    "alt mu": 1.0,
+    "analyzed mu": 0.0,
+    "expected run length": 5.0,
+    "log file": "./hypotheses.log",
+    "mat output": "./mat/",
+    "monte carlo": 1000,
+    "noise sigma": 1.0,
+    "null mu": 0.0,
+    "procedures": [
+        {
+            "mu guess for alt": 0.5,
+            "mu guess for null": 0.5,
+            "name": "Fast A-SPRT",
+            "threshold count": 256,
+            "threshold range alt": [
+                1.0,
+                7.0
+            ],
+            "threshold range null": [
+                1.0,
+                7.0
+            ],
+            "threshold spacing": "log",
+            "type": "adaptive_sprt_star"
+        },
+        {
+            "mu guess for alt": 0.5,
+            "mu guess for null": 0.5,
+            "name": "A-SPRT",
+            "threshold count": 256,
+            "threshold range alt": [
+                1.0,
+                7.0
+            ],
+            "threshold range null": [
+                1.0,
+                7.0
+            ],
+            "threshold spacing": "log",
+            "type": "adaptive_sprt"
+        },
+        {
+            "name": "GSPRT",
+            "threshold count": 256,
+            "threshold range alt": [
+                1.5,
+                7.5
+            ],
+            "threshold range null": [
+                1.5,
+                7.5
+            ],
+            "threshold spacing": "log",
+            "type": "generalized_sprt"
+        },
+        {
+            "mu star": 0.5,
+            "name": "GSPRT Star",
+            "threshold count": 256,
+            "threshold range alt": [
+                1.5,
+                7.5
+            ],
+            "threshold range null": [
+                1.5,
+                7.5
+            ],
+            "threshold spacing": "log",
+            "type": "generalized_sprt_star"
+        },
+        {
+            "mu intermediate": 0.5,
+            "name": "DSPRT",
+            "threshold count": 256,
+            "threshold range alt": [
+                1.5,
+                7.5
+            ],
+            "threshold range null": [
+                1.5,
+                7.5
+            ],
+            "threshold spacing": "log",
+            "type": "double_sprt"
+        }
+    ],
+    "signal": {
+        "level": 1.0,
+        "type": "const"
+    },
+    "simulated mu": 0.0
+}

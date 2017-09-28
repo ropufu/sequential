@@ -33,6 +33,7 @@ namespace ropufu
 
                 template <typename t_data_type>
                 using matrix_t = aftermath::algebra::matrix<t_data_type>;
+                
                 typedef moment_statistic<matrix_t<double>> statistic_type;
 
                 /** Scaling factor for displaying error probabilities. */
@@ -41,8 +42,9 @@ namespace ropufu
                 static constexpr std::size_t error_suffix = aftermath::log_base_n<error_factor, 10>::value;
             
             private:
+                std::string m_type_name = ""; // Type for storage purposes.
                 std::string m_name = ""; // Name for display purposes.
-                double m_desired_mu = 0; // The signal "strength" conrresponding to what measure we want to analyze.
+                double m_analyzed_mu = 0; // The signal "strength" conrresponding to what measure we want to analyze.
                 double m_expected_run_length = 0; // An auxiliary quantity to improve accuracy of statistics.
                 stopping_type m_stopping_time; // Stopping time to be analyzed.
                 statistic_type m_errors; // Track erroneous decisions made by the stopping time.
@@ -80,20 +82,25 @@ namespace ropufu
                 {
                 }
 
+                /** Name as it will appear when sending to a mat file. */
+                const std::string& type_name() const noexcept { return this->m_type_name; }
+                /** Name as it will appear when sending to a mat file. */
+                void set_type_name(const std::string& value) noexcept { this->m_type_name = value; }
+
                 /** Name as it will appear when sending to an output stream. */
                 const std::string& name() const noexcept { return this->m_name; }
                 /** Name as it will appear when sending to an output stream. */
                 void set_name(const std::string& value) noexcept { this->m_name = value; }
 
                 /** Set the signal "strength" conrresponding to what measure we want to analyze and an auxiliary quantity to improve accuracy of statistics. */
-                void look_for(double desired_mu, double expected_run_length) noexcept 
+                void look_for(double analyzed_mu, double expected_run_length) noexcept 
                 { 
-                    this->m_desired_mu = desired_mu;
+                    this->m_analyzed_mu = analyzed_mu;
                     this->m_expected_run_length = expected_run_length;
                 }
 
                 /** Signal "strength" conrresponding to what measure we want to analyze. */
-                double desired_mu() const noexcept { return this->m_desired_mu; }
+                double analyzed_mu() const noexcept { return this->m_analyzed_mu; }
                 /** An auxiliary quantity to improve accuracy of statistics. */
                 double expected_run_length() const noexcept { return this->m_expected_run_length; }
             
@@ -148,8 +155,8 @@ namespace ropufu
                     const matrix_t<bool>& have_crossed_alt = this->m_stopping_time.have_crossed_alt();
 
                     const model_type& model = proc.model();
-                    bool is_null_true = model.is_null(this->m_desired_mu);
-                    bool is_alt_true = model.is_alt(this->m_desired_mu);
+                    bool is_null_true = model.is_null(this->m_analyzed_mu);
+                    bool is_alt_true = model.is_alt(this->m_analyzed_mu);
 
                     // Count the thresholds.
                     std::size_t m = run_lengths.height();
@@ -178,7 +185,7 @@ namespace ropufu
                             if (has_crossed_alt && is_null_true) error = 1;
                             //std::size_t error_relaxed = has_crossed_null ? (is_null_true ? 0 : 1) : (is_null_true ? 1 : 0);
                     
-                            double correction = std::exp(proc.unscaled_log_likelihood_between(proc.actual_mu(), this->m_desired_mu, run_length) / proc.log_likelihood_scale());
+                            double correction = std::exp(proc.unscaled_log_likelihood_between(proc.actual_mu(), this->m_analyzed_mu, run_length) / proc.log_likelihood_scale());
                             double t = run_length / correction;
                             double e = error / correction;
                             corrected_run_lengths.at(i, j) = t;

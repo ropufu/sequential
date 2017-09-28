@@ -53,7 +53,7 @@ void benchmark(t_function_type&& action) noexcept
 }
 
 template <typename t_signal_type>
-void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch, std::size_t m) noexcept
+void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch, double analyzed_mu, std::size_t m) noexcept
 {
     if (!quiet_error_type::instance().good()) return;
     std::ostringstream caption_stream;
@@ -61,10 +61,11 @@ void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch
     // Brief caption.
     caption_stream <<
         "Monte Carlo [" << m << "]" << " under " <<
-        (process.model().is_null(bunch.desired_mu()) ? "null" : "alt") <<
-        " [" << bunch.desired_mu() << "]";
-    if (process.actual_mu() != bunch.desired_mu()) caption_stream << " w/ change of measure: " << process.actual_mu() << " -> " << bunch.desired_mu();
+        (process.model().is_null(analyzed_mu) ? "null" : "alt") <<
+        " [" << analyzed_mu << "]";
+    if (process.actual_mu() != analyzed_mu) caption_stream << " w/ change of measure: " << process.actual_mu() << " -> " << analyzed_mu;
 
+    bunch.clear_log();
     bunch.log_caption(caption_stream.str());
     std::cout << caption_stream.str() << std::endl;
 
@@ -90,6 +91,7 @@ void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch
     // ~~ Clean up ~~
     bunch.log();
     bunch.clear(); // Make sure the observed data does not escape the scope of this function.
+    bunch.mat(); // Dump results to .mat files.
 }
 
 std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept
@@ -111,6 +113,8 @@ std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept
     double simulated_mu = config["simulated mu"];
     double expected_run_length = config["expected run length"];
     //bool do_change_of_measure = analyzed_mu != simulated_mu;
+    std::string log_filename = config["log file"];
+    std::string mat_folder = config["mat output"];
 
     // ~~ Signal ~~
     std::string signal_type = config["signal"]["type"];
@@ -123,16 +127,16 @@ std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept
 
         process_t<decltype(signal)> process(model, simulated_mu);
         bunch_t<decltype(signal)> bunch(model);
-        bunch.look_for(analyzed_mu, expected_run_length);
-        bunch.clear_log();
+        bunch.set_output_to(log_filename, mat_folder);
         // ~~ Contains information relevant to construction of stopping times and decision makers ~~
         for (const nlohmann::json& desc : config["procedures"])
         {
             if (!bunch.try_parse(desc)) std::cout << "Failed to parse " << desc << std::endl;
         }
+        bunch.look_for(analyzed_mu, expected_run_length);
 
         benchmark([&](){
-            run_length(process, bunch, monte_carlo_count);
+            run_length(process, bunch, analyzed_mu, monte_carlo_count);
             std::cout << std::endl;
         });
     }

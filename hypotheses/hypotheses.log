@@ -1,6 +1,6 @@
-Monte Carlo [100000] under null [0]
+Monte Carlo [1000] under null [0]
 AR parameters : [], mu : 0 vs. 1, noise sigma : 1.
-Fast A-SPRT { ESS: 13.4608---13.4608 pm 7.3952, P[error]: (176---176 pm 4191.56) e-5 }
-A-SPRT { ESS: 13.4608---13.4608 pm 7.3952, P[error]: (176---176 pm 4191.56) e-5 }
-GSPRT { ESS: 12.9991---12.9991 pm 6.22646, P[error]: (296---296 pm 5432.56) e-5 }
-GSPRT Star { ESS: 12.9991---12.9991 pm 6.22646, P[error]: (296---296 pm 5432.56) e-5 }
+Fast A-SPRT { ESS: 4.107---17.19 pm 8.18724, P[error]: (8900---0 pm 0) e-5 }
+A-SPRT { ESS: 4.107---17.19 pm 8.18724, P[error]: (8900---0 pm 0) e-5 }
+GSPRT { ESS: 3.241---15.482 pm 6.73461, P[error]: (13300---0 pm 0) e-5 }
+GSPRT Star { ESS: 3.241---15.482 pm 6.73461, P[error]: (13300---0 pm 0) e-5 }

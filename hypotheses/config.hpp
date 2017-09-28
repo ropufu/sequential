@@ -51,16 +51,26 @@ namespace ropufu
                     i >> this->m_json;
                     return true;
                 }
-
+                
                 /** Write the configuration to a file. */
                 bool write() noexcept
                 {
                     if (!this->m_has_changed) return true;
-                    std::ofstream o(this->m_filename); // Try to open the file for writing.
+                    if (this->write(this->m_filename))
+                    {
+                        this->m_has_changed = false;
+                        return true;
+                    }
+                    return false;
+                }
+
+                /** Write the configuration to a file. */
+                bool write(const std::string& filename) const noexcept
+                {
+                    std::ofstream o(filename); // Try to open the file for writing.
                     if (!o.good()) return false; // Stop on failure.
 
                     o << std::setw(4) << this->m_json << std::endl;
-                    this->m_has_changed = false;
                     return true;
                 }
 
