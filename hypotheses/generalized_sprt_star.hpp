@@ -19,12 +19,12 @@ namespace ropufu
             template <typename t_signal_type>
             struct generalized_sprt_star : public two_sprt<generalized_sprt_star<t_signal_type>, t_signal_type>
             {
-                typedef generalized_sprt_star<t_signal_type> type;
-                typedef two_sprt<generalized_sprt_star<t_signal_type>, t_signal_type> base_type;
+                using type = generalized_sprt_star<t_signal_type>;
+                using base_type = two_sprt<generalized_sprt_star<t_signal_type>, t_signal_type>;
                 
-                typedef t_signal_type signal_type;
-                typedef model<signal_type> model_type;
-                typedef process<signal_type> process_type;
+                using signal_type = t_signal_type;
+                using model_type = model<signal_type>;
+                using process_type = process<signal_type>;
                 friend struct two_sprt<type, signal_type>;
 
             private:

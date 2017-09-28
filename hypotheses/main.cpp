@@ -90,8 +90,8 @@ void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch
 
     // ~~ Clean up ~~
     bunch.log();
-    bunch.clear(); // Make sure the observed data does not escape the scope of this function.
     bunch.mat(); // Dump results to .mat files.
+    bunch.clear(); // Make sure the observed data does not escape the scope of this function.
 }
 
 std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept

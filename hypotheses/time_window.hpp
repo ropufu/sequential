@@ -17,8 +17,8 @@ namespace ropufu
             template <typename t_key_type>
             struct time_window
             {
-                typedef time_window<t_key_type> type;
-                typedef t_key_type key_type;
+                using type = time_window<t_key_type>;
+                using key_type = t_key_type;
 
             private:
                 std::size_t m_capacity; // Number of observations in history.

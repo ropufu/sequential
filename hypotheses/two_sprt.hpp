@@ -26,11 +26,11 @@ namespace ropufu
             template <typename t_derived_type, typename t_signal_type>
             struct two_sprt
             {
-                typedef two_sprt<t_derived_type, t_signal_type> type;
-                typedef t_derived_type derived_type;
-                typedef t_signal_type signal_type;
-                typedef model<signal_type> model_type;
-                typedef process<signal_type> process_type;
+                using type = two_sprt<t_derived_type, t_signal_type>;
+                using derived_type = t_derived_type;
+                using signal_type = t_signal_type;
+                using model_type = model<signal_type>;
+                using process_type = process<signal_type>;
 
                 template <typename t_data_type>
                 using matrix_t = aftermath::algebra::matrix<t_data_type>;

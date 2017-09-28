@@ -90,16 +90,16 @@ namespace ropufu
             template <typename t_signal_type>
             struct observer_bunch
             {
-                typedef observer_bunch<t_signal_type> type;
-                typedef t_signal_type signal_type;
-                typedef model<signal_type> model_type;
-                typedef process<signal_type> process_type;
-                typedef aftermath::format::matstream<4> matstream_type;
+                using type = observer_bunch<t_signal_type>;
+                using signal_type = t_signal_type;
+                using model_type = model<signal_type>;
+                using process_type = process<signal_type>;
+                using matstream_type = aftermath::format::matstream<4>;
 
-                typedef adaptive_sprt_star<signal_type>    fsprt_type;
-                typedef adaptive_sprt<signal_type>         asprt_type;
-                typedef generalized_sprt<signal_type>      gsprt_type;
-                typedef generalized_sprt_star<signal_type> hsprt_type;
+                using fsprt_type = adaptive_sprt_star<signal_type>;
+                using asprt_type = adaptive_sprt<signal_type>;
+                using gsprt_type = generalized_sprt<signal_type>;
+                using hsprt_type = generalized_sprt_star<signal_type>;
 
             private:
                 model_type m_model; // Hypotheses testing model descriptor.
@@ -129,6 +129,7 @@ namespace ropufu
                         // [0] [1] ... [prefix_size - 1].json
                         std::ostringstream prefix_stream;
                         for (std::size_t i = 0; i < prefix_size; i++) prefix_stream << prefix[i];
+                        this->m_model.mat_prefix(prefix_stream);
                         mat_prefix = prefix_stream.str();
                         prefix_stream << ".json";
                         // Build a path to current .json file. 

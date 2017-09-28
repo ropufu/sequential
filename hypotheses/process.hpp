@@ -26,25 +26,25 @@ namespace ropufu
                 template <typename t_distribution_type>
                 struct sampler_switch
                 {
-                    typedef t_distribution_type type; // Built-in c++ distribution types are also samplers.
+                    using type = t_distribution_type; // Built-in c++ distribution types are also samplers.
                 };
                 
                 template <>
                 struct sampler_switch<aftermath::probability::dist_normal>
                 {
-                    typedef aftermath::random::default_sampler_normal_t<std::default_random_engine>::type type;
+                    using type = aftermath::random::default_sampler_normal_t<std::default_random_engine>::type;
                 };
             }
 
             template <typename t_signal_type>
             struct process
             {
-                typedef process<t_signal_type> type;
-                typedef t_signal_type signal_type;
-                typedef model<signal_type> model_type;
-                typedef typename model_type::noise_distribution_type noise_distribution_type;
-                typedef typename detail::sampler_switch<noise_distribution_type>::type noise_sampler_type;
-                typedef std::default_random_engine engine_type;
+                using type = process<t_signal_type>;
+                using signal_type = t_signal_type;
+                using model_type = model<signal_type>;
+                using noise_distribution_type = typename model_type::noise_distribution_type;
+                using noise_sampler_type = typename detail::sampler_switch<noise_distribution_type>::type;
+                using engine_type = std::default_random_engine;
 
             private:
                 // ~~ Auxiliary members ~~

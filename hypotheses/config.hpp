@@ -20,7 +20,7 @@ namespace ropufu
                 */
             struct config
             {
-                typedef config type;
+                using type = config;
 
             private:
                 bool m_has_changed = false;

@@ -14,9 +14,9 @@ namespace ropufu
             template <typename t_data_type>
             struct moment_statistic
             {
-                typedef moment_statistic<t_data_type> type;
-                typedef t_data_type data_type;
-                typedef t_data_type value_type;
+                using type = moment_statistic<t_data_type>;
+                using data_type = t_data_type;
+                using value_type = t_data_type;
 
             private:
                 std::size_t m_count = 0;

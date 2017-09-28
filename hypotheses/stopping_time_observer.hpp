@@ -25,16 +25,16 @@ namespace ropufu
             template <typename t_stopping_time_type>
             struct stopping_time_observer
             {
-                typedef stopping_time_observer<t_stopping_time_type> type;
-                typedef t_stopping_time_type stopping_type;
-                typedef typename stopping_type::signal_type signal_type;
-                typedef typename stopping_type::model_type model_type;
-                typedef typename stopping_type::process_type process_type;
+                using type = stopping_time_observer<t_stopping_time_type>;
+                using stopping_type = t_stopping_time_type;
+                using signal_type = typename stopping_type::signal_type;
+                using model_type = typename stopping_type::model_type;
+                using process_type = typename stopping_type::process_type;
 
                 template <typename t_data_type>
                 using matrix_t = aftermath::algebra::matrix<t_data_type>;
                 
-                typedef moment_statistic<matrix_t<double>> statistic_type;
+                using statistic_type = moment_statistic<matrix_t<double>>;
 
                 /** Scaling factor for displaying error probabilities. */
                 static constexpr std::size_t error_factor = 100'000;

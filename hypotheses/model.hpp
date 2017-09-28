@@ -19,10 +19,10 @@ namespace ropufu
             template <typename t_signal_type>
             struct model
             {
-                typedef model type;
-                typedef t_signal_type signal_type;
-                typedef ropufu::aftermath::probability::dist_normal noise_distribution_type; // For aftermath engine.
-                // typedef std::normal_distribution<double> noise_distribution_type; // For built-in c++ engine.
+                using type = model;
+                using signal_type = t_signal_type;
+                using noise_distribution_type = ropufu::aftermath::probability::dist_normal; // For aftermath engine.
+                // using noise_distribution_type = std::normal_distribution<double>; // For built-in c++ engine.
 
             private:
                 signal_type m_signal; // Signal.
@@ -49,6 +49,14 @@ namespace ropufu
                     // Output other settings.
                     os << ", mu : " << self.m_null_mu << " vs. " << self.m_alt_mu;
                     os << ", noise sigma : " << self.m_noise_sigma << ".";
+                    return os;
+                }
+
+                std::ostringstream& mat_prefix(std::ostringstream& os) const noexcept
+                {
+                    os << (this->m_ar_parameters.empty() ? "no_ar" : "ar");
+                    for (double rho : this->m_ar_parameters) os << "_" << rho;
+                    os << "_mu_null_" << this->m_null_mu << "_alt_" << this->m_alt_mu;
                     return os;
                 }
 

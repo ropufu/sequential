@@ -15,7 +15,7 @@ namespace ropufu
             /** Represents a constant signal. */
             struct constant_signal
             {
-                typedef constant_signal type;
+                using type = constant_signal;
 
             private:
                 double m_level;
