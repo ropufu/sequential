@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 #include "config.hpp"
+#include "filesystem.hpp"
 #include "matlab.hpp"
 #include "model.hpp"
 #include "process.hpp"
@@ -54,36 +55,7 @@ namespace ropufu
                     o.set_thresholds(thresholds_null, thresholds_alt);
                     collection.push_back(o);
                     return true;
-                }
-
-                /** Combines two paths. */
-                static std::string path_combine(const std::string& folder_path, const std::string& filename) noexcept
-                {
-                    if (folder_path.empty()) return filename;
-
-                    std::ostringstream path_stream;
-                    path_stream << folder_path;
-                    if (folder_path.back() != '/' && folder_path.back() != '\\') path_stream << '/';
-                    path_stream << filename;
-                    return path_stream.str();
-                }
-
-                static bool does_file_exist(const std::string& file_path) noexcept
-                {
-                    std::ifstream i(file_path);
-                    return i.good();
-                }
-
-                static bool can_write_surely(const std::string& file_path, const std::string& caller_function_name, std::size_t line_number) noexcept
-                {
-                    std::ofstream o(file_path, std::ios_base::app); // Try to open the file for writing.
-                    if (!o.good())
-                    {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Could not write to file.", caller_function_name, line_number);
-                        return false; // Stop on failure.
-                    }
-                    return true;
-                }
+                }              
             }
 
             /** A collection of any number of observers for the pre-defined types of stopping times. */
@@ -105,6 +77,10 @@ namespace ropufu
                 model_type m_model; // Hypotheses testing model descriptor.
                 bool m_has_parsed = false;
                 bool m_has_been_initialized = false;
+                bool m_do_fix_mat_prefix = false;
+                std::string m_mat_prefix = "";
+                std::string m_error_var_name;
+                std::string m_run_length_var_name;
                 std::string m_log_filename;
                 std::string m_mat_folder;
                 std::vector<stopping_time_observer<fsprt_type>> m_fsprts;
@@ -112,8 +88,14 @@ namespace ropufu
                 std::vector<stopping_time_observer<gsprt_type>> m_gsprts;
                 std::vector<stopping_time_observer<hsprt_type>> m_hsprts;
 
-                std::string generate_mat_prefix()
+                /** @brief Generates prefix for .mat files, and copies the config file to the output folder.
+                 *  @remark If prefix has been fixed, and has already been generated, does nothing.
+                 */
+                void generate_mat_prefix()
                 {
+                    // If the prefix has been fixed, and has already been generated, do nothing.
+                    if (this->m_do_fix_mat_prefix && this->m_mat_prefix != "") return;
+
                     constexpr std::size_t prefix_size = 3;
                     char letter_from = 'a';
                     char letter_to = 'z';
@@ -133,9 +115,9 @@ namespace ropufu
                         mat_prefix = prefix_stream.str();
                         prefix_stream << ".json";
                         // Build a path to current .json file. 
-                        file_path = detail::path_combine(this->m_mat_folder, prefix_stream.str());
+                        file_path = filesystem::path_combine(this->m_mat_folder, prefix_stream.str());
 
-                        if (!detail::does_file_exist(file_path)) break; // If the path does not exist all is well; proceed with current prefix.
+                        if (!filesystem::does_file_exist(file_path)) break; // If the path does not exist all is well; proceed with current prefix.
 
                         // The prefix is already taken: switch to next one.
                         std::size_t index = prefix_size - 1;
@@ -154,38 +136,50 @@ namespace ropufu
                         if (is_overflow)
                         {
                             aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Name pool exhausted!", __FUNCTION__, __LINE__);
-                            return "";
+                            return;
                         }
                     }
+                    // Copy the current configuration to output folder.
                     config::instance().write(file_path);
-                    return mat_prefix;
+                    this->m_mat_prefix = mat_prefix;
                 }
 
                 template <typename t_stopping_type>
-                void write_mat(const stopping_time_observer<t_stopping_type>& observer, const std::string& mat_prefix)
+                void write_mat(const stopping_time_observer<t_stopping_type>& observer)
                 {
                     typedef typename stopping_time_observer<t_stopping_type>::statistic_type statistic_type;
                     typedef t_stopping_type stopping_type;
 
+                    if (this->m_mat_prefix == "")
+                    {
+                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Mat prefix has not been generated.", __FUNCTION__, __LINE__);
+                        return;
+                    }
+                    if (this->m_error_var_name == "" || this->m_run_length_var_name == "")
+                    {
+                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Variable names have not been set.", __FUNCTION__, __LINE__);
+                        return;
+                    }
+
                     std::ostringstream mat_name_stream;
-                    mat_name_stream << mat_prefix << "_" << observer.type_name();
+                    mat_name_stream << this->m_mat_prefix << "_" << observer.type_name();
                     mat_name_stream << ".mat";
 
-                    std::string mat_filename = detail::path_combine(this->m_mat_folder, mat_name_stream.str());
-                    if (!detail::can_write_surely(mat_filename, __FUNCTION__, __LINE__)) return;
+                    std::string mat_filename = filesystem::path_combine(this->m_mat_folder, mat_name_stream.str());
+                    if (!filesystem::can_write_surely(mat_filename, __FUNCTION__, __LINE__)) return;
 
                     const stopping_type& stopping_time = observer.stopping_time();
                     const statistic_type& errors = observer.errors();
                     const statistic_type& run_lengths = observer.run_lengths();
                     matstream_type mat(mat_filename);
-                    mat.clear();
+                    // mat.clear(); // Clear the existing contents.
                     
                     mat << "b_null" << stopping_time.unscaled_null_thresholds();
                     mat << "b_alt" << stopping_time.unscaled_alt_thresholds();
-                    mat << "error_mean" << errors.mean();
-                    mat << "error_var" << errors.variance();
-                    mat << "sample_size_mean" << run_lengths.mean();
-                    mat << "sample_size_var" << run_lengths.variance();
+                    mat << this->m_error_var_name << "_mean" << errors.mean();
+                    mat << this->m_error_var_name << "_var" << errors.variance();
+                    mat << this->m_run_length_var_name << "_mean" << run_lengths.mean();
+                    mat << this->m_run_length_var_name << "_var" << run_lengths.variance();
                 }
             
             public:
@@ -219,18 +213,6 @@ namespace ropufu
                 }
 
                 /** Write the brief summary to a log file. */
-                void mat() noexcept
-                {
-                    std::string mat_prefix = this->generate_mat_prefix();
-                    if (!aftermath::quiet_error::instance().good()) return;
-
-                    for (const auto& p : this->m_fsprts) this->write_mat(p, mat_prefix);
-                    for (const auto& p : this->m_asprts) this->write_mat(p, mat_prefix);
-                    for (const auto& p : this->m_gsprts) this->write_mat(p, mat_prefix);
-                    for (const auto& p : this->m_hsprts) this->write_mat(p, mat_prefix);
-                }
-
-                /** Write the brief summary to a log file. */
                 void log() noexcept
                 {
                     std::ofstream o(this->m_log_filename, std::ios_base::app); // Try to open the file for writing.
@@ -244,6 +226,18 @@ namespace ropufu
                     for (const auto& p : this->m_asprts) o << p << std::endl;
                     for (const auto& p : this->m_gsprts) o << p << std::endl;
                     for (const auto& p : this->m_hsprts) o << p << std::endl;
+                }
+
+                /** Write the results to a .mat file. */
+                void mat() noexcept
+                {
+                    this->generate_mat_prefix();
+                    if (!aftermath::quiet_error::instance().good()) return;
+
+                    for (const auto& p : this->m_fsprts) this->write_mat(p);
+                    for (const auto& p : this->m_asprts) this->write_mat(p);
+                    for (const auto& p : this->m_gsprts) this->write_mat(p);
+                    for (const auto& p : this->m_hsprts) this->write_mat(p);
                 }
                 
                 explicit observer_bunch(const model_type& model) noexcept
@@ -260,6 +254,15 @@ namespace ropufu
                     for (auto& p : this->m_hsprts) p.clear();
                 }
 
+                /** Fixes the output file, so that results of several simulations are stored in the same place. */
+                void fix_mat_prefix() noexcept { this->m_do_fix_mat_prefix = true; }
+
+                void set_var_names(const std::string& error_var_name, const std::string& run_length_var_name, const std::string& suffix) noexcept
+                {
+                    this->m_error_var_name = error_var_name + "_" + suffix;
+                    this->m_run_length_var_name = run_length_var_name + "_" + suffix;
+                }
+
                 void set_output_to(const std::string& log_filename, const std::string& mat_folder) noexcept
                 {
                     if (log_filename.empty()) aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Log filename cannot be empty.", __FUNCTION__, __LINE__);
@@ -267,8 +270,8 @@ namespace ropufu
                     if (!aftermath::quiet_error::instance().good()) return;
 
                     // Now that the trivial checks have been made, see if the paths are accessible.
-                    if (!detail::can_write_surely(log_filename, __FUNCTION__, __LINE__)) return;
-                    if (!detail::can_write_surely(detail::path_combine(mat_folder, "dummy.mat"), __FUNCTION__, __LINE__)) return;
+                    if (!filesystem::can_write_surely(log_filename, __FUNCTION__, __LINE__)) return;
+                    if (!filesystem::can_write_surely(filesystem::path_combine(mat_folder, "dummy.mat"), __FUNCTION__, __LINE__)) return;
 
                     this->m_log_filename = log_filename;
                     this->m_mat_folder = mat_folder;
@@ -346,15 +349,15 @@ namespace ropufu
             
                     if (type_name == "adaptive_sprt_star")
                     {
-                        double guess_mu_null = json["mu guess for null"]; // Initial guess for signal "strength" for adaptive LLR under the null hypothesis.
-                        double guess_mu_alt = json["mu guess for alt"]; // Initial guess for signal "strength" for adaptive LLR under the alternative hypothesis.
-                        return detail::try_push_back(this->m_fsprts, type_name, proc_name, thresholds_null, thresholds_alt, this->m_model, guess_mu_null, guess_mu_alt);
+                        double relative_guess_mu_null = json["relative mu guess for null"]; // Initial guess for signal "strength" for adaptive LLR under the null hypothesis.
+                        double relative_guess_mu_alt = json["relative mu guess for alt"]; // Initial guess for signal "strength" for adaptive LLR under the alternative hypothesis.
+                        return detail::try_push_back(this->m_fsprts, type_name, proc_name, thresholds_null, thresholds_alt, this->m_model, relative_guess_mu_null, relative_guess_mu_alt);
                     }
                     if (type_name == "adaptive_sprt")
                     {
-                        double guess_mu_null = json["mu guess for null"];
-                        double guess_mu_alt = json["mu guess for alt"];
-                        return detail::try_push_back(this->m_asprts, type_name, proc_name, thresholds_null, thresholds_alt, this->m_model, guess_mu_null, guess_mu_alt);
+                        double relative_guess_mu_null = json["relative mu guess for null"];
+                        double relative_guess_mu_alt = json["relative mu guess for alt"];
+                        return detail::try_push_back(this->m_asprts, type_name, proc_name, thresholds_null, thresholds_alt, this->m_model, relative_guess_mu_null, relative_guess_mu_alt);
                     }
                     if (type_name == "generalized_sprt")
                     {
@@ -362,7 +365,8 @@ namespace ropufu
                     }
                     if (type_name == "generalized_sprt_star")
                     {
-                        return detail::try_push_back(this->m_hsprts, type_name, proc_name, thresholds_null, thresholds_alt, this->m_model);
+                        double relative_mu_star = json["relative mu star"];
+                        return detail::try_push_back(this->m_hsprts, type_name, proc_name, thresholds_null, thresholds_alt, this->m_model, relative_mu_star);
                     }
                     aftermath::quiet_error::instance().push(aftermath::not_an_error::all_good, "Type name not recognized.", __FUNCTION__, __LINE__);
                     return false;

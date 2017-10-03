@@ -69,13 +69,12 @@ namespace ropufu
                 }
 
             public:
-                explicit adaptive_sprt(const model_type& model, double guess_mu_for_null, double guess_mu_for_alt) noexcept
+                explicit adaptive_sprt(const model_type& model, double relative_guess_mu_for_null, double relative_guess_mu_for_alt) noexcept
                     : base_type(model),
-                    m_guess_mu_for_null(guess_mu_for_null), 
-                    m_guess_mu_for_alt(guess_mu_for_alt),
-                    m_mu_estimator_for_llr_null(guess_mu_for_null), 
-                    m_mu_estimator_for_llr_alt(guess_mu_for_alt)
+                    m_guess_mu_for_null(model.mu_relative(relative_guess_mu_for_null)),
+                    m_guess_mu_for_alt(model.mu_relative(relative_guess_mu_for_alt))
                 {
+                    this->reset_unchecked();
                 }
 
                 bool do_decide_null(double threshold) const noexcept { return this->m_unscaled_distance_from_alt > threshold; }

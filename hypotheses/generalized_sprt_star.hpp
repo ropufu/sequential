@@ -57,8 +57,9 @@ namespace ropufu
                 }
 
             public:
-                explicit generalized_sprt_star(const model_type& model) noexcept
-                    : base_type(model), m_mu_star((model.mu_under_null() + model.mu_under_alt()) / 2)
+                explicit generalized_sprt_star(const model_type& model, double relative_mu_star) noexcept
+                    : base_type(model),
+                    m_mu_star(model.mu_relative(relative_mu_star))
                 {
                 }
 

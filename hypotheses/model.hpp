@@ -54,8 +54,11 @@ namespace ropufu
 
                 std::ostringstream& mat_prefix(std::ostringstream& os) const noexcept
                 {
-                    os << (this->m_ar_parameters.empty() ? "no_ar" : "ar");
-                    for (double rho : this->m_ar_parameters) os << "_" << rho;
+                    if (!this->m_ar_parameters.empty()) 
+                    {
+                        os << "_ar";
+                        for (double rho : this->m_ar_parameters) os << "_" << rho;
+                    }
                     os << "_mu_null_" << this->m_null_mu << "_alt_" << this->m_alt_mu;
                     return os;
                 }
@@ -69,6 +72,9 @@ namespace ropufu
                 {
                     this->m_signal.set_auto_regression(this->m_ar_parameters);
                 }
+
+                /** Linear combination of \c mu_under_null and \c mu_under_alt with weights (1 - \p p) and (\p p). */
+                double mu_relative(double p) const noexcept { return (1 - p) * this->m_null_mu + (p) * this->m_alt_mu; }
                 
                 /** Signal "strength" under the null hypothesis. */
                 double mu_under_null() const noexcept { return this->m_null_mu; }

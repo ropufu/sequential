@@ -1,2 +1,2 @@
-Monte Carlo [100000] under null [0]
-AR parameters : [], mu : 0 vs. 1, noise sigma : 1.
+Monte Carlo [10000] under null [0]
+AR parameters : [], mu : 0 vs. 0.8, noise sigma : 1.

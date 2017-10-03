@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 
 #include "config.hpp"
+#include "filesystem.hpp"
 #include "model.hpp"
 #include "process.hpp"
 #include "signals.hpp"
@@ -20,14 +21,14 @@
 #include <sstream>
 #include <string>
 
-typedef ropufu::sequential::hypotheses::config config_type;
-typedef ropufu::sequential::hypotheses::constant_signal constant_signal_type;
+using config_type = ropufu::sequential::hypotheses::config;
+using constant_signal_type = ropufu::sequential::hypotheses::constant_signal;
+using filesystem_type = ropufu::sequential::hypotheses::filesystem;
 
-typedef ropufu::aftermath::probability::empirical_measure<double, std::size_t, double> empirical_measure_type;
-typedef ropufu::aftermath::format::matstream<4> matstream_type;
-typedef ropufu::aftermath::algebra::matrix<double> matrix_type;
-typedef ropufu::aftermath::not_an_error not_an_error_type;
-typedef ropufu::aftermath::quiet_error quiet_error_type;
+using matstream_type = ropufu::aftermath::format::matstream<4>;
+using matrix_type = ropufu::aftermath::algebra::matrix<double>;
+using not_an_error_type = ropufu::aftermath::not_an_error;
+using quiet_error_type = ropufu::aftermath::quiet_error;
 
 template <typename t_stopping_time_type>
 using observer_t = ropufu::sequential::hypotheses::stopping_time_observer<t_stopping_time_type>;
@@ -94,10 +95,62 @@ void run_length(process_t<t_signal_type>& process, bunch_t<t_signal_type>& bunch
     bunch.clear(); // Make sure the observed data does not escape the scope of this function.
 }
 
+template <typename t_signal_type>
+void execute_model(const model_t<t_signal_type>& model) noexcept
+{
+    if (!quiet_error_type::instance().good()) return;
+    std::cout << model << std::endl;
+
+    //quiet_error_type& quiet_error = quiet_error_type::instance();
+    const config_type& config = config_type::instance();
+
+    // ~~ Monte Carlo ~~
+    std::size_t monte_carlo_count = config["monte carlo"];
+    // ~~
+    std::vector<double> additional_analyzed_mu = config["more analyzed mu's"]; // Additional analyzed mu scenarios.
+    std::vector<double> additional_simulated_mu = config["more simulated mu's"]; // Additional simulated mu scenarios.
+    // ~~
+    double expected_run_length = config["expected run length"];
+    std::string log_filename = filesystem_type::format_path(config["log file"]);
+    std::string mat_folder = filesystem_type::format_path(config["mat output"]);
+
+    bunch_t<t_signal_type> bunch(model);
+    bunch.set_output_to(log_filename, mat_folder);
+    // ~~ Contains information relevant to construction of stopping times and decision makers ~~
+    for (const nlohmann::json& desc : config["procedures"])
+    {
+        if (!bunch.try_parse(desc)) std::cout << "Failed to parse " << desc << std::endl;
+    }
+
+    double null_mu = model.mu_under_null();
+    double alt_mu = model.mu_under_alt();
+    bunch.fix_mat_prefix(); // Fixes the output file, so that results of several simulations are stored in the same place.
+    for (double analyzed_mu : {null_mu, alt_mu})
+    {
+        for (double simulated_mu : {null_mu, alt_mu})
+        {
+            bool do_change_of_measure = analyzed_mu != simulated_mu;
+            bool is_null = analyzed_mu == null_mu;
+            bunch.set_var_names(
+                is_null ? "false_alarm" : "missed_signal", 
+                is_null ? "sample_size_h0" : "sample_size_h1", 
+                do_change_of_measure ? "chg" : "noch");
+
+            process_t<t_signal_type> process(model, simulated_mu);
+            bunch.look_for(analyzed_mu, expected_run_length);
+
+            benchmark([&](){
+                run_length(process, bunch, analyzed_mu, monte_carlo_count);
+                std::cout << std::endl;
+            });
+        }
+    }
+    
+    // @todo Add additional simulated/analyzed mu's.
+}
+
 std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept
 {
-    //if (argc > 1) std::cout << argv[1] << std::endl;
-
     quiet_error_type& quiet_error = quiet_error_type::instance();
     const config_type& config = config_type::instance();
     //std::cout << config << std::endl;
@@ -105,40 +158,32 @@ std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept
     std::vector<double> ar_parameters = config["AR parameters"];
     double noise_sigma = config["noise sigma"];
     // ~~ Hypotheses ~~
-    double null_mu = config["null mu"];
-    double alt_mu = config["alt mu"];
-    // ~~ Monte Carlo ~~
-    std::size_t monte_carlo_count = config["monte carlo"];
-    double analyzed_mu = config["analyzed mu"];
-    double simulated_mu = config["simulated mu"];
-    double expected_run_length = config["expected run length"];
-    //bool do_change_of_measure = analyzed_mu != simulated_mu;
-    std::string log_filename = config["log file"];
-    std::string mat_folder = config["mat output"];
+    std::vector<double> null_mus = config["null mu's"];
+    std::vector<double> alt_mus = config["alt mu's"];
+    if (null_mus.size() != alt_mus.size())
+    {
+        std::cout << "Null mu's and alt mu's should have the same number of elements." << std::endl;
+        return 0;
+    }
+    std::size_t count_mus = null_mus.size();
 
     // ~~ Signal ~~
-    std::string signal_type = config["signal"]["type"];
-    if (signal_type == "const")
+    std::string signal_type_name = config["signal"]["type"];
+    if (signal_type_name == "const")
     {
         double signal_level = config["signal"]["level"];
         constant_signal_type signal(signal_level);
-        model_t<decltype(signal)> model(signal, null_mu, alt_mu, noise_sigma, ar_parameters);
-        std::cout << model << std::endl;
 
-        process_t<decltype(signal)> process(model, simulated_mu);
-        bunch_t<decltype(signal)> bunch(model);
-        bunch.set_output_to(log_filename, mat_folder);
-        // ~~ Contains information relevant to construction of stopping times and decision makers ~~
-        for (const nlohmann::json& desc : config["procedures"])
+        for (std::size_t k = 0; k < count_mus; k++)
         {
-            if (!bunch.try_parse(desc)) std::cout << "Failed to parse " << desc << std::endl;
+            model_t<decltype(signal)> model(signal, null_mus[k], alt_mus[k], noise_sigma, ar_parameters);
+            execute_model(model);
         }
-        bunch.look_for(analyzed_mu, expected_run_length);
-
-        benchmark([&](){
-            run_length(process, bunch, analyzed_mu, monte_carlo_count);
-            std::cout << std::endl;
-        });
+    }
+    else
+    {
+        std::cout << "Signal type not recognized: " << signal_type_name << std::endl;
+        return 0;
     }
 
     if (quiet_error.good()) std::cout << "~~ Oh no! Errors encoutered: ~~" << std::endl;
@@ -151,6 +196,6 @@ std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept
         not_an_error_type err = quiet_error.pop(message, function_name, line);
         std::cout << '\t' << static_cast<std::size_t>(err) << " on line " << line << " of <" << function_name << ">:\t" << message << std::endl;
     }
-    //std::cout << "Press any key to continue . . ." << std::endl;
+    
     return 0;
 }
