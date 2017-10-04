@@ -19,7 +19,7 @@ namespace ropufu
             template <typename t_signal_type>
             struct model
             {
-                using type = model;
+                using type = model<t_signal_type>;
                 using signal_type = t_signal_type;
                 using noise_distribution_type = ropufu::aftermath::probability::dist_normal; // For aftermath engine.
                 // using noise_distribution_type = std::normal_distribution<double>; // For built-in c++ engine.

@@ -23,7 +23,7 @@ namespace ropufu
                 using base_type = two_sprt<adaptive_sprt<t_signal_type>, t_signal_type>;
                 
                 using signal_type = t_signal_type;
-                using model_type = model<signal_type>;
+                using model_type = hypotheses::model<signal_type>;
                 using process_type = process<signal_type>;
                 friend struct two_sprt<type, signal_type>;
 
