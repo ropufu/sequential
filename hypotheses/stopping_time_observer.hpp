@@ -173,7 +173,7 @@ namespace ropufu
                             // Check if the stopping time has stopped!
                             if (!has_crossed_null && !has_crossed_alt)
                             {
-                                aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "The procedure has not stopped!", __FUNCTION__, __LINE__);
+                                aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "The procedure has not stopped!", __FUNCTION__, __LINE__);
                                 this->m_stopping_time.reset(); // If not, reset the rule anyway.
                                 return;
                             }

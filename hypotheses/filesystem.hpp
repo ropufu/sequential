@@ -76,7 +76,10 @@ namespace ropufu
                     std::ofstream o(filesystem::format_path(file_path), std::ios_base::app); // Try to open the file for writing.
                     if (!o.good())
                     {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Could not write to file.", caller_function_name, line_number);
+                        aftermath::quiet_error::instance().push(
+                            aftermath::not_an_error::runtime_error,
+                            aftermath::severity_level::minor,
+                            "Could not write to file.", caller_function_name, line_number);
                         return false; // Stop on failure.
                     }
                     return true;

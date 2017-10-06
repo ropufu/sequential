@@ -61,7 +61,10 @@ namespace ropufu
                     if (name == "log") return matlab::logspace(from, to, count);
                     if (name == "exp") return matlab::expspace(from, to, count);
                     
-                    aftermath::quiet_error::instance().push(aftermath::not_an_error::all_good, "Threshold spacing not recognized. Defaulting to linear.", __FUNCTION__, __LINE__);
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::all_good,
+                        aftermath::severity_level::not_at_all,
+                        "Threshold spacing not recognized. Defaulting to linear.", __FUNCTION__, __LINE__);
                     return matlab::linspace(from, to, count);
                 }
             };

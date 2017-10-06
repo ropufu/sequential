@@ -103,9 +103,9 @@ namespace ropufu
                 /** @remark Thresholds have to be of the same size; they are independently(!) sorted and then paired up. */
                 void set_thresholds(const std::vector<double>& null_thresholds, const std::vector<double>& alt_thresholds) noexcept
                 {
-                    if (this->m_is_initialized)  aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "Thresholds have to be set prior to first observation.", __FUNCTION__, __LINE__);
-                    if (null_thresholds.empty()) aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "At least one null threshold has to be specified.", __FUNCTION__, __LINE__);
-                    if (alt_thresholds.empty())  aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "At least one alt threshold has to be specified.", __FUNCTION__, __LINE__);
+                    if (this->m_is_initialized)  aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Thresholds have to be set prior to first observation.", __FUNCTION__, __LINE__);
+                    if (null_thresholds.empty()) aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "At least one null threshold has to be specified.", __FUNCTION__, __LINE__);
+                    if (alt_thresholds.empty())  aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "At least one alt threshold has to be specified.", __FUNCTION__, __LINE__);
                     if (!aftermath::quiet_error::instance().good()) return;
 
                     this->m_is_initialized = true;
@@ -151,7 +151,7 @@ namespace ropufu
                     if (this->has_stopped()) return; // Do nothing if the process hasn't collected any observations.
 
                     std::size_t time_index = proc.count() - 1;
-                    if (time_index != this->m_counts.back()) aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "Process and stopping time are out of sync.", __FUNCTION__, __LINE__);
+                    if (time_index != this->m_counts.back()) aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Process and stopping time are out of sync.", __FUNCTION__, __LINE__);
                     if (!aftermath::quiet_error::instance().good()) return;
 
                     this->observe_unchecked(proc);

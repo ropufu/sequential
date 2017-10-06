@@ -135,7 +135,7 @@ namespace ropufu
                         // Check if we've run out of options.
                         if (is_overflow)
                         {
-                            aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Name pool exhausted!", __FUNCTION__, __LINE__);
+                            aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, aftermath::severity_level::major, "Name pool exhausted!", __FUNCTION__, __LINE__);
                             return;
                         }
                     }
@@ -152,12 +152,12 @@ namespace ropufu
 
                     if (this->m_mat_prefix == "")
                     {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Mat prefix has not been generated.", __FUNCTION__, __LINE__);
+                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, aftermath::severity_level::major, "Mat prefix has not been generated.", __FUNCTION__, __LINE__);
                         return;
                     }
                     if (this->m_error_var_name == "" || this->m_run_length_var_name == "")
                     {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Variable names have not been set.", __FUNCTION__, __LINE__);
+                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, aftermath::severity_level::major, "Variable names have not been set.", __FUNCTION__, __LINE__);
                         return;
                     }
 
@@ -195,7 +195,7 @@ namespace ropufu
                 void clear_log() noexcept
                 {
                     std::ofstream o(this->m_log_filename); // Try to open the file for writing and erase current contents..
-                    if (!o.good()) aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Log file could not be cleared.", __FUNCTION__, __LINE__);
+                    if (!o.good()) aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, aftermath::severity_level::minor, "Log file could not be cleared.", __FUNCTION__, __LINE__);
                 }
 
                 /** Writes the caption to a log file. */
@@ -205,7 +205,7 @@ namespace ropufu
                     std::ofstream o(this->m_log_filename, std::ios_base::app); // Try to open the file for writing.
                     if (!o.good())
                     {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Could not write to log file.", __FUNCTION__, __LINE__);
+                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, aftermath::severity_level::minor, "Could not write to log file.", __FUNCTION__, __LINE__);
                         return; // Stop on failure.
                     }
                     o << caption << std::endl;
@@ -218,7 +218,7 @@ namespace ropufu
                     std::ofstream o(this->m_log_filename, std::ios_base::app); // Try to open the file for writing.
                     if (!o.good())
                     {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Could not write to log file.", __FUNCTION__, __LINE__);
+                        aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, aftermath::severity_level::minor, "Could not write to log file.", __FUNCTION__, __LINE__);
                         return; // Stop on failure.
                     }
 
@@ -265,8 +265,8 @@ namespace ropufu
 
                 void set_output_to(const std::string& log_filename, const std::string& mat_folder) noexcept
                 {
-                    if (log_filename.empty()) aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Log filename cannot be empty.", __FUNCTION__, __LINE__);
-                    if (mat_folder.empty()) aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, "Mat folder path cannot be empty.", __FUNCTION__, __LINE__);
+                    if (log_filename.empty()) aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, aftermath::severity_level::minor, "Log filename cannot be empty.", __FUNCTION__, __LINE__);
+                    if (mat_folder.empty()) aftermath::quiet_error::instance().push(aftermath::not_an_error::runtime_error, aftermath::severity_level::minor, "Mat folder path cannot be empty.", __FUNCTION__, __LINE__);
                     if (!aftermath::quiet_error::instance().good()) return;
 
                     // Now that the trivial checks have been made, see if the paths are accessible.
@@ -282,7 +282,10 @@ namespace ropufu
                 {
                     if (!this->m_has_parsed)
                     {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "Parsing has to be done prior to initialization.", __FUNCTION__, __LINE__);
+                        aftermath::quiet_error::instance().push(
+                            aftermath::not_an_error::logic_error,
+                            aftermath::severity_level::major,
+                            "Parsing has to be done prior to initialization.", __FUNCTION__, __LINE__);
                         return;
                     }
                     this->m_has_been_initialized = true;
@@ -326,7 +329,10 @@ namespace ropufu
                 {
                     if (this->m_has_been_initialized)
                     {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, "Parsing has to be done before initialization is completed.", __FUNCTION__, __LINE__);
+                        aftermath::quiet_error::instance().push(
+                            aftermath::not_an_error::logic_error, 
+                            aftermath::severity_level::major,
+                            "Parsing has to be done before initialization is completed.", __FUNCTION__, __LINE__);
                         return false;
                     }
                     this->m_has_parsed = true;
@@ -340,7 +346,10 @@ namespace ropufu
 
                     if (threshold_range_null.size() != 2 || threshold_range_alt.size() != 2)
                     {
-                        aftermath::quiet_error::instance().push(aftermath::not_an_error::all_good, "Threshold range should be a vector with two entries.", __FUNCTION__, __LINE__);
+                        aftermath::quiet_error::instance().push(
+                            aftermath::not_an_error::all_good,
+                            aftermath::severity_level::minor,
+                            "Threshold range should be a vector with two entries.", __FUNCTION__, __LINE__);
                         return false;
                     }
 
@@ -368,7 +377,10 @@ namespace ropufu
                         double relative_mu_star = json["relative mu star"];
                         return detail::try_push_back(this->m_hsprts, type_name, proc_name, thresholds_null, thresholds_alt, this->m_model, relative_mu_star);
                     }
-                    aftermath::quiet_error::instance().push(aftermath::not_an_error::all_good, "Type name not recognized.", __FUNCTION__, __LINE__);
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::all_good,
+                        aftermath::severity_level::negligible,
+                        "Type name not recognized.", __FUNCTION__, __LINE__);
                     return false;
                 }
             };

@@ -43,14 +43,14 @@ template <typename t_function_type>
 void benchmark(t_function_type&& action) noexcept
 {
     if (!quiet_error_type::instance().good()) return;
-    typedef std::chrono::high_resolution_clock clock_type;
+    using clock_type = std::chrono::steady_clock;
+
     auto tic = clock_type::now();
     action();
     auto toc = clock_type::now();
-    auto dt = toc.time_since_epoch() - tic.time_since_epoch();
-    auto seconds = static_cast<double>(dt.count() * clock_type::period::num) / clock_type::period::den;
+    double elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(toc - tic).count() / 1'000.0;
 
-    std::cout << "Elapsed time " << seconds << " s." << std::endl << std::flush;
+    std::cout << "Elapsed time " << elapsed_seconds << " s." << std::endl << std::flush;
 }
 
 template <typename t_signal_type>
@@ -186,15 +186,16 @@ std::int32_t main(std::int32_t argc, char* argv[], char* envp[]) noexcept
         return 0;
     }
 
-    if (quiet_error.good()) std::cout << "~~ Oh no! Errors encoutered: ~~" << std::endl;
-    else if (quiet_error.empty()) std::cout << "~~ Something to keep in mind: ~~" << std::endl;
+    if (!quiet_error.good()) std::cout << "~~ Oh no! Errors encoutered: ~~" << std::endl;
+    else if (!quiet_error.empty()) std::cout << "~~ Something to keep in mind: ~~" << std::endl;
     while (!quiet_error.empty())
     {
-        std::string message = "";
-        std::string function_name = "";
-        std::size_t line = 0;
-        not_an_error_type err = quiet_error.pop(message, function_name, line);
-        std::cout << '\t' << static_cast<std::size_t>(err) << " on line " << line << " of <" << function_name << ">:\t" << message << std::endl;
+        ropufu::aftermath::quiet_error_descriptor err = quiet_error.pop();
+        std::cout << '\t' <<
+            " level " << static_cast<std::size_t>(err.severity()) <<
+            " error # " << static_cast<std::size_t>(err.error_code()) <<
+            " on line " << err.caller_line_number() <<
+            " of <" << err.caller_function_name() << ">:\t" << err.description() << std::endl;
     }
     
     return 0;
