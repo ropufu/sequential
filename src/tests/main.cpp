@@ -7,10 +7,11 @@
 #include "rule_test.hpp"
 #include "monte_carlo_test.hpp"
 
-#include <chrono> // std::chrono::steady_clock, std::chrono::duration_cast
-#include <cstddef> // std::size_t
-#include <cstdint> // std::int32_t
+#include <chrono>   // std::chrono::steady_clock, std::chrono::duration_cast
+#include <cstddef>  // std::size_t
+#include <cstdint>  // std::int32_t
 #include <iostream> // std::cout, std::endl
+#include <string>   // std::string
 
 using signal_test = ropufu::sequential::hypotheses_test::signal_test;
 using noise_test = ropufu::sequential::hypotheses_test::noise_test;
@@ -21,7 +22,7 @@ using monte_carlo_test = ropufu::sequential::hypotheses_test::monte_carlo_test;
 using quiet_error = ropufu::aftermath::quiet_error;
 
 template <typename t_test_type>
-bool run_test(t_test_type test, const std::string& name)
+bool run_test(t_test_type test, std::string&& name)
 {
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     bool result = test();

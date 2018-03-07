@@ -23,13 +23,15 @@ namespace ropufu
             struct noise_base : public timed<noise_base<t_derived_type, t_value_type>>
             {
                 using type = noise_base<t_derived_type, t_value_type>;
+                using base_type = timed<type>;
+                friend base_type;
+
+                using timed_type = typename base_type::timed_type;
                 using noise_base_type = t_derived_type; // Type that this CRTP is templated on.
                 using value_type = t_value_type;
 
             private:
-                using base_type = timed<type>;
                 using derived_type = t_derived_type;
-                friend base_type;
 
                 value_type m_current_value = 0;
 

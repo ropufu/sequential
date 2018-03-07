@@ -45,6 +45,13 @@ namespace ropufu
             struct xsprt : public observer<xsprt<t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
             {
                 using type = xsprt<t_signal_type, t_noise_type, t_sync_check>;
+                using base_type = observer<type, t_signal_type, t_noise_type, t_sync_check>;
+                friend base_type;
+
+                using signal_type = typename base_type::signal_type;
+                using noise_type = typename base_type::noise_type;
+                using process_type = typename base_type::process_type;
+                using value_type = typename base_type::value_type;
                 using model_type = hypotheses::model<value_type>;
                 using likelihood_type = hypotheses::likelihood<t_signal_type, t_noise_type, t_sync_check>;
 
@@ -65,9 +72,6 @@ namespace ropufu
                 static constexpr char jstr_sprt_type[] = "type";
 
             private:
-                using base_type = observer<type, t_signal_type, t_noise_type, t_sync_check>;
-                friend base_type;
-
                 variant_type m_rule = { };
 
             protected:
@@ -182,7 +186,7 @@ namespace ropufu
             template <typename t_signal_type, typename t_noise_type, bool t_sync_check>
             void to_json(nlohmann::json& j, const xsprt<t_signal_type, t_noise_type, t_sync_check>& x) noexcept
             {
-                using type = xsprt<t_signal_type, t_noise_type, t_sync_check>;
+                /**using type = xsprt<t_signal_type, t_noise_type, t_sync_check>;*/
                 x.to_json(j);
             } // to_json(...)
         

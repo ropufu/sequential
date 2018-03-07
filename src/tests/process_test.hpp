@@ -27,8 +27,8 @@ namespace ropufu
                 template <typename t_process_type>
                 static bool test_tic(t_process_type& proc, std::size_t max_time = 100)
                 {
-                    using signal_type = typename t_process_type::signal_type;
-                    using noise_type = typename t_process_type::noise_type;
+                    /**using signal_type = typename t_process_type::signal_type;*/
+                    /**using noise_type = typename t_process_type::noise_type;*/
 
                     for (std::size_t time = 0; time < max_time; ++time) proc.tic();
                     if (proc.count() != max_time) return false;

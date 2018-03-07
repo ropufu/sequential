@@ -38,6 +38,13 @@ namespace ropufu
             struct two_sprt : public observer<two_sprt<t_derived_type, t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
             {
                 using type = two_sprt<t_derived_type, t_signal_type, t_noise_type, t_sync_check>;
+                using base_type = observer<type, t_signal_type, t_noise_type, t_sync_check>;
+                friend base_type;
+
+                using signal_type = typename base_type::signal_type;
+                using noise_type = typename base_type::noise_type;
+                using process_type = typename base_type::process_type;
+                using value_type = typename base_type::value_type;
                 using model_type = hypotheses::model<value_type>;
                 using likelihood_type = hypotheses::likelihood<t_signal_type, t_noise_type, t_sync_check>;
 
@@ -46,9 +53,7 @@ namespace ropufu
                 using statistic_type = moment_statistic<matrix_t<value_type>>;
 
             private:
-                using base_type = observer<type, t_signal_type, t_noise_type, t_sync_check>;
                 using derived_type = t_derived_type;
-                friend base_type;
 
                 // ~~ Fundamental members ~~
                 std::size_t m_id = 0;

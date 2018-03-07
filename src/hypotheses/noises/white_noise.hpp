@@ -44,6 +44,12 @@ namespace ropufu
             struct white_noise : public noise_base<white_noise<t_value_type>, t_value_type>
             {
                 using type = white_noise<t_value_type>;
+                using base_type = noise_base<type, t_value_type>;
+                friend base_type;
+
+                using timed_type = typename base_type::timed_type;
+                using noise_base_type = typename base_type::noise_base_type;
+                using value_type = typename base_type::value_type;
                 using engine_type = std::mt19937;
                 using noise_distribution_type = ropufu::aftermath::probability::dist_normal<t_value_type>; // For aftermath engine.
                 // using noise_distribution_type = std::normal_distribution<t_value_type>; // For built-in c++ engine.
@@ -55,9 +61,6 @@ namespace ropufu
                 static constexpr char jstr_noise_sigma[] = "noise sigma";
 
             private:
-                using base_type = noise_base<type, t_value_type>;
-                friend base_type;
-
                 // ~~ Auxiliary members ~~
                 engine_type m_engine = engine_type(); // Uniform PRNG.
                 noise_sampler_type m_sampler = { }; // White noise sampler.

@@ -26,6 +26,10 @@ namespace ropufu
             struct process : public timed<process<t_signal_type, t_noise_type>>
             {
                 using type = process<t_signal_type, t_noise_type>;
+                using base_type = timed<type>;
+                friend base_type;
+
+                using timed_type = typename base_type::timed_type;
                 using signal_type = t_signal_type;
                 using noise_type = t_noise_type;
                 using value_type = typename t_noise_type::value_type;
@@ -36,10 +40,8 @@ namespace ropufu
                 static constexpr char jstr_actual_mu[] = "actual mu";
 
             private:
-                using base_type = timed<type>;
                 using signal_base_type = signal_base<typename signal_type::signal_base_type, typename signal_type::value_type>;
                 using noise_base_type = noise_base<typename noise_type::noise_base_type, typename noise_type::value_type>;
-                friend base_type;
 
                 // ~~ Signal ~~
                 signal_type m_signal = { }; // Signal.

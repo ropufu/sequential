@@ -17,7 +17,7 @@
 #include <string>       // std::string
 #include <system_error> // std::error_code
 
-#if __cplusplus >= 201703L || _MSVC_LANG > 201703L
+#if __cplusplus > 201703L || _MSVC_LANG > 201703L
 #include <filesystem>   // std::filesystem::path, std::filesystem::exists, std::filesystem::create_directories, std::filesystem::copy_file
 namespace fs = std::filesystem;
 #else

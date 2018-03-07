@@ -24,9 +24,9 @@ namespace ropufu
                 using value_type = t_value_type;
 
             private:
-                operating_characteristic m_oc = operating_characteristic::unknown;
                 value_type m_analyzed_mu = 0;
                 value_type m_simulated_mu = 0;
+                operating_characteristic m_oc = operating_characteristic::unknown;
 
             public:
                 simulation_pair() noexcept { }

@@ -26,10 +26,10 @@ namespace ropufu
                 using value_type = double;
 
                 template <typename t_process_type, typename t_rule_type>
-                static bool test_tic(t_process_type& proc, t_rule_type& rule)
+                static bool test_tic(t_process_type& proc, t_rule_type& rule) noexcept
                 {
-                    using signal_type = typename t_process_type::signal_type;
-                    using noise_type = typename t_process_type::noise_type;
+                    /**using signal_type = typename t_process_type::signal_type;*/
+                    /**using noise_type = typename t_process_type::noise_type;*/
 
                     while (rule.is_listening())
                     {
@@ -43,7 +43,7 @@ namespace ropufu
                 } // test_tic(...)
 
                 template <typename t_process_type>
-                static bool test_asprt(t_process_type&& proc)
+                static bool test_asprt_with(t_process_type&& proc) noexcept
                 {
                     using tested_type = hypotheses::adaptive_sprt<typename t_process_type::signal_type, typename t_process_type::noise_type, true>;
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
@@ -62,10 +62,10 @@ namespace ropufu
                     if (!type::test_tic(proc, rule)) return false;
                     if (!type::test_tic(proc, x_rule)) return false;
                     return true;
-                } // test_asprt(...)
+                } // test_asprt_with(...)
 
                 template <typename t_process_type>
-                static bool test_bsprt(t_process_type&& proc)
+                static bool test_bsprt_with(t_process_type&& proc) noexcept
                 {
                     using tested_type = hypotheses::adaptive_sprt_star<typename t_process_type::signal_type, typename t_process_type::noise_type, true>;
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
@@ -84,10 +84,10 @@ namespace ropufu
                     if (!type::test_tic(proc, rule)) return false;
                     if (!type::test_tic(proc, x_rule)) return false;
                     return true;
-                } // test_bsprt(...)
+                } // test_bsprt_with(...)
 
                 template <typename t_process_type>
-                static bool test_gsprt(t_process_type&& proc)
+                static bool test_gsprt_with(t_process_type&& proc) noexcept
                 {
                     using tested_type = hypotheses::generalized_sprt<typename t_process_type::signal_type, typename t_process_type::noise_type, true>;
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
@@ -106,10 +106,10 @@ namespace ropufu
                     if (!type::test_tic(proc, rule)) return false;
                     if (!type::test_tic(proc, x_rule)) return false;
                     return true;
-                } // test_gsprt(...)
+                } // test_gsprt_with(...)
 
                 template <typename t_process_type>
-                static bool test_hsprt(t_process_type&& proc)
+                static bool test_hsprt_with(t_process_type&& proc) noexcept
                 {
                     using tested_type = hypotheses::generalized_sprt_star<typename t_process_type::signal_type, typename t_process_type::noise_type, true>;
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
@@ -128,41 +128,41 @@ namespace ropufu
                     if (!type::test_tic(proc, rule)) return false;
                     if (!type::test_tic(proc, x_rule)) return false;
                     return true;
-                } // test_hsprt(...)
+                } // test_hsprt_with(...)
                 
-                static bool test_asprt()
+                static bool test_asprt() noexcept
                 {
-                    if (!type::test_asprt(generator<value_type, 5>::constant_white())) return false;
-                    if (!type::test_asprt(generator<value_type, 5>::constant_ar()))    return false;
-                    if (!type::test_asprt(generator<value_type, 5>::transit_white()))  return false;
-                    if (!type::test_asprt(generator<value_type, 5>::transit_ar()))     return false;
+                    if (!type::test_asprt_with(generator<value_type, 5>::constant_white())) return false;
+                    if (!type::test_asprt_with(generator<value_type, 5>::constant_ar()))    return false;
+                    if (!type::test_asprt_with(generator<value_type, 5>::transit_white()))  return false;
+                    if (!type::test_asprt_with(generator<value_type, 5>::transit_ar()))     return false;
                     return true;
                 }
                 
-                static bool test_bsprt()
+                static bool test_bsprt() noexcept
                 {
-                    if (!type::test_bsprt(generator<value_type, 5>::constant_white())) return false;
-                    if (!type::test_bsprt(generator<value_type, 5>::constant_ar()))    return false;
-                    if (!type::test_bsprt(generator<value_type, 5>::transit_white()))  return false;
-                    if (!type::test_bsprt(generator<value_type, 5>::transit_ar()))     return false;
+                    if (!type::test_bsprt_with(generator<value_type, 5>::constant_white())) return false;
+                    if (!type::test_bsprt_with(generator<value_type, 5>::constant_ar()))    return false;
+                    if (!type::test_bsprt_with(generator<value_type, 5>::transit_white()))  return false;
+                    if (!type::test_bsprt_with(generator<value_type, 5>::transit_ar()))     return false;
                     return true;
                 }
                 
-                static bool test_gsprt()
+                static bool test_gsprt() noexcept
                 {
-                    if (!type::test_gsprt(generator<value_type, 5>::constant_white())) return false;
-                    if (!type::test_gsprt(generator<value_type, 5>::constant_ar()))    return false;
-                    if (!type::test_gsprt(generator<value_type, 5>::transit_white()))  return false;
-                    if (!type::test_gsprt(generator<value_type, 5>::transit_ar()))     return false;
+                    if (!type::test_gsprt_with(generator<value_type, 5>::constant_white())) return false;
+                    if (!type::test_gsprt_with(generator<value_type, 5>::constant_ar()))    return false;
+                    if (!type::test_gsprt_with(generator<value_type, 5>::transit_white()))  return false;
+                    if (!type::test_gsprt_with(generator<value_type, 5>::transit_ar()))     return false;
                     return true;
                 }
                 
-                static bool test_hsprt()
+                static bool test_hsprt() noexcept
                 {
-                    if (!type::test_hsprt(generator<value_type, 5>::constant_white())) return false;
-                    if (!type::test_hsprt(generator<value_type, 5>::constant_ar()))    return false;
-                    if (!type::test_hsprt(generator<value_type, 5>::transit_white()))  return false;
-                    if (!type::test_hsprt(generator<value_type, 5>::transit_ar()))     return false;
+                    if (!type::test_hsprt_with(generator<value_type, 5>::constant_white())) return false;
+                    if (!type::test_hsprt_with(generator<value_type, 5>::constant_ar()))    return false;
+                    if (!type::test_hsprt_with(generator<value_type, 5>::transit_white()))  return false;
+                    if (!type::test_hsprt_with(generator<value_type, 5>::transit_ar()))     return false;
                     return true;
                 }
 

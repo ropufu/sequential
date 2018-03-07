@@ -22,6 +22,11 @@ namespace ropufu
             struct constant_signal : public signal_base<constant_signal<t_value_type>, t_value_type>
             {
                 using type = constant_signal<t_value_type>;
+                using base_type = signal_base<type, t_value_type>;
+                friend base_type;
+                
+                using value_type = typename base_type::value_type;
+                using signal_base_type = typename base_type::signal_base_type;
                 static constexpr char signal_type_name[] = "const";
 
                 // ~~ Json names ~~
@@ -29,9 +34,6 @@ namespace ropufu
                 static constexpr char jstr_level[] = "level";
 
             private:
-                using base_type = signal_base<type, t_value_type>;
-                friend base_type;
-
                 value_type m_level = 1;
 
             public:

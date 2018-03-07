@@ -33,6 +33,17 @@ namespace ropufu
             struct generalized_sprt : public two_sprt<generalized_sprt<t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
             {
                 using type = generalized_sprt<t_signal_type, t_noise_type, t_sync_check>;
+                using base_type = two_sprt<type, t_signal_type, t_noise_type, t_sync_check>;
+                friend base_type;
+
+                using signal_type = typename base_type::signal_type;
+                using noise_type = typename base_type::noise_type;
+                using process_type = typename base_type::process_type;
+                using value_type = typename base_type::value_type;
+                using model_type = typename base_type::model_type;
+                using likelihood_type = typename base_type::likelihood_type;
+                using statistic_type = typename base_type::statistic_type;
+                
                 static constexpr char sprt_type_name[] = "generalized sprt";
                 
                 // ~~ Json names ~~
@@ -40,9 +51,6 @@ namespace ropufu
                 static constexpr char jstr_id[] = "id";
 
             private:
-                using base_type = two_sprt<type, t_signal_type, t_noise_type, t_sync_check>;
-                friend base_type;
-                
                 // ~~ Members reset with each \c toc() ~~
                 value_type m_unscaled_distance_from_null = 0; // Latest (unscaled) LLR vs. null estimator.
                 value_type m_unscaled_distance_from_alt = 0;  // Latest (unscaled) LLR vs. alt estimator.

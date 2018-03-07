@@ -33,6 +33,17 @@ namespace ropufu
             struct adaptive_sprt_star : public two_sprt<adaptive_sprt_star<t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
             {
                 using type = adaptive_sprt_star<t_signal_type, t_noise_type, t_sync_check>;
+                using base_type = two_sprt<type, t_signal_type, t_noise_type, t_sync_check>;
+                friend base_type;
+
+                using signal_type = typename base_type::signal_type;
+                using noise_type = typename base_type::noise_type;
+                using process_type = typename base_type::process_type;
+                using value_type = typename base_type::value_type;
+                using model_type = typename base_type::model_type;
+                using likelihood_type = typename base_type::likelihood_type;
+                using statistic_type = typename base_type::statistic_type;
+                
                 static constexpr char sprt_type_name[] = "adaptive sprt star";
                 
                 // ~~ Json names ~~
@@ -42,9 +53,6 @@ namespace ropufu
                 static constexpr char jstr_relative_mu_guess_alt[] = "relative mu guess alt";
 
             private:
-                using base_type = two_sprt<type, t_signal_type, t_noise_type, t_sync_check>;
-                friend base_type;
-                
                 // ~~ Fundamental members ~~
                 value_type m_relative_mu_guess_for_null = static_cast<value_type>(0.5);
                 value_type m_relative_mu_guess_for_alt =  static_cast<value_type>(0.5);

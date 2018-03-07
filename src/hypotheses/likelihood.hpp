@@ -24,12 +24,16 @@ namespace ropufu
             struct likelihood : public observer<likelihood<t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
             {
                 using type = likelihood<t_signal_type, t_noise_type, t_sync_check>;
-                using model_type = hypotheses::model<value_type>;
-
-            private:
                 using base_type = observer<type, t_signal_type, t_noise_type, t_sync_check>;
                 friend base_type;
 
+                using signal_type = typename base_type::signal_type;
+                using noise_type = typename base_type::noise_type;
+                using process_type = typename base_type::process_type;
+                using value_type = typename base_type::value_type;
+                using model_type = hypotheses::model<value_type>;
+
+            private:
                 model_type m_model = { };
                 // ~~ Statistics ~~
                 std::vector<value_type> m_estimator_of_mu = { }; // Unconstrained estimator of signal "strength".

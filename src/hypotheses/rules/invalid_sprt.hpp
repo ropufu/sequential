@@ -31,16 +31,23 @@ namespace ropufu
             struct invalid_sprt : public two_sprt<invalid_sprt<t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
             {
                 using type = invalid_sprt<t_signal_type, t_noise_type, t_sync_check>;
+                using base_type = two_sprt<type, t_signal_type, t_noise_type, t_sync_check>;
+                friend base_type;
+
+                using signal_type = typename base_type::signal_type;
+                using noise_type = typename base_type::noise_type;
+                using process_type = typename base_type::process_type;
+                using value_type = typename base_type::value_type;
+                using model_type = typename base_type::model_type;
+                using likelihood_type = typename base_type::likelihood_type;
+                using statistic_type = typename base_type::statistic_type;
+                
                 static constexpr char sprt_type_name[] = "invalid sprt";
 
                 // ~~ Json names ~~
                 static constexpr char jstr_sprt_type[] = "type";
                 static constexpr char jstr_id[] = "id";
 
-            private:
-                using base_type = two_sprt<type, t_signal_type, t_noise_type, t_sync_check>;
-                friend base_type;
-                
             protected:
                 /** @brief Auxiliary function to be executed right after the \c initialize() call. */
                 void on_initialized() noexcept { }

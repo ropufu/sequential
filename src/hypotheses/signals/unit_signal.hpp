@@ -22,17 +22,17 @@ namespace ropufu
             struct unit_signal : public signal_base<unit_signal<t_value_type>, t_value_type>
             {
                 using type = unit_signal<t_value_type>;
+                using base_type = signal_base<type, t_value_type>;
+                friend base_type;
+
+                using value_type = typename base_type::value_type;
+                using signal_base_type = typename base_type::signal_base_type;
                 static constexpr t_value_type unit = 1;
                 static constexpr char signal_type_name[] = "unit";
 
                 // ~~ Json names ~~
                 static constexpr char jstr_signal_type[] = "type";
 
-            private:
-                using base_type = signal_base<type, t_value_type>;
-                friend base_type;
-
-            public:
                 /** Constant signal. */
                 unit_signal() noexcept { }
 

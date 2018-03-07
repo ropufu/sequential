@@ -127,9 +127,9 @@ namespace ropufu
             template <typename t_signal_type, typename t_noise_type>
             auto adjust_process(const process<t_signal_type, t_noise_type>& proc) noexcept -> detail::adjusted_process_t<t_signal_type, t_noise_type>
             {
-                using signal_type = t_signal_type;
-                using noise_type = t_noise_type;
-                using process_type = process<t_signal_type, t_noise_type>;
+                /**using signal_type = t_signal_type;*/
+                /**using noise_type = t_noise_type;*/
+                /**using process_type = process<t_signal_type, t_noise_type>;*/
 
                 using de_auto_regress_type = detail::de_auto_regress<t_signal_type, t_noise_type>;
 

@@ -49,6 +49,11 @@ namespace ropufu
             struct auto_regressive_noise<t_value_type, 0> : public white_noise<t_value_type>
             {
                 using type = auto_regressive_noise<t_value_type, 0>;
+                using base_type = white_noise<t_value_type>;
+
+                using timed_type = typename base_type::timed_type;
+                using noise_base_type = typename base_type::noise_base_type;
+                using value_type = typename base_type::value_type;
                 using ar_container_type = std::array<t_value_type, 0>;
                 using time_window_type = sliding_array<t_value_type, 0>;
 
@@ -58,8 +63,6 @@ namespace ropufu
                 static constexpr char jstr_ar_parameters[] = "AR parameters";
 
             private:
-                using base_type = white_noise<t_value_type>;
-
                 // ~~ Structural members ~~
                 ar_container_type m_ar_parameters = { }; // AR parameters.
 
@@ -106,6 +109,12 @@ namespace ropufu
                 public detail::named_auto_regressive_noise<t_ar_size>
             {
                 using type = auto_regressive_noise<t_value_type, t_ar_size>;
+                using base_type = noise_base<type, t_value_type>;
+                friend base_type;
+
+                using timed_type = typename base_type::timed_type;
+                using noise_base_type = typename base_type::noise_base_type;
+                using value_type = typename base_type::value_type;
                 using ar_container_type = std::array<t_value_type, t_ar_size>;
                 using time_window_type = sliding_array<t_value_type, t_ar_size>;
 
@@ -115,9 +124,6 @@ namespace ropufu
                 static constexpr char jstr_ar_parameters[] = "AR parameters";
 
             private:
-                using base_type = noise_base<type, t_value_type>;
-                friend base_type;
-
                 // ~~ Structural members ~~
                 white_noise<value_type> m_white_noise = { }; // White noise.
                 ar_container_type m_ar_parameters = { }; // AR parameters.
