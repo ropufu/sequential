@@ -1,4 +1,11 @@
 
+# ~~ LaTeX Auxiliary Files ~~
+*.log
+*.aux
+*.out
+*.synctex
+*.synctex.gz
+
 # ~~ macOS.gitignore ~~
 # General
 .DS_Store
