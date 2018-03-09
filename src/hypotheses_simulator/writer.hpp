@@ -152,6 +152,11 @@ namespace ropufu
                     // Model matrices.
                     matrix_t<value_type> mu_null(1, 1, model.mu_under_null());
                     matrix_t<value_type> mu_alt(1, 1, model.smallest_mu_under_alt());
+                    // Threshold matrices.
+                    matrix_t<value_type> unscaled_null_thresholds = rule.unscaled_null_thresholds();
+                    matrix_t<value_type> unscaled_alt_thresholds = rule.unscaled_alt_thresholds();
+                    unscaled_null_thresholds.reshape(unscaled_null_thresholds.size(), 1);
+                    unscaled_alt_thresholds.reshape(1, unscaled_alt_thresholds.size());
 
                     std::string mat_path_str = mat_path.string();
                     matstream_type mat(mat_path_str);
@@ -161,8 +166,8 @@ namespace ropufu
                     mat << "mu_null" << mu_null
                         << "mu_alt" << mu_alt;
                     // Write thresholds.
-                    mat << "b_null" << rule.unscaled_null_thresholds()
-                        << "b_alt" << rule.unscaled_alt_thresholds();
+                    mat << "b_null" << unscaled_null_thresholds
+                        << "b_alt" << unscaled_alt_thresholds;
                     // Write observations.
                     for (const auto& pair : oc)
                     {
@@ -195,6 +200,11 @@ namespace ropufu
                     // Simulation pair matrices.
                     matrix_t<value_type> analyzed_mu(1, 1, mu_pair.analyzed_mu());
                     matrix_t<value_type> simulated_mu(1, 1, mu_pair.simulated_mu());
+                    // Threshold matrices.
+                    matrix_t<value_type> unscaled_null_thresholds = rule.unscaled_null_thresholds();
+                    matrix_t<value_type> unscaled_alt_thresholds = rule.unscaled_alt_thresholds();
+                    unscaled_null_thresholds.reshape(unscaled_null_thresholds.size(), 1);
+                    unscaled_alt_thresholds.reshape(1, unscaled_alt_thresholds.size());
                     // Observation matrices.
                     const statistic_type& errors = rule.errors();
                     const statistic_type& run_lengths = rule.run_lengths();
@@ -210,8 +220,8 @@ namespace ropufu
                     mat << "analyzed_mu" << analyzed_mu
                         << "simulated_mu" << simulated_mu;
                     // Write thresholds.
-                    mat << "b_null" << rule.unscaled_null_thresholds()
-                        << "b_alt" << rule.unscaled_alt_thresholds();
+                    mat << "b_null" << unscaled_null_thresholds
+                        << "b_alt" << unscaled_alt_thresholds;
                     // Write observations.
                     mat << "perror" << errors.mean() << "verror" << errors.variance()
                         << "ess" << run_lengths.mean() << "vss" << run_lengths.variance();

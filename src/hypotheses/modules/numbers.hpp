@@ -9,18 +9,20 @@ namespace ropufu
 {
     namespace modules
     {
-        template <typename t_value_type, bool is_specialized = std::is_floating_point_v<t_value_type>>
+        template <typename t_value_type>
         struct numbers
         {
-            static bool is_nan(const t_value_type& /**value*/) noexcept { return false; }
-            static bool is_infinite(const t_value_type& /**value*/) noexcept { return false; }
-        }; // struct numbers
+            static bool is_nan(const t_value_type& value) noexcept
+            {
+                if constexpr (std::is_floating_point_v<t_value_type>) return std::isnan(value);
+                else return false;
+            } // is_nan(...)
 
-        template <typename t_value_type>
-        struct numbers<t_value_type, true>
-        {
-            static bool is_nan(const t_value_type& value) noexcept { return std::isnan(value); }
-            static bool is_infinite(const t_value_type& value) noexcept { return std::isinf(value); }
+            static bool is_infinite(const t_value_type& value) noexcept
+            {
+                if constexpr (std::is_floating_point_v<t_value_type>) return std::isinf(value);
+                else return false;
+            } // is_infinite(...)
         }; // struct numbers<...>
 
         template <typename t_value_type>
