@@ -8,11 +8,14 @@
 #include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
 
 #include "core.hpp"
+#include "modules/interpolator.hpp"
+#include "modules/numbers.hpp"
 
 #include <cmath>    // std::isnan, std::isinf
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
 #include <string>   // std::string
+#include <system_error> // std::error_code
 
 namespace ropufu
 {
@@ -155,6 +158,39 @@ namespace ropufu
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential
+} // namespace ropufu
+
+namespace ropufu
+{
+    namespace modules
+    {
+        template <typename t_value_type, typename t_position_type>
+        struct interpolator<sequential::hypotheses::model<t_value_type>, t_position_type>
+        {
+            using type = interpolator<sequential::hypotheses::model<t_value_type>, t_position_type>;
+            using value_type = sequential::hypotheses::model<t_value_type>;
+            using position_type = t_position_type;
+            using clipper_type = clipper<t_position_type>;
+
+            static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position, std::error_code& ec) noexcept
+            {
+                ec.clear();
+                position_type p = relative_position; // Make a copy of <relative_position>.
+
+                if (!clipper_type::was_finite(p, 0) || !clipper_type::was_between(p, 0, 1))
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::logic_error,
+                        aftermath::severity_level::major,
+                        "Relative position out of range. Clipped to the interval [0, 1].", __FUNCTION__, __LINE__);
+
+                position_type q = 1 - p;
+
+                return value_type(
+                    (q) * left.mu_under_null() + (p) * right.mu_under_null(),
+                    (q) * left.smallest_mu_under_alt() + (p) * right.smallest_mu_under_alt());
+            } // interpolate(...)
+        }; // struct interpolator<...>
+    } // namespace modules
 } // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_MODEL_HPP_INCLUDED

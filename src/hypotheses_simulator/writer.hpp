@@ -142,42 +142,60 @@ namespace ropufu
                 bool good() const noexcept { return this->m_is_good; }
 
                 template <typename t_rule_type>
-                void write_mat(const t_rule_type& rule, const oc_array<typename t_rule_type::statistic_type>& oc)
+                void write_mat(const model_type& model, const t_rule_type& rule, const oc_array<typename t_rule_type::statistic_type>& oc) noexcept
                 {
                     if (!this->enforce_good(__FUNCTION__, __LINE__)) return; // Make sure the writer has been successfully initialized.
 
                     std::string mat_name = rule.to_path_string() + " oc.mat";
                     fs::path mat_path = this->m_mat_subfolder / mat_name;
 
-                    // @todo Implement a range-based for loop in <oc_array>.
-                    const statistic_type& fa = oc[operating_characteristic::probability_of_false_alarm];
-                    const statistic_type& ms = oc[operating_characteristic::probability_of_missed_signal];
-                    const statistic_type& ss_null = oc[operating_characteristic::ess_under_null];
-                    const statistic_type& ss_alt = oc[operating_characteristic::ess_under_alt];
+                    // Model matrices.
+                    matrix_t<value_type> mu_null(1, 1, model.mu_under_null());
+                    matrix_t<value_type> mu_alt(1, 1, model.smallest_mu_under_alt());
 
                     std::string mat_path_str = mat_path.string();
                     matstream_type mat(mat_path_str);
                     // mat.clear(); // Clear the existing contents.
 
-                    // @todo Loop through <oc_array>; implement .mat var name function for <operating_characteristic> distinct from the existing std::to_string.
+                    // Write model.
+                    mat << "mu_null" << mu_null
+                        << "mu_alt" << mu_alt;
+                    // Write thresholds.
                     mat << "b_null" << rule.unscaled_null_thresholds()
-                        << "b_alt" << rule.unscaled_alt_thresholds()
-                        << "pfa" << fa.mean() << "vfa" << fa.variance()
-                        << "pms" << ms.mean() << "vms" << ms.variance()
-                        << "ess_null" << ss_null.mean() << "vss_null" << ss_null.variance()
-                        << "ess_alt" << ss_alt.mean() << "vss_alt" << ss_alt.variance();
-                }
+                        << "b_alt" << rule.unscaled_alt_thresholds();
+                    // Write observations.
+                    for (const auto& pair : oc)
+                    {
+                        std::string expected_value_varname { };
+                        std::string variance_varname { };
+                        if (!detail::mat_var_name(pair.key(), expected_value_varname, variance_varname))
+                        {
+                            aftermath::quiet_error::instance().push(
+                                aftermath::not_an_error::runtime_error,
+                                aftermath::severity_level::major,
+                                "OC not recognized.", __FUNCTION__, __LINE__);
+                            return;
+                        }
+                        const typename t_rule_type::statistic_type& value = pair.value();
+                        mat << expected_value_varname << value.mean() << variance_varname << value.variance();
+                    } // for (...)
+                } // write_mat(...)
 
                 template <typename t_rule_type>
-                void write_mat(const t_rule_type& rule, const simulation_pair<value_type>& mu_pair)
+                void write_mat(const model_type& model, const t_rule_type& rule, const simulation_pair<value_type>& mu_pair)
                 {
                     if (!this->enforce_good(__FUNCTION__, __LINE__)) return; // Make sure the writer has been successfully initialized.
 
                     std::string mat_name = rule.to_path_string() + " more " + mu_pair.to_path_string() + ".mat";
                     fs::path mat_path = this->m_mat_subfolder / mat_name;
 
+                    // Model matrices.
+                    matrix_t<value_type> mu_null(1, 1, model.mu_under_null());
+                    matrix_t<value_type> mu_alt(1, 1, model.smallest_mu_under_alt());
+                    // Simulation pair matrices.
                     matrix_t<value_type> analyzed_mu(1, 1, mu_pair.analyzed_mu());
                     matrix_t<value_type> simulated_mu(1, 1, mu_pair.simulated_mu());
+                    // Observation matrices.
                     const statistic_type& errors = rule.errors();
                     const statistic_type& run_lengths = rule.run_lengths();
 
@@ -185,13 +203,19 @@ namespace ropufu
                     matstream_type mat(mat_path_str);
                     // mat.clear(); // Clear the existing contents.
 
+                    // Write model.
+                    mat << "mu_null" << mu_null
+                        << "mu_alt" << mu_alt;
+                    // Write custom simulation information.
                     mat << "analyzed_mu" << analyzed_mu
-                        << "simulated_mu" << simulated_mu
-                        << "b_null" << rule.unscaled_null_thresholds()
-                        << "b_alt" << rule.unscaled_alt_thresholds()
-                        << "perror" << errors.mean() << "verror" << errors.variance()
+                        << "simulated_mu" << simulated_mu;
+                    // Write thresholds.
+                    mat << "b_null" << rule.unscaled_null_thresholds()
+                        << "b_alt" << rule.unscaled_alt_thresholds();
+                    // Write observations.
+                    mat << "perror" << errors.mean() << "verror" << errors.variance()
                         << "ess" << run_lengths.mean() << "vss" << run_lengths.variance();
-                }
+                } // write_mat(...)
             }; // struct writer
         } // namespace hypotheses
     } // namespace sequential

@@ -16,6 +16,7 @@
 #include <cstddef>  // std::size_t
 #include <cstdint>  // std::int32_t
 #include <iostream> // std::ostream
+#include <random>   // std::mt19937, std::seed_seq
 
 namespace ropufu
 {

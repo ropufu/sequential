@@ -47,6 +47,7 @@ namespace ropufu
                 static constexpr char jstr_mat_output_path[] = "mat output";
                 static constexpr char jstr_count_simulations[] = "simulations";
                 static constexpr char jstr_count_threads[] = "threads";
+                static constexpr char jstr_count_interpolated_runs[] = "interpolated runs";
                 static constexpr char jstr_signal[] = "signal";
                 static constexpr char jstr_noise[] = "noise";
                 static constexpr char jstr_rules[] = "rules";
@@ -62,6 +63,7 @@ namespace ropufu
                 std::string m_mat_output_path = "./mat/";
                 std::size_t m_count_simulations = 10'000;
                 std::size_t m_count_threads = 1;
+                std::size_t m_count_interpolated_runs = 0;
                 signal_variant_type m_signal = { };
                 noise_variant_type m_noise = { };
                 std::vector<rule_type> m_rules = { };
@@ -94,6 +96,9 @@ namespace ropufu
                 std::size_t threads() const noexcept { return this->m_count_threads; }
                 void set_threads(std::size_t value) noexcept { this->m_count_threads = value; this->m_has_changed = true; }
 
+                std::size_t interpolated_runs() const noexcept { return this->m_count_interpolated_runs; }
+                void set_interpolated_runs(std::size_t value) noexcept { this->m_count_interpolated_runs = value; this->m_has_changed = true; }
+
                 const signal_variant_type& signal() const noexcept { return this->m_signal; }
 
                 const noise_variant_type& noise() const noexcept { return this->m_noise; }
@@ -120,6 +125,7 @@ namespace ropufu
                         std::string mat_output_path = this->m_mat_output_path;
                         std::size_t count_simulations = this->m_count_simulations;
                         std::size_t count_threads = this->m_count_threads;
+                        std::size_t count_interpolated_runs = this->m_count_interpolated_runs;
                         signal_variant_type signal = this->m_signal;
                         noise_variant_type noise = this->m_noise;
                         std::vector<rule_type> rules = this->m_rules;
@@ -129,6 +135,7 @@ namespace ropufu
                         if (!quiet_json::optional(j, type::jstr_mat_output_path, mat_output_path)) return false;
                         if (!quiet_json::optional(j, type::jstr_count_simulations, count_simulations)) return false;
                         if (!quiet_json::optional(j, type::jstr_count_threads, count_threads)) return false;
+                        if (!quiet_json::optional(j, type::jstr_count_interpolated_runs, count_interpolated_runs)) return false;
                         if (quiet_json::is_missing(j, type::jstr_signal)) return false;
                         if (quiet_json::is_missing(j, type::jstr_noise)) return false;
                         // Signal discriminator.
@@ -163,6 +170,7 @@ namespace ropufu
                         this->m_mat_output_path = mat_output_path;
                         this->m_count_simulations = count_simulations;
                         this->m_count_threads = count_threads;
+                        this->m_count_interpolated_runs = count_interpolated_runs;
                         this->m_signal = signal;
                         this->m_noise = noise;
                         this->m_rules = rules;
@@ -193,6 +201,7 @@ namespace ropufu
                     j[type::jstr_mat_output_path] = this->m_mat_output_path;
                     j[type::jstr_count_simulations] = this->m_count_simulations;
                     j[type::jstr_count_threads] = this->m_count_threads;
+                    j[type::jstr_count_interpolated_runs] = this->m_count_interpolated_runs;
                     std::visit([&] (auto&& arg) { j[type::jstr_signal] = arg; }, this->m_signal);
                     std::visit([&] (auto&& arg) { j[type::jstr_noise] = arg; }, this->m_noise);
                     j[type::jstr_rules] = this->m_rules;
@@ -231,6 +240,7 @@ namespace ropufu
             template <typename t_value_type> constexpr char config<t_value_type>::jstr_mat_output_path[];
             template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_simulations[];
             template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_threads[];
+            template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_interpolated_runs[];
             template <typename t_value_type> constexpr char config<t_value_type>::jstr_signal[];
             template <typename t_value_type> constexpr char config<t_value_type>::jstr_noise[];
             template <typename t_value_type> constexpr char config<t_value_type>::jstr_rules[];

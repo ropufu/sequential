@@ -5,15 +5,21 @@
 #include <nlohmann/json.hpp>
 #include "../hypotheses/json.hpp"
 
+#include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
+
 #include "../hypotheses/model.hpp"
+#include "../hypotheses/modules/interpolator.hpp"
+#include "../hypotheses/modules/numbers.hpp"
 #include "init_info.hpp"
+#include "operating_characteristic.hpp"
 #include "simulation_pair.hpp"
 
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
 #include <map>      // std::map
+#include <set>      // std::set
 #include <string>   // std::string
-#include <unordered_set> // std::unordered_set
+#include <system_error>  // std::error_code, std::make_error_code, std::errc
 #include <utility>  // std::pair
 #include <vector>   // std::vector
 
@@ -33,7 +39,6 @@ namespace ropufu
             struct run
             {
                 using type = run<t_value_type>;
-
                 using value_type = t_value_type;
                 using model_type = hypotheses::model<t_value_type>;
                 
@@ -47,28 +52,49 @@ namespace ropufu
 
             private:
                 model_type m_model = { };
-                std::unordered_set<simulation_pair<value_type>> m_simulation_pairs = { };
                 std::size_t m_threshold_count = 0;
                 std::string m_threshold_spacing = "log";
+                std::vector<simulation_pair<value_type>> m_simulation_pairs = { };
                 std::map<std::size_t, init_info<value_type>> m_init_rules = { };
 
             public:
                 run() noexcept { }
 
-                run(const model_type& model) noexcept
-                    : m_model(model)
+                run(const model_type& model) noexcept : m_model(model) { }
+
+                /** @brief Adds \p count_in_between runs in-between each pair of existing \p runs. */
+                static std::vector<type> interpolate(const std::vector<type>& keyframe_runs, std::size_t count_in_between) noexcept
                 {
-                    this->m_simulation_pairs.emplace(model.mu_under_null(), model.mu_under_null(), operating_characteristic::ess_under_null); // ESS[mu_0]
-                    this->m_simulation_pairs.emplace(model.mu_under_null(), model.smallest_mu_under_alt(), operating_characteristic::probability_of_false_alarm); // PFA
-                    this->m_simulation_pairs.emplace(model.smallest_mu_under_alt(), model.mu_under_null(), operating_characteristic::probability_of_missed_signal); // PMS
-                    this->m_simulation_pairs.emplace(model.smallest_mu_under_alt(), model.smallest_mu_under_alt(), operating_characteristic::ess_under_alt); // ESS[mu_1]
-                } // run(...)
+                    if (count_in_between == 0) return keyframe_runs;
+                    if (keyframe_runs.size() <= 1) return keyframe_runs;
+                    // o--^--o--^--o--^--o--...--o--^--o 
+                    //   /.\   /.\   /.\           /.\   
+                    //   ...   ...   ...           ...   
+                    
+                    std::size_t count_pairs = keyframe_runs.size() - 1;
+                    std::vector<type> result { };
+                    result.reserve(keyframe_runs.size() + count_pairs * count_in_between);
+                    
+                    result.push_back(keyframe_runs.front());
+                    std::error_code ec { };
+                    for (std::size_t i = 1; i < keyframe_runs.size(); ++i)
+                    {
+                        const type& left = keyframe_runs[i - 1];
+                        const type& right = keyframe_runs[i];
+                        for (std::size_t j = 0; j < count_in_between; ++j)
+                        {
+                            // left ----- 1  ----- 2  ----- ... ----- n  ----- right 
+                            //    0 ----- h  ----- 2h ----- ... ----- nh ----- 1     
+                            value_type p = (j + 1) / static_cast<value_type>(count_in_between + 1);
+                            result.push_back(modules::interpolator<type, value_type>::interpolate(left, right, p, ec));
+                            if (ec.value() != 0) return keyframe_runs;
+                        }
+                        result.push_back(right);
+                    }
+                    return result;
+                } // interpolate(...)
 
                 const model_type& model() const noexcept { return this->m_model; }
-
-                const std::unordered_set<simulation_pair<value_type>>& simulation_pairs() const noexcept { return this->m_simulation_pairs; }
-
-                void study(value_type analyzed_mu, value_type simulated_mu) noexcept { this->m_simulation_pairs.emplace(analyzed_mu, simulated_mu); }
 
                 std::size_t threshold_count() const noexcept { return this->m_threshold_count; }
                 const std::string& threshold_spacing() const noexcept { return this->m_threshold_spacing; }
@@ -79,9 +105,35 @@ namespace ropufu
                     this->m_threshold_spacing = spacing;
                 } // configure_thresholds(...)
 
+                /** Explicit simulation pairs to be run---in addition to the standard OC runs. */
+                const std::vector<simulation_pair<value_type>>& simulation_pairs() const noexcept { return this->m_simulation_pairs; }
+
+                /** Add an explicit simulation pair to be run---in addition to the standard OC runs. */
+                void study(value_type analyzed_mu, value_type simulated_mu) noexcept { this->m_simulation_pairs.emplace_back(analyzed_mu, simulated_mu); }
+
                 const std::map<std::size_t, init_info<value_type>>& init_rules() const noexcept { return this->m_init_rules; }
 
                 void study(const init_info<value_type>& init) noexcept { this->m_init_rules.emplace(init.rule_id(), init); }
+
+                static bool is_comparable(const type& left, const type& right) noexcept
+                {
+                    // Make sure the runs have the same threshold setup.
+                    if (left.m_threshold_count != right.m_threshold_count) return false;
+                    if (left.m_threshold_spacing != right.m_threshold_spacing) return false;
+
+                    // Make sure the runs have compatible simulation pairs.
+                    if (left.m_simulation_pairs.size() != right.m_simulation_pairs.size()) return false;
+
+                    // Make sure the runs have the same rules.
+                    std::set<std::size_t> left_rule_ids { };
+                    std::set<std::size_t> right_rule_ids { };
+                    for (const std::pair<std::size_t, init_info<value_type>>& item : left.m_init_rules) left_rule_ids.insert(item.first);
+                    for (const std::pair<std::size_t, init_info<value_type>>& item : right.m_init_rules) right_rule_ids.insert(item.first);
+
+                    if (left_rule_ids != right_rule_ids) return false;
+
+                    return true;
+                } // is_comparable(...)
 
                 /** @brief Output to a stream. */
                 friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
@@ -157,18 +209,19 @@ namespace ropufu
                 {
                     init_info<t_value_type> z = k;
                     init_rules.emplace(z.rule_id(), z);
-                }
+                } // for (...)
 
                 // Validate.
+                std::size_t pair_count = analyzed_mu.size();
                 if (analyzed_mu.size() != simulated_mu.size())
                 {
                     aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Analyzed and simulated mu's have to be of the same size.", __FUNCTION__, __LINE__);
                     return;
-                }
+                } // if (...)
                 
                 // Reconstruct the object.
                 x = type(model);
-                for (std::size_t i = 0; i < analyzed_mu.size(); ++i) x.study(analyzed_mu[i], simulated_mu[i]);
+                for (std::size_t i = 0; i < pair_count; ++i) x.study(analyzed_mu[i], simulated_mu[i]);
                 x.configure_thresholds(threshold_count, threshold_spacing);
                 for (const std::pair<std::size_t, init_info<t_value_type>>& item : init_rules) x.study(item.second);
 
@@ -176,6 +229,80 @@ namespace ropufu
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential
+} // namespace ropufu
+
+namespace ropufu
+{
+    namespace modules
+    {
+        template <typename t_value_type, typename t_position_type>
+        struct interpolator<sequential::hypotheses::run<t_value_type>, t_position_type>
+        {
+            using type = interpolator<sequential::hypotheses::run<t_value_type>, t_position_type>;
+            using value_type = sequential::hypotheses::run<t_value_type>;
+            using position_type = t_position_type;
+            using clipper_type = clipper<t_position_type>;
+
+            using model_type = sequential::hypotheses::model<t_value_type>;
+            using simulation_pair_type = sequential::hypotheses::simulation_pair<t_value_type>;
+            using init_info_type = sequential::hypotheses::init_info<t_value_type>;
+
+            template <typename t_type>
+            using interpolator_t = interpolator<t_type, position_type>;
+
+            static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position, std::error_code& ec) noexcept
+            {
+                // First, make sure the runs are comparable.
+                ec.clear();
+                if (!value_type::is_comparable(left, right))
+                {
+                    ec = std::make_error_code(std::errc::function_not_supported);
+                    return { };
+                } // if (...)
+                std::size_t threshold_count = left.threshold_count();
+                std::string threshold_spacing = left.threshold_spacing();
+                std::size_t pair_count = left.simulation_pairs().size();
+                std::size_t rule_count = left.init_rules().size();
+
+                // Second, coerce the relative position.
+                position_type p = relative_position; // Make a copy of <relative_position>.
+
+                if (!clipper_type::was_finite(p, 0) || !clipper_type::was_between(p, 0, 1))
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::logic_error,
+                        aftermath::severity_level::major,
+                        "Relative position out of range. Clipped to the interval [0, 1].", __FUNCTION__, __LINE__);
+
+                // Third, interpolate the model.
+                model_type model = interpolator_t<model_type>::interpolate(left.model(), right.model(), p, ec);
+                if (ec.value() != 0) return { };
+
+                // Fourth, interpolate the simulation pairs.
+                std::vector<simulation_pair_type> simulation_pairs(pair_count);
+                for (std::size_t i = 0; i < pair_count; ++i) 
+                {
+                    simulation_pairs[i] = interpolator_t<simulation_pair_type>::interpolate(left.simulation_pairs()[i], right.simulation_pairs()[i], p, ec);
+                    if (ec.value() != 0) return { };
+                } // for (...)
+
+                // Fifth, interpolate the init rules.
+                std::vector<init_info_type> init_rules { };
+                init_rules.reserve(rule_count);
+                for (const std::pair<std::size_t, init_info_type>& item : left.init_rules())
+                {
+                    init_rules.push_back(interpolator_t<init_info_type>::interpolate(item.second, right.init_rules().find(item.first)->second, p, ec));
+                    if (ec.value() != 0) return { };
+                } // for (...)
+
+                // Finally, reconstruct the object.
+                value_type x(model);
+                for (const simulation_pair_type& item : simulation_pairs) x.study(item.analyzed_mu(), item.simulated_mu());
+                x.configure_thresholds(threshold_count, threshold_spacing);
+                for (const init_info_type& item : init_rules) x.study(item);
+                return x;
+            } // interpolate(...)
+        }; // struct interpolator<...>
+    } // namespace modules
 } // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_RUN_HPP_INCLUDED

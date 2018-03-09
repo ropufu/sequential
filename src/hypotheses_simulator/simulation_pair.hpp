@@ -2,13 +2,18 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATION_PAIR_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATION_PAIR_HPP_INCLUDED
 
+#include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
+
 #include "../hypotheses/core.hpp"
+#include "../hypotheses/model.hpp"
+#include "../hypotheses/modules/interpolator.hpp"
+#include "../hypotheses/modules/numbers.hpp"
 #include "operating_characteristic.hpp"
 
 #include <array>      // std::array
 #include <cstddef>    // std::size_t
 #include <functional> // std::hash
-#include <string>     // std::string
+#include <string>     // std::string, std::to_string
 
 namespace ropufu
 {
@@ -22,11 +27,11 @@ namespace ropufu
             {
                 using type = simulation_pair<t_value_type>;
                 using value_type = t_value_type;
+                using model_type = hypotheses::model<t_value_type>;
 
             private:
                 value_type m_analyzed_mu = 0;
                 value_type m_simulated_mu = 0;
-                operating_characteristic m_oc = operating_characteristic::unknown;
 
             public:
                 simulation_pair() noexcept { }
@@ -36,29 +41,56 @@ namespace ropufu
                 {
                 } // simulation_pair(...)
 
-                simulation_pair(value_type analyzed_mu, value_type simulated_mu, operating_characteristic oc) noexcept
-                    : m_analyzed_mu(analyzed_mu), m_simulated_mu(simulated_mu), m_oc(oc)
+                simulation_pair(operating_characteristic oc, const model_type& model) noexcept
                 {
+                    switch (oc)
+                    {
+                        case operating_characteristic::ess_under_null:
+                            this->m_analyzed_mu = model.mu_under_null();
+                            this->m_simulated_mu = model.mu_under_null();
+                            break;
+                        case operating_characteristic::ess_under_alt:
+                            this->m_analyzed_mu = model.smallest_mu_under_alt();
+                            this->m_simulated_mu = model.smallest_mu_under_alt();
+                            break;
+                        case operating_characteristic::probability_of_false_alarm:
+                            this->m_analyzed_mu = model.mu_under_null();
+                            this->m_simulated_mu = model.smallest_mu_under_alt();
+                            break;
+                        case operating_characteristic::probability_of_missed_signal:
+                            this->m_analyzed_mu = model.smallest_mu_under_alt();
+                            this->m_simulated_mu = model.mu_under_null();
+                            break;
+                        default:
+                            aftermath::quiet_error::instance().push(
+                                aftermath::not_an_error::logic_error,
+                                aftermath::severity_level::major,
+                                "OC not recognized: " + std::to_string(oc) + ".", __FUNCTION__, __LINE__);
+                            break;
+                    } // switch (...)
                 } // simulation_pair(...)
 
-                bool special() const noexcept { return this->m_oc != operating_characteristic::unknown; }
-                operating_characteristic oc() const noexcept { return this->m_oc; }
-                value_type analyzed_mu() const noexcept { return this->m_analyzed_mu; }
-                value_type simulated_mu() const noexcept { return this->m_simulated_mu; }
-
                 template <typename t_rule_type>
-                auto oc(const t_rule_type& rule) const noexcept -> typename t_rule_type::statistic_type
+                auto read_oc(operating_characteristic oc, const t_rule_type& rule) const noexcept -> typename t_rule_type::statistic_type
                 {
-                    switch (this->m_oc)
+                    switch (oc)
                     {
                         case operating_characteristic::ess_under_null: return rule.run_lengths();
                         case operating_characteristic::ess_under_alt: return rule.run_lengths();
                         case operating_characteristic::probability_of_false_alarm: return rule.errors();
                         case operating_characteristic::probability_of_missed_signal: return rule.errors();
-                        default: return { };
+                        default:
+                            aftermath::quiet_error::instance().push(
+                                aftermath::not_an_error::logic_error,
+                                aftermath::severity_level::major,
+                                "OC not recognized: " + std::to_string(oc) + ".", __FUNCTION__, __LINE__);
+                            return { };
                     } // switch (...)
-                } // oc(...)
+                } // read_oc(...)
 
+                value_type analyzed_mu() const noexcept { return this->m_analyzed_mu; }
+                value_type simulated_mu() const noexcept { return this->m_simulated_mu; }
+                
                 std::string to_path_string(std::size_t decimal_places = 3) const noexcept
                 {
                     std::string result = "analyze ";
@@ -104,5 +136,38 @@ namespace std
         } // operator ()(...)
     }; // struct hash<...>
 } // namespace std
+
+namespace ropufu
+{
+    namespace modules
+    {
+        template <typename t_value_type, typename t_position_type>
+        struct interpolator<sequential::hypotheses::simulation_pair<t_value_type>, t_position_type>
+        {
+            using type = interpolator<sequential::hypotheses::simulation_pair<t_value_type>, t_position_type>;
+            using value_type = sequential::hypotheses::simulation_pair<t_value_type>;
+            using position_type = t_position_type;
+            using clipper_type = clipper<t_position_type>;
+
+            static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position, std::error_code& ec) noexcept
+            {
+                ec.clear();
+                position_type p = relative_position; // Make a copy of <relative_position>.
+
+                if (!clipper_type::was_finite(p, 0) || !clipper_type::was_between(p, 0, 1))
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::logic_error,
+                        aftermath::severity_level::major,
+                        "Relative position out of range. Clipped to the interval [0, 1].", __FUNCTION__, __LINE__);
+
+                position_type q = 1 - p;
+
+                return value_type(
+                    (q) * left.analyzed_mu() + (p) * right.analyzed_mu(),
+                    (q) * left.simulated_mu() + (p) * right.simulated_mu());
+            } // interpolate(...)
+        }; // struct interpolator<...>
+    } // namespace modules
+} // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATION_PAIR_HPP_INCLUDED

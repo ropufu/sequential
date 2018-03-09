@@ -5,6 +5,7 @@
 #include <aftermath/algebra.hpp>      // aftermath::algebra::matrix
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
 
+#include "../hypotheses/de_auto_regress.hpp"
 #include "../hypotheses/signals.hpp"
 #include "../hypotheses/noises.hpp"
 #include "../hypotheses/process.hpp"
@@ -13,6 +14,8 @@
 #include "../hypotheses/monte_carlo.hpp"
 
 #include "../hypotheses/moment_statistic.hpp"
+#include "../hypotheses/modules/interpolator.hpp"
+#include "../hypotheses/modules/numbers.hpp"
 
 #include "config.hpp"
 #include "run.hpp"
@@ -78,7 +81,7 @@ namespace ropufu
                         << "   pm   "   << std::setw(fixed_width) << std::left << " |" << " ... " << std::setw(fixed_width) << std::right << "| " << std::endl;
                     std::cout << blank  << std::setw(fixed_width) << std::left << c << " --- " << std::setw(fixed_width) << std::right << d
                         << "        "   << std::setw(fixed_width) << std::left << z << " --- " << std::setw(fixed_width) << std::right << w << std::endl;
-                }
+                } // print_corners(...)
             } // namespace detail
 
             /** @brief Class for reading and writing configurtation setting. */
@@ -86,14 +89,17 @@ namespace ropufu
             struct automator
             {
                 using type = automator<t_signal_type, t_noise_type, t_sync_check>;
+                using de_auto_regress_type = hypotheses::detail::de_auto_regress<t_signal_type, t_noise_type>;
 
                 using signal_type = t_signal_type;
                 using noise_type = t_noise_type;
-                using process_type = hypotheses::process<t_signal_type, t_noise_type>;
+                using adjusted_signal_type = typename de_auto_regress_type::adjusted_signal_type;
+                using adjusted_noise_type = typename de_auto_regress_type::adjusted_noise_type;
+                using process_type = hypotheses::process<adjusted_signal_type, adjusted_noise_type>; // Adjusted process.
                 using value_type = typename process_type::value_type;
                 using model_type = hypotheses::model<value_type>;
-                using rule_type = hypotheses::xsprt<t_signal_type, t_noise_type, t_sync_check>;
-                using monte_carlo_type = hypotheses::monte_carlo<t_signal_type, t_noise_type>;
+                using rule_type = hypotheses::xsprt<adjusted_signal_type, adjusted_noise_type, t_sync_check>;
+                using monte_carlo_type = hypotheses::monte_carlo<adjusted_signal_type, adjusted_noise_type>;
 
                 template <typename t_data_type>
                 using matrix_t = aftermath::algebra::matrix<t_data_type>;
@@ -103,8 +109,8 @@ namespace ropufu
 
             private:
                 std::string m_mat_output_path = { }; // Where to dump the statistic mat files.
-                signal_type m_signal = { }; // Signal.
-                noise_type m_noise = { }; // Noise.
+                adjusted_signal_type m_signal = { }; // Signal.
+                adjusted_noise_type m_noise = { }; // Noise.
                 monte_carlo_type m_monte_carlo = { }; // Monte carlo.
                 std::map<std::size_t, rule_type> m_rules = { }; // Potential rules to run.
                 std::vector<run<value_type>> m_runs = { }; // MC simulations to perform.
@@ -114,6 +120,13 @@ namespace ropufu
                     this->m_rules.clear();
                     for (const typename congif_type::rule_type& x : config.rules()) this->m_rules.emplace(x.id(), x);
                 } // build_rules(...)
+
+                void build_runs(const congif_type& config) noexcept
+                {
+                    std::vector<run<value_type>> keyframe_runs = config.runs(); // Copy runs from config.
+                    std::size_t count_in_between = config.interpolated_runs();
+                    this->m_runs = run<value_type>::interpolate(keyframe_runs, count_in_between);
+                } // build_runs(...)
 
                 void execute(const model_type& model, const simulation_pair<value_type>& mu_pair,
                     std::vector<rule_type>& rules_to_run,
@@ -132,7 +145,6 @@ namespace ropufu
                     }
                     if (k == 0) return;
 
-                    if (is_verbal && mu_pair.special()) std::cout << "Run for " << std::to_string(mu_pair.oc()) << ". ";
                     if (is_verbal) std::cout
                         << "Analyzed mu: " << mu_pair.analyzed_mu() << ", "
                         << "simulated mu: " << mu_pair.simulated_mu() << std::endl;
@@ -156,7 +168,7 @@ namespace ropufu
                                 std::vector<value_type> alt_thresholds { };
                                 init.make_thresholds(threshold_count, threshold_spacing, null_thresholds, alt_thresholds);
                                 rule.initialize(model, mu_pair.analyzed_mu(), init.anticipated_run_length(), proc, null_thresholds, alt_thresholds);
-                            }
+                            } // for (...)
                         },
                         [&] () {
                             end = std::chrono::steady_clock::now();
@@ -180,26 +192,26 @@ namespace ropufu
                                 if (is_verbal) std::cout << "Rule #" << rule.id()
                                     << " ESS = " << ess_a << "--" << ess_b << ","
                                     << " P(error) = " << err_a << "--" << err_b << "." << std::endl;
-                            }
+                            } // for (...)
                             if (is_verbal) std::cout << "Simulation end." << std::endl;
                             value_type elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / static_cast<value_type>(1'000);
 
                             if (is_verbal) std::cout << "Elapsed time: " << elapsed_seconds << "s." << std::endl;
-                        });
-                }
+                        }); // run(...)
+                } // execute(...)
 
             public:
                 automator() noexcept { }
 
                 automator(const signal_type& signal, const noise_type& noise) noexcept
-                    : m_signal(signal), m_noise(noise)
+                    : m_signal(de_auto_regress_type::adjust_signal(signal, noise)), m_noise(de_auto_regress_type::adjust_noise(signal, noise))
                 {
                     const congif_type& config = congif_type::instance();
 
                     this->m_mat_output_path = config.mat_output_path();
                     this->m_monte_carlo = monte_carlo_type(config.simulation_count());
                     this->build_rules(config);
-                    this->m_runs = config.runs(); // Copy runs from config.
+                    this->build_runs(config);
                 } // automator(...)
 
                 void execute() noexcept
@@ -222,28 +234,25 @@ namespace ropufu
                             {
                                 rules_to_run.push_back(match_iterator->second);
                                 rules_init.push_back(item.second);
-                            }
-                        }
+                            } // if (...)
+                        } // for (...)
 
                         // First, build up the operating characteristics.
+                        std::cout << "Model " << model << std::endl;
                         std::cout << "Estimating operating characteristics in " << this->m_monte_carlo.count_simulations() << " Monte Carlo runs..." << std::endl;
-                        std::vector<simulation_pair<value_type>> other_mu_pairs { };
-                        std::vector<oc_array<statistic_type>> ocs(rules_to_run.size()); // One default-initialized <oc_array> for each rule.
-                        for (const simulation_pair<value_type>& mu_pair : r.simulation_pairs())
+                        oc_array<void> oc_list { };
+                        std::vector<oc_array<statistic_type>> oc_statistics(rules_to_run.size()); // One default-initialized <oc_array> for each rule.
+                        for (operating_characteristic oc : oc_list)
                         {
-                            if (!mu_pair.special())
-                            {
-                                other_mu_pairs.push_back(mu_pair);
-                                continue; // Proceed to next pair.
-                            }
+                            simulation_pair<value_type> mu_pair(oc, model);
                             this->execute(model, mu_pair, rules_to_run, rules_init, r.threshold_count(), r.threshold_spacing(), false); // Run the simulation, suppress display.
 
-                            // Collect statistics to store, once all OC simulations are completed.
+                            // Collect statistics to be stored later, once all OC simulations are completed.
                             for (std::size_t k = 0; k < rules_to_run.size(); ++k)
                             {
                                 const rule_type& rule = rules_to_run[k];
-                                oc_array<statistic_type>& oc = ocs[k];
-                                oc[mu_pair.oc()] = mu_pair.oc(rule);
+                                oc_array<statistic_type>& oc_statistic_array = oc_statistics[k];
+                                oc_statistic_array[oc] = mu_pair.read_oc(oc, rule);
                             } // for (...)
                         } // for (...)
 
@@ -251,10 +260,10 @@ namespace ropufu
                         for (std::size_t k = 0; k < rules_to_run.size(); ++k)
                         {
                             const rule_type& rule = rules_to_run[k];
-                            const oc_array<statistic_type>& oc = ocs[k];
+                            const oc_array<statistic_type>& oc_statistic_array = oc_statistics[k];
 
-                            const statistic_type& fa = oc[operating_characteristic::probability_of_false_alarm];
-                            const statistic_type& ms = oc[operating_characteristic::probability_of_missed_signal];
+                            const statistic_type& fa = oc_statistic_array[operating_characteristic::probability_of_false_alarm];
+                            const statistic_type& ms = oc_statistic_array[operating_characteristic::probability_of_missed_signal];
 
                             matrix_t<value_type> pfa = fa.mean();
                             matrix_t<value_type> pms = ms.mean();
@@ -269,21 +278,21 @@ namespace ropufu
                             detail::print_corners(pms, vms, "    " + std::to_string(operating_characteristic::probability_of_missed_signal) + " = ");
                             std::cout << std::endl;
 
-                            w.write_mat(rule, oc); // Write to .mat file.
+                            w.write_mat(model, rule, oc_statistic_array); // Write to .mat file.
                         } // for (...)
 
                         // Second, then run the auxiliary simulations.
-                        if (!other_mu_pairs.empty())
+                        if (!r.simulation_pairs().empty())
                         {
                             std::cout << "Estimating other characteristics..." << std::endl;
-                            for (const simulation_pair<value_type>& mu_pair : other_mu_pairs)
+                            for (const simulation_pair<value_type>& mu_pair : r.simulation_pairs())
                             {
                                 this->execute(model, mu_pair, rules_to_run, rules_init, r.threshold_count(), r.threshold_spacing(), true); // Run the simulation, allow display.
                                 // Store the statistics right away.
                                 for (std::size_t k = 0; k < rules_to_run.size(); ++k)
                                 {
                                     const rule_type& rule = rules_to_run[k];
-                                    w.write_mat(rule, mu_pair); // Write to .mat file.
+                                    w.write_mat(model, rule, mu_pair); // Write to .mat file.
                                 } // for (...)
                             } // for (...)
                         } // if (...)

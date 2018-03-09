@@ -17,7 +17,7 @@ namespace ropufu
         {
             namespace detail
             {
-                /** Description of a simulation. */
+                /** @todo Default behavior should not be identity, but rather indicate that it was not implemented.*/
                 template <typename t_signal_type, typename t_noise_type>
                 struct de_auto_regress
                 {
@@ -140,7 +140,7 @@ namespace ropufu
                 adjusted_signal_type signal = de_auto_regress_type::adjust_signal(proc.signal(), proc.noise());
                 adjusted_noise_type noise = de_auto_regress_type::adjust_noise(proc.signal(), proc.noise());
                 return adjusted_process_type(signal, noise, proc.actual_mu());
-            }; // struct de_auto_regress
+            }; // adjust_process(...)
         } // namespace hypotheses
     } // namespace sequential
 } // namespace ropufu

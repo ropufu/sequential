@@ -2,6 +2,7 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_CORE_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_CORE_HPP_INCLUDED
 
+#include <cmath>   // std::isnan, std::isinf
 #include <cstddef> // std::size_t
 #include <string>  // std::string, std::to_string
 #include <type_traits> // std::is_floating_point
@@ -48,7 +49,7 @@ namespace ropufu
                                 result += std::to_string(whole);
                                 upscaled -= denominator * whole;
                             }
-                        }
+                        } // if (...)
                         return result;
                     } // to_string(...)
                 }; // struct format<...>
@@ -56,8 +57,8 @@ namespace ropufu
                 template <typename t_type>
                 std::string to_str(t_type x, std::size_t decimal_places) noexcept { return format<t_type>::to_string(x, decimal_places); }
             } // namespace detail
-        }
-    }
-}
+        } // namespace hypotheses
+    } // namespace sequential
+} // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_CORE_HPP_INCLUDED
