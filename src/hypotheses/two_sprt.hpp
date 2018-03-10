@@ -303,7 +303,7 @@ namespace ropufu
                             value_type t = run_length / correction;
                             value_type e = error / correction;
                             corrected_run_lengths.unchecked_at(i, j) = t;
-                            corrected_errors.unchecked_at(i, j) = e; // @todo There might be a bug here with e > 1. Possibly due to error flag (line 296) when both has_crossed_null and has_crossed_alt are marked true?
+                            corrected_errors.unchecked_at(i, j) = e;
                         } // for(...)
                     } // for(...)
 
