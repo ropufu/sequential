@@ -67,9 +67,11 @@ namespace ropufu
                 {
                     if (count_in_between == 0) return keyframe_runs;
                     if (keyframe_runs.size() <= 1) return keyframe_runs;
-                    // o--^--o--^--o--^--o--...--o--^--o 
-                    //   /.\   /.\   /.\           /.\   
-                    //   ...   ...   ...           ...   
+                    /* Key frames are marked with 'o'-s.
+                       o--^--o--^--o--^--o--...--o--^--o 
+                         /.\   /.\   /.\           /.\   
+                         ...   ...   ...           ...   
+                    */
                     
                     std::size_t count_pairs = keyframe_runs.size() - 1;
                     std::vector<type> result { };

@@ -1,4 +1,3 @@
-
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_XSPRT_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_XSPRT_HPP_INCLUDED
 
@@ -137,9 +136,9 @@ namespace ropufu
 
                 const matrix_t<std::size_t>& counts() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<std::size_t>& { return arg.counts(); }, this->m_rule); }
 
-                const std::vector<bool>& has_decided_null() const noexcept { return std::visit([] (auto&& arg) -> const std::vector<bool>& { return arg.has_decided_null(); }, this->m_rule); }
+                const matrix_t<bool>& have_crossed_null() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<bool>& { return arg.have_crossed_null(); }, this->m_rule); }
 
-                const std::vector<bool>& has_decided_alt() const noexcept { return std::visit([] (auto&& arg) -> const std::vector<bool>& { return arg.has_decided_alt(); }, this->m_rule); }
+                const matrix_t<bool>& have_crossed_alt() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<bool>& { return arg.have_crossed_alt(); }, this->m_rule); }
                 
                 bool has_stopped() const noexcept { return std::visit([] (auto&& arg) { return arg.has_stopped(); }, this->m_rule); }
                 
@@ -155,8 +154,8 @@ namespace ropufu
                 /** Track run lengths of the stopping time. */
                 const statistic_type& run_lengths() const noexcept { return std::visit([] (auto&& arg) -> const statistic_type& { return arg.run_lengths(); }, this->m_rule); }
 
-                const std::vector<value_type>& unscaled_null_thresholds() const noexcept { return std::visit([] (auto&& arg) -> const std::vector<value_type>& { return arg.unscaled_null_thresholds(); }, this->m_rule); }
-                const std::vector<value_type>& unscaled_alt_thresholds() const noexcept { return std::visit([] (auto&& arg) -> const std::vector<value_type>& { return arg.unscaled_alt_thresholds(); }, this->m_rule); }
+                const matrix_t<value_type>& unscaled_null_thresholds() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<value_type>& { return arg.unscaled_null_thresholds(); }, this->m_rule); }
+                const matrix_t<value_type>& unscaled_alt_thresholds() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<value_type>& { return arg.unscaled_alt_thresholds(); }, this->m_rule); }
 
                 std::string to_path_string(std::size_t decimal_places = 3) const noexcept { return std::visit([decimal_places] (auto&& arg) { return arg.to_path_string(decimal_places); }, this->m_rule); }
 
