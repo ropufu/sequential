@@ -161,7 +161,7 @@ The singleton structure was taken from \href{https://stackoverflow.com/questions
         \draw[arrow] (twosprt)  edge                (gsprt.west);
         \draw[arrow] (twosprt)  edge[bend right=10] (dsprt.west);
     \end{tikzpicture}
-    \end{center}
+\end{center}
 
 \subsection*{Fundamental structures.}
 
@@ -186,7 +186,69 @@ The following are the base abstract CRTP structures:
 
 %\subsection*{Auxiliary structures.}
 
+\subsection*{2-\textsc{sprt} structure.}
 
+This abstract class represents decision rules $(\tau, d)$, where $\tau $ is a stopping time of the form $\tau = \min \set{\tau _0, \tau _1}$, and $d$ is the decision ruling in favor of $\Hyp _k$ if $\tau = \tau _k$, for $k = 0, 1$. The auxiliary stopping times are
+\[
+    \tau _0 = \set{t \mid T_0 > a}, \qquad
+    \tau _1 = \set{t \mid T_1 > b},
+\]
+where $T_0$ and $T_1$ are some scalar-valued SPRT-based statistics, and $a$, $b$ are thresholds serving as design parameters.
+
+For efficiency reasons, rather than perform simulations for a given pair of thresholds $(a, b)$, one would construct a grid of thresholds $(a_i, b_j)_{i, j}$ with
+\[
+    a_1 < a_2 < \cdots < a_m, \qquad
+    b_1 < b_2 < \cdots < b_n.
+\]
+
+\begin{center}
+    \begin{tikzpicture}[
+            arrow/.style={->, >=latex},
+            box/.style={inner sep=0pt, minimum width=80pt, minimum height=60pt}
+        ]
+        \draw[arrow]  (-2,+1.4) -- (2,+1.4); \node at (2.7,+1.4) {$\ensuremath{b, \text{alt}}$};
+        \draw[dashed] (-2,0) -- (-0.8,0); \node at (-2.2,0) {$\ensuremath{i}$};
+        \draw[arrow]  (-1.8,1.6) -- (-1.8,-1.6); \node at (-1.8,-1.9) {$\ensuremath{a, \text{null}}$};
+        \draw[dashed] (0,1.6) -- (0,0.3); \node at (0,1.9) {$\ensuremath{j}$};
+        \node[draw, rectangle, box] at (0, 0) {$\ensuremath{(a_i, b_j)}$};
+    \end{tikzpicture}
+\end{center}
+
+The simulation then would proceed as long as at least one of the thresholds has not been crossed, or equivalently, as long as $(a_m, b_n)$ has not been crossed. For each pair of thresholds, one would keep track of the observed stopping time, and the decision made.
+
+%
+Let $i^*$ denote the index of the first uncrossed null threshold, $a_{i^*}$.
+Let $j^*$ denote the index of the first uncrossed alt threshold, $b_{j^*}$.
+
+\begin{center}
+    \begin{tikzpicture}[
+            arrow/.style={->, >=latex},
+            nobox/.style={outer sep=10pt, minimum width=30pt, minimum height=30pt},
+            bigbox/.style={outer sep=20pt, minimum width=120pt, minimum height=80pt},
+            null/.style={pattern=north west lines, pattern color=gray},
+            alt/.style={pattern=north east lines, pattern color=gray}
+        ]
+        %\node at (-5, 0) {(i)};
+        % ~~ Matrices ~~
+        \node[draw, rectangle, nobox] (mbase)  at (-3, 0) {};
+        \node[draw, rectangle, bigbox] (mstop) at (+2, 0) {};
+        \draw[null] (+0, +1.3) rectangle (+4.0, +0.0) {};
+        \draw[alt]  (+0, +1.3) rectangle (+1.3, -1.3) {};
+        % ~~ Arrows ~~
+        \draw[arrow] (mbase) edge (mstop);
+        % ~~ Indices ~~
+        \node at (+1.3,1.7) {$\ensuremath{j^*}$};
+        \node at (-0.4,0) {$\ensuremath{i^*}$};
+        % ~~ Labels ~~
+        \node[fill=white] at (0.6,0.6) {err};
+        \node[fill=white] at (2.6,0.6) {$\ensuremath{\Hyp _0}$};
+        \node[fill=white] at (0.6,-0.6) {$\ensuremath{\Hyp _1}$};
+    \end{tikzpicture}
+\end{center}
+
+When we start off with the first observation, the entire shaded region in the corresponding matrices will be filled; so each next step only require updating the remaining (rectangular) region of the matrix---for either of the two operating characteristics (OC): stopping time, or decision. So with each next step another $\Gamma $-shaped block of the OC matrices will be filled out, yielding an opportunity to optimize the whole process.
+
+\newpage
 \section*{Project \texttt{simulator}.}
 
 Now to the actual program. The description of simulations to be run are stored in \texttt{config}.
@@ -196,7 +258,7 @@ More specifically, it contains information necessary to create
     \item \texttt{noise};
     \item \texttt{monte\_carlo};
     \item list of \texttt{two\_sprt}'s;
-    \item list of \texttt{run}'s to be performed. 
+    \item list of \texttt{run}'s to be performed.
 \end{itemize}
 %
 The description of simulation, \texttt{run}, contains information about
