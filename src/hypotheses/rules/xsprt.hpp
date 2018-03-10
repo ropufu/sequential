@@ -123,23 +123,14 @@ namespace ropufu
                     std::visit([&] (auto&& arg) { j = arg; }, this->m_rule);
                 } // to_json(...)
 
-                /** @brief Indicates whether the observer is still active. */
-                bool is_listening() const noexcept
-                {
-                    return std::visit([] (auto&& arg) { return arg.is_listening(); }, this->m_rule);
-                } // is_listening(...)
                 
                 // ~~ Forwarded from \c two_sprt ~~
                 std::size_t id() const noexcept { return std::visit([] (auto&& arg) { return arg.id(); }, this->m_rule); }
 
                 const likelihood_type& likelihood() const noexcept { return std::visit([] (auto&& arg) -> const likelihood_type& { return arg.likelihood(); }, this->m_rule); }
 
-                const matrix_t<std::size_t>& counts() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<std::size_t>& { return arg.counts(); }, this->m_rule); }
-
-                const matrix_t<bool>& have_crossed_null() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<bool>& { return arg.have_crossed_null(); }, this->m_rule); }
-
-                const matrix_t<bool>& have_crossed_alt() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<bool>& { return arg.have_crossed_alt(); }, this->m_rule); }
-                
+                /** @brief Indicates whether the observer is still active. */
+                bool is_listening() const noexcept { return std::visit([] (auto&& arg) { return arg.is_listening(); }, this->m_rule); } // is_listening(...)
                 bool has_stopped() const noexcept { return std::visit([] (auto&& arg) { return arg.has_stopped(); }, this->m_rule); }
                 
                 /** Signal "strength" conrresponding to what measure we want to analyze. */
@@ -154,8 +145,8 @@ namespace ropufu
                 /** Track run lengths of the stopping time. */
                 const statistic_type& run_lengths() const noexcept { return std::visit([] (auto&& arg) -> const statistic_type& { return arg.run_lengths(); }, this->m_rule); }
 
-                const matrix_t<value_type>& unscaled_null_thresholds() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<value_type>& { return arg.unscaled_null_thresholds(); }, this->m_rule); }
-                const matrix_t<value_type>& unscaled_alt_thresholds() const noexcept { return std::visit([] (auto&& arg) -> const matrix_t<value_type>& { return arg.unscaled_alt_thresholds(); }, this->m_rule); }
+                const std::vector<value_type>& unscaled_null_thresholds() const noexcept { return std::visit([] (auto&& arg) -> const std::vector<value_type>& { return arg.unscaled_null_thresholds(); }, this->m_rule); }
+                const std::vector<value_type>& unscaled_alt_thresholds() const noexcept { return std::visit([] (auto&& arg) -> const std::vector<value_type>& { return arg.unscaled_alt_thresholds(); }, this->m_rule); }
 
                 std::string to_path_string(std::size_t decimal_places = 3) const noexcept { return std::visit([decimal_places] (auto&& arg) { return arg.to_path_string(decimal_places); }, this->m_rule); }
 
