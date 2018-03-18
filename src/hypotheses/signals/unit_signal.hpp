@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_UNIT_SIGNAL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../json.hpp"
+#include "../../draft/quiet_json.hpp"
 
 #include "../signal_base.hpp"
 
@@ -66,14 +66,22 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, unit_signal<t_value_type>& /**x*/) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = unit_signal<t_value_type>;
                 std::string signal_type_str = type::signal_type_name;
 
                 // Parse json entries.
-                if (!quiet_json::required(j, type::jstr_signal_type, signal_type_str)) return;
+                q.required(type::jstr_signal_type, signal_type_str);
 
-                q.validate();
+                // Reconstruct the object.
+                if (!q.good())
+                {
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential

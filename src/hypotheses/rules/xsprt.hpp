@@ -2,7 +2,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_XSPRT_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../json.hpp"
+#include "../../draft/quiet_json.hpp"
 
 #include <aftermath/algebra.hpp> // aftermath::algebra::matrix
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
@@ -10,6 +10,7 @@
 #include "invalid_sprt.hpp"
 #include "adaptive_sprt.hpp"
 #include "adaptive_sprt_star.hpp"
+#include "double_sprt.hpp"
 #include "generalized_sprt.hpp"
 #include "generalized_sprt_star.hpp"
 
@@ -55,13 +56,14 @@ namespace ropufu
                 using likelihood_type = hypotheses::likelihood<t_signal_type, t_noise_type, t_sync_check>;
 
                 // ~~ Supported 2-SPRT types ~~
-                using type_0 = invalid_sprt<t_signal_type, t_noise_type, t_sync_check>;
-                using type_1 = adaptive_sprt<t_signal_type, t_noise_type, t_sync_check>;
-                using type_2 = adaptive_sprt_star<t_signal_type, t_noise_type, t_sync_check>;
+                using invalid_type = invalid_sprt<t_signal_type, t_noise_type, t_sync_check>;
+                using type_0 = adaptive_sprt<t_signal_type, t_noise_type, t_sync_check>;
+                using type_1 = adaptive_sprt_star<t_signal_type, t_noise_type, t_sync_check>;
+                using type_2 = double_sprt<t_signal_type, t_noise_type, t_sync_check>;
                 using type_3 = generalized_sprt<t_signal_type, t_noise_type, t_sync_check>;
                 using type_4 = generalized_sprt_star<t_signal_type, t_noise_type, t_sync_check>;
 
-                using variant_type = std::variant<type_0, type_1, type_2, type_3, type_4>;
+                using variant_type = std::variant<invalid_type, type_0, type_1, type_2, type_3, type_4>;
 
                 template <typename t_data_type>
                 using matrix_t = aftermath::algebra::matrix<t_data_type>;
@@ -101,12 +103,14 @@ namespace ropufu
                     std::visit([&] (auto&& arg) { this->m_rule = arg; }, similar.underlying());
                 } // xsprt(...)
 
+                /**implicit*/ xsprt(invalid_type&& rule) noexcept : m_rule(rule) { }
                 /**implicit*/ xsprt(type_0&& rule) noexcept : m_rule(rule) { }
                 /**implicit*/ xsprt(type_1&& rule) noexcept : m_rule(rule) { }
                 /**implicit*/ xsprt(type_2&& rule) noexcept : m_rule(rule) { }
                 /**implicit*/ xsprt(type_3&& rule) noexcept : m_rule(rule) { }
                 /**implicit*/ xsprt(type_4&& rule) noexcept : m_rule(rule) { }
 
+                /**implicit*/ xsprt(const invalid_type& rule) noexcept : m_rule(rule) { }
                 /**implicit*/ xsprt(const type_0& rule) noexcept : m_rule(rule) { }
                 /**implicit*/ xsprt(const type_1& rule) noexcept : m_rule(rule) { }
                 /**implicit*/ xsprt(const type_2& rule) noexcept : m_rule(rule) { }
@@ -183,9 +187,10 @@ namespace ropufu
             template <typename t_signal_type, typename t_noise_type, bool t_sync_check>
             void from_json(const nlohmann::json& j, xsprt<t_signal_type, t_noise_type, t_sync_check>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
 
                 using type = xsprt<t_signal_type, t_noise_type, t_sync_check>;
+                using invalid_type = typename type::invalid_type;
                 using type_0 = typename type::type_0;
                 using type_1 = typename type::type_1;
                 using type_2 = typename type::type_2;
@@ -195,15 +200,15 @@ namespace ropufu
                 std::string sprt_type_str { };
 
                 // Parse json entries.
-                if (!quiet_json::required(j, type::jstr_sprt_type, sprt_type_str)) return;
+                if (!q.required(type::jstr_sprt_type, sprt_type_str)) return;
 
-                if (sprt_type_str == type_0::sprt_type_name) { type_0 y = j; x = y; q.validate(); return; }
-                if (sprt_type_str == type_1::sprt_type_name) { type_1 y = j; x = y; q.validate(); return; }
-                if (sprt_type_str == type_2::sprt_type_name) { type_2 y = j; x = y; q.validate(); return; }
-                if (sprt_type_str == type_3::sprt_type_name) { type_3 y = j; x = y; q.validate(); return; }
-                if (sprt_type_str == type_4::sprt_type_name) { type_4 y = j; x = y; q.validate(); return; }
+                if (sprt_type_str == type_0::sprt_type_name) { type_0 y = j; x = y; return; }
+                if (sprt_type_str == type_1::sprt_type_name) { type_1 y = j; x = y; return; }
+                if (sprt_type_str == type_2::sprt_type_name) { type_2 y = j; x = y; return; }
+                if (sprt_type_str == type_3::sprt_type_name) { type_3 y = j; x = y; return; }
+                if (sprt_type_str == type_4::sprt_type_name) { type_4 y = j; x = y; return; }
 
-                type_0 invalid = j;
+                invalid_type invalid = j;
                 x = invalid;
             } // from_json(...)
         } // namespace hypotheses

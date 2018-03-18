@@ -5,7 +5,7 @@
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
 
 #include <nlohmann/json.hpp>
-#include "../hypotheses/json.hpp"
+#include "../draft/quiet_json.hpp"
 
 #include "../hypotheses/signals.hpp"
 #include "../hypotheses/noises.hpp"
@@ -119,7 +119,8 @@ namespace ropufu
 
                         i >> this->m_json;
                         this->m_is_good = true;
-                        const nlohmann::json& j = this->m_json;
+                        //const nlohmann::json& j = this->m_json;
+                        quiet_json q(this->m_json);
 
                         // Populate default values.
                         std::string mat_output_path = this->m_mat_output_path;
@@ -128,45 +129,44 @@ namespace ropufu
                         std::size_t count_interpolated_runs = this->m_count_interpolated_runs;
                         signal_variant_type signal = this->m_signal;
                         noise_variant_type noise = this->m_noise;
+                        nlohmann::json signal_json { };
+                        nlohmann::json noise_json { };
                         std::vector<rule_type> rules = this->m_rules;
                         std::vector<run<value_type>> runs = this->m_runs;
                         
                         // Parse json entries.
-                        if (!quiet_json::optional(j, type::jstr_mat_output_path, mat_output_path)) return false;
-                        if (!quiet_json::optional(j, type::jstr_count_simulations, count_simulations)) return false;
-                        if (!quiet_json::optional(j, type::jstr_count_threads, count_threads)) return false;
-                        if (!quiet_json::optional(j, type::jstr_count_interpolated_runs, count_interpolated_runs)) return false;
-                        if (quiet_json::is_missing(j, type::jstr_signal)) return false;
-                        if (quiet_json::is_missing(j, type::jstr_noise)) return false;
+                        q.optional(type::jstr_mat_output_path, mat_output_path);
+                        q.optional(type::jstr_count_simulations, count_simulations);
+                        q.optional(type::jstr_count_threads, count_threads);
+                        q.optional(type::jstr_count_interpolated_runs, count_interpolated_runs);
+                        //if (!q.has(type::jstr_signal)) return false;
+                        //if (!q.has(type::jstr_noise)) return false;
+                        q.required(type::jstr_signal, signal_json);
+                        q.required(type::jstr_noise, noise_json);
+                        q.required(type::jstr_rules, rules);
+                        q.required(type::jstr_runs, runs);
+
+                        // Reconstruct the object.
+                        if (!q.good())
+                        {
+                            aftermath::quiet_error::instance().push(
+                                aftermath::not_an_error::runtime_error,
+                                aftermath::severity_level::major,
+                                q.message(), __FUNCTION__, __LINE__);
+                            return false;
+                        } // if (...)
                         // Signal discriminator.
-                        if (!hypotheses::try_discriminate_signal(j[type::jstr_signal], signal))
+                        if (!hypotheses::try_discriminate_signal(signal_json, signal))
                         {
                             aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Signal not recognized.", __FUNCTION__, __LINE__);
                             return false;
                         }
                         // Noise discriminator.
-                        if (!hypotheses::try_discriminate_noise(j[type::jstr_noise], noise))
+                        if (!hypotheses::try_discriminate_noise(noise_json, noise))
                         {
                             aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Noise not recognized.", __FUNCTION__, __LINE__);
                             return false;
                         }
-                        // Read rules.
-                        if (quiet_json::is_missing(j, type::jstr_rules)) return false;
-                        rules.clear();
-                        for (const nlohmann::json& k : j[type::jstr_rules])
-                        {
-                            rule_type x = k;
-                            rules.push_back(x);
-                        }
-                        // Read runs.
-                        if (quiet_json::is_missing(j, type::jstr_runs)) return false;
-                        runs.clear();
-                        for (const nlohmann::json& k : j[type::jstr_runs])
-                        {
-                            run<value_type> x = k;
-                            runs.push_back(x);
-                        }
-
                         this->m_mat_output_path = mat_output_path;
                         this->m_count_simulations = count_simulations;
                         this->m_count_threads = count_threads;

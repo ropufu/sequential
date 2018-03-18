@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_INVALID_SPRT_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../json.hpp"
+#include "../../draft/quiet_json.hpp"
 
 #include "../core.hpp"
 #include "../model.hpp"
@@ -108,7 +108,7 @@ namespace ropufu
             template <typename t_signal_type, typename t_noise_type, bool t_sync_check>
             void from_json(const nlohmann::json& j, invalid_sprt<t_signal_type, t_noise_type, t_sync_check>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = invalid_sprt<t_signal_type, t_noise_type, t_sync_check>;
 
                 // Populate default values.
@@ -116,13 +116,19 @@ namespace ropufu
                 std::size_t id = x.id();
 
                 // Parse json entries.
-                // if (!quiet_json::required(j, type::jstr_sprt_type, sprt_type_str)) return; // Allow any types.
-                if (!quiet_json::required(j, type::jstr_id, id)) return;
+                // q.required(type::jstr_sprt_type, sprt_type_str); // Allow any types.
+                q.required(type::jstr_id, id);
                 
                 // Reconstruct the object.
+                if (!q.good())
+                {
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
                 x = type(id);
-
-                q.validate();
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential

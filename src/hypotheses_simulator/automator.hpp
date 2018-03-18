@@ -13,6 +13,7 @@
 #include "../hypotheses/rules.hpp"
 #include "../hypotheses/monte_carlo.hpp"
 
+#include "../draft/range.hpp"
 #include "../hypotheses/moment_statistic.hpp"
 #include "../hypotheses/modules/interpolator.hpp"
 #include "../hypotheses/modules/numbers.hpp"
@@ -131,7 +132,7 @@ namespace ropufu
                 void execute(const model_type& model, const simulation_pair<value_type>& mu_pair,
                     std::vector<rule_type>& rules_to_run,
                     std::vector<init_info<value_type>>& rules_init,
-                    std::size_t threshold_count, const std::string& threshold_spacing,
+                    const hypothesis_pair<std::size_t>& threshold_count, aftermath::spacing threshold_spacing,
                     bool is_verbal) noexcept
                 {
                     std::size_t k = rules_to_run.size();

@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../json.hpp"
+#include "../../draft/quiet_json.hpp"
 
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
 
@@ -238,10 +238,10 @@ namespace ropufu
             void to_json(nlohmann::json& j, const auto_regressive_noise<t_value_type, t_ar_size>& x) noexcept
             {
                 using type = auto_regressive_noise<t_value_type, t_ar_size>;
-                std::string noise_type = type::noise_type_name;
+                std::string noise_type_str = type::noise_type_name;
 
                 j = nlohmann::json{
-                    {type::jstr_noise_type, noise_type},
+                    {type::jstr_noise_type, noise_type_str},
                     {type::jstr_noise_sigma, x.noise_sigma()},
                     {type::jstr_ar_parameters, x.ar_parameters()}
                 };
@@ -250,23 +250,30 @@ namespace ropufu
             template <typename t_value_type, std::size_t t_ar_size>
             void from_json(const nlohmann::json& j, auto_regressive_noise<t_value_type, t_ar_size>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = auto_regressive_noise<t_value_type, t_ar_size>;
 
                 // Populate default values.
-                std::string noise_type = type::noise_type_name;
+                std::string noise_type_str = type::noise_type_name;
                 typename type::value_type noise_sigma = x.noise_sigma();
                 typename type::ar_container_type ar_parameters = x.ar_parameters();
 
                 // Parse json entries.
-                if (!quiet_json::optional(j, type::jstr_noise_sigma, noise_sigma)) return;
-                if (!quiet_json::optional(j, type::jstr_ar_parameters, ar_parameters)) return;
+                q.required(type::jstr_noise_type, noise_type_str);
+                q.optional(type::jstr_noise_sigma, noise_sigma);
+                q.optional(type::jstr_ar_parameters, ar_parameters);
                 
                 // Reconstruct the object.
+                if (!q.good())
+                {
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
                 x.set_noise_level(noise_sigma);
                 x.set_ar_parameters(ar_parameters);
-
-                q.validate();
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential

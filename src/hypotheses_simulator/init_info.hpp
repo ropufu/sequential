@@ -3,14 +3,15 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_INIT_INFO_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../hypotheses/json.hpp"
+#include "../draft/quiet_json.hpp"
 
 #include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
 
+#include "../draft/range.hpp"
 #include "../hypotheses/core.hpp"
-#include "../hypotheses/matlab.hpp"
 #include "../hypotheses/modules/interpolator.hpp"
 #include "../hypotheses/modules/numbers.hpp"
+#include "hypothesis_pair.hpp"
 
 #include <cmath>    // std::isnan, std::isinf
 #include <cstddef>  // std::size_t
@@ -31,20 +32,17 @@ namespace ropufu
             {
                 using type = init_info<t_value_type>;
                 using value_type = t_value_type;
+                using range_type = aftermath::range<t_value_type>;
 
                 // ~~ Json names ~~
                 static constexpr char jstr_rule_id[] = "id";
-                static constexpr char jstr_null_thresholds[] = "null threshold range";
-                static constexpr char jstr_alt_thresholds[] = "alt threshold range";
+                static constexpr char jstr_threshold_range[] = "threshold range";
                 static constexpr char jstr_anticipated_run_length[] = "anticipated run length";
 
             private:
                 std::size_t m_rule_id = 0;
-                value_type m_null_thresholds_from = 0;
-                value_type m_null_thresholds_to = 0;
-                value_type m_alt_thresholds_from = 0;
-                value_type m_alt_thresholds_to = 0;
-                value_type m_anticipated_run_length = 0;
+                hypothesis_pair<range_type> m_threshold_range = { };
+                value_type m_anticipated_run_length = { };
 
             public:
                 init_info() noexcept { }
@@ -53,37 +51,21 @@ namespace ropufu
 
                 std::size_t rule_id() const noexcept { return this->m_rule_id; }
 
-                value_type null_thresholds_from() const noexcept { return this->m_null_thresholds_from; }
-                value_type null_thresholds_to() const noexcept { return this->m_null_thresholds_to; }
+                const hypothesis_pair<range_type>& threshold_range() const noexcept { return this->m_threshold_range; }
 
-                value_type alt_thresholds_from() const noexcept { return this->m_alt_thresholds_from; }
-                value_type alt_thresholds_to() const noexcept { return this->m_alt_thresholds_to; }
-
-                void set_threshold_range(const std::vector<value_type>& null_range, const std::vector<value_type>& alt_range) noexcept
+                void set_threshold_range(const range_type& null_range, const range_type& alt_range) noexcept
                 {
-                    if (null_range.size() != 2 || alt_range.size() != 2)
-                    {
-                        aftermath::quiet_error::instance().push(
-                            aftermath::not_an_error::logic_error,
-                            aftermath::severity_level::major,
-                            "Threshold range should be a vector with two entries.", __FUNCTION__, __LINE__);
-                        return;
-                    }
-
-                    this->m_null_thresholds_from = null_range.front();
-                    this->m_null_thresholds_to = null_range.back();
-
-                    this->m_alt_thresholds_from = alt_range.front();
-                    this->m_alt_thresholds_to = alt_range.back();
+                    this->m_threshold_range = hypothesis_pair<range_type>(null_range, alt_range);
                 } // set_threshold_range(...)
 
-                void make_thresholds(std::size_t count, const std::string& spacing, std::vector<value_type>& null_thresholds, std::vector<value_type>& alt_thresholds) const noexcept
+                void make_thresholds(const hypothesis_pair<std::size_t>& count, aftermath::spacing transform, std::vector<value_type>& null_thresholds, std::vector<value_type>& alt_thresholds) const noexcept
                 {
-                    null_thresholds = aftermath::matlab<value_type>::parse_space(spacing, this->m_null_thresholds_from, this->m_null_thresholds_to, count);
-                    alt_thresholds = aftermath::matlab<value_type>::parse_space(spacing, this->m_alt_thresholds_from, this->m_alt_thresholds_to, count);
-                }
+                    this->m_threshold_range.null().explode(null_thresholds, count.null(), transform);
+                    this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), transform);
+                } // make_thresholds(...)
 
                 value_type anticipated_run_length() const noexcept { return this->m_anticipated_run_length; }
+
                 void set_anticipated_run_length(value_type value) noexcept { this->m_anticipated_run_length = value; }
 
                 /** @brief Output to a stream. */
@@ -96,8 +78,7 @@ namespace ropufu
 
             // ~~ Json name definitions ~~
             template <typename t_value_type> constexpr char init_info<t_value_type>::jstr_rule_id[];
-            template <typename t_value_type> constexpr char init_info<t_value_type>::jstr_null_thresholds[];
-            template <typename t_value_type> constexpr char init_info<t_value_type>::jstr_alt_thresholds[];
+            template <typename t_value_type> constexpr char init_info<t_value_type>::jstr_threshold_range[];
             template <typename t_value_type> constexpr char init_info<t_value_type>::jstr_anticipated_run_length[];
             
             template <typename t_value_type>
@@ -105,13 +86,9 @@ namespace ropufu
             {
                 using type = init_info<t_value_type>;
 
-                std::vector<t_value_type> null_thresholds = { x.null_thresholds_from(), x.null_thresholds_to() };
-                std::vector<t_value_type> alt_thresholds = { x.alt_thresholds_from(), x.alt_thresholds_to() };
-
                 j = nlohmann::json{
                     {type::jstr_rule_id, x.rule_id()},
-                    {type::jstr_null_thresholds, null_thresholds},
-                    {type::jstr_alt_thresholds, alt_thresholds},
+                    {type::jstr_threshold_range, x.threshold_range()},
                     {type::jstr_anticipated_run_length, x.anticipated_run_length()}
                 };
             } // to_json(...)
@@ -119,26 +96,31 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, init_info<t_value_type>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = init_info<t_value_type>;
 
                 // Populate default values.
                 std::size_t rule_id = x.rule_id();
-                std::vector<t_value_type> null_thresholds = { x.null_thresholds_from(), x.null_thresholds_to() };
-                std::vector<t_value_type> alt_thresholds = { x.alt_thresholds_from(), x.alt_thresholds_to() };
+                hypothesis_pair<typename type::range_type> threshold_range = x.threshold_range();
                 t_value_type anticipated_run_length = x.anticipated_run_length();
 
                 // Parse json entries.
-                if (!quiet_json::required(j, type::jstr_rule_id, rule_id)) return;
-                if (!quiet_json::required(j, type::jstr_null_thresholds, null_thresholds)) return;
-                if (!quiet_json::required(j, type::jstr_alt_thresholds, alt_thresholds)) return;
-                if (!quiet_json::optional(j, type::jstr_anticipated_run_length, anticipated_run_length)) return;
+                q.required(type::jstr_rule_id, rule_id);
+                q.required(type::jstr_threshold_range, threshold_range);
+                q.optional(type::jstr_anticipated_run_length, anticipated_run_length);
                 
                 // Reconstruct the object.
+                if (!q.good())
+                {
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
                 x = type(rule_id);
-                x.set_threshold_range(null_thresholds, alt_thresholds);
+                x.set_threshold_range(threshold_range.null(), threshold_range.alt());
                 x.set_anticipated_run_length(anticipated_run_length);
-                q.validate();
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential
@@ -176,12 +158,12 @@ namespace ropufu
 
                 position_type q = 1 - p;
 
-                std::vector<t_value_type> null_thresholds = {
-                    (q) * left.null_thresholds_from() + (p) * right.null_thresholds_from(),
-                    (q) * left.null_thresholds_to() + (p) * right.null_thresholds_to() };
-                std::vector<t_value_type> alt_thresholds = {
-                    (q) * left.alt_thresholds_from() + (p) * right.alt_thresholds_from(),
-                    (q) * left.alt_thresholds_to() + (p) * right.alt_thresholds_to() };
+                aftermath::range<t_value_type> null_thresholds(
+                    (q) * left.threshold_range().null().from() + (p) * right.threshold_range().null().from(),
+                    (q) * left.threshold_range().null().to() + (p) * right.threshold_range().null().to());
+                aftermath::range<t_value_type> alt_thresholds(
+                    (q) * left.threshold_range().alt().from() + (p) * right.threshold_range().alt().from(),
+                    (q) * left.threshold_range().alt().to() + (p) * right.threshold_range().alt().to());
                 t_value_type anticipated_run_length = (q) * left.anticipated_run_length() + (p) * right.anticipated_run_length();
 
                 value_type x(rule_id);

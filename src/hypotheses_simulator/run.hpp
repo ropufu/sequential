@@ -3,13 +3,15 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_RUN_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../hypotheses/json.hpp"
+#include "../draft/quiet_json.hpp"
 
 #include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
 
+#include "../draft/range.hpp"
 #include "../hypotheses/model.hpp"
 #include "../hypotheses/modules/interpolator.hpp"
 #include "../hypotheses/modules/numbers.hpp"
+#include "hypothesis_pair.hpp"
 #include "init_info.hpp"
 #include "operating_characteristic.hpp"
 #include "simulation_pair.hpp"
@@ -18,8 +20,8 @@
 #include <iostream> // std::ostream
 #include <map>      // std::map
 #include <set>      // std::set
-#include <string>   // std::string
-#include <system_error>  // std::error_code, std::make_error_code, std::errc
+#include <string>   // std::string, std::to_string
+#include <system_error> // std::error_code, std::make_error_code, std::errc
 #include <utility>  // std::pair
 #include <vector>   // std::vector
 
@@ -52,8 +54,8 @@ namespace ropufu
 
             private:
                 model_type m_model = { };
-                std::size_t m_threshold_count = 0;
-                std::string m_threshold_spacing = "log";
+                hypothesis_pair<std::size_t> m_threshold_count = { };
+                aftermath::spacing m_threshold_spacing = aftermath::spacing::logarithmic;
                 std::vector<simulation_pair<value_type>> m_simulation_pairs = { };
                 std::map<std::size_t, init_info<value_type>> m_init_rules = { };
 
@@ -98,13 +100,13 @@ namespace ropufu
 
                 const model_type& model() const noexcept { return this->m_model; }
 
-                std::size_t threshold_count() const noexcept { return this->m_threshold_count; }
-                const std::string& threshold_spacing() const noexcept { return this->m_threshold_spacing; }
+                const hypothesis_pair<std::size_t>& threshold_count() const noexcept { return this->m_threshold_count; }
+                aftermath::spacing threshold_spacing() const noexcept { return this->m_threshold_spacing; }
 
-                void configure_thresholds(std::size_t count, const std::string& spacing) noexcept
+                void configure_thresholds(std::size_t null_count, std::size_t alt_count, aftermath::spacing transform) noexcept
                 {
-                    this->m_threshold_count = count;
-                    this->m_threshold_spacing = spacing;
+                    this->m_threshold_count = hypothesis_pair<std::size_t>(null_count, alt_count);
+                    this->m_threshold_spacing = transform;
                 } // configure_thresholds(...)
 
                 /** Explicit simulation pairs to be run---in addition to the standard OC runs. */
@@ -165,6 +167,7 @@ namespace ropufu
                     analyzed_mu.push_back(pair.analyzed_mu());
                     simulated_mu.push_back(pair.simulated_mu());
                 }
+                std::string threshold_spacing_str = std::to_string(x.threshold_spacing());
                 std::vector<init_info<t_value_type>> init_rules { };
                 for (const std::pair<std::size_t, init_info<t_value_type>>& item : x.init_rules()) init_rules.push_back(item.second);
 
@@ -173,7 +176,7 @@ namespace ropufu
                     {type::jstr_analyzed_mu, analyzed_mu},
                     {type::jstr_simulated_mu, simulated_mu},
                     {type::jstr_threshold_count, x.threshold_count()},
-                    {type::jstr_threshold_spacing, x.threshold_spacing()},
+                    {type::jstr_threshold_spacing, threshold_spacing_str},
                     {type::jstr_init_rules, init_rules}
                 };
             } // to_json(...)
@@ -181,7 +184,7 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, run<t_value_type>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = run<t_value_type>;
                 using model_type = model<t_value_type>;
 
@@ -194,24 +197,31 @@ namespace ropufu
                     analyzed_mu.push_back(pair.analyzed_mu());
                     simulated_mu.push_back(pair.simulated_mu());
                 }
-                std::size_t threshold_count = x.threshold_count();
-                std::string threshold_spacing = x.threshold_spacing();
-                std::map<std::size_t, init_info<t_value_type>> init_rules = x.init_rules();
+                hypothesis_pair<std::size_t> threshold_count = x.threshold_count();
+                aftermath::spacing threshold_spacing = x.threshold_spacing();
+                std::string threshold_spacing_str = std::to_string(threshold_spacing);
+                std::map<std::size_t, init_info<t_value_type>> init_rules_map = x.init_rules();
+                std::vector<init_info<t_value_type>> init_rules { };
+                init_rules.reserve(init_rules_map.size());
+                for (const std::pair<std::size_t, init_info<t_value_type>>& item : init_rules_map) init_rules.push_back(item.second);
 
                 // Parse json entries.
-                if (quiet_json::is_missing(j, type::jstr_model)) return;
-                model = j[type::jstr_model];
-                if (!quiet_json::optional(j, type::jstr_analyzed_mu, analyzed_mu)) return;
-                if (!quiet_json::optional(j, type::jstr_simulated_mu, simulated_mu)) return;
-                if (!quiet_json::required(j, type::jstr_threshold_count, threshold_count)) return;
-                if (!quiet_json::required(j, type::jstr_threshold_spacing, threshold_spacing)) return;
-                if (quiet_json::is_missing(j, type::jstr_init_rules)) return;
-                init_rules.clear();
-                for (const nlohmann::json& k : j[type::jstr_init_rules])
+                q.required(type::jstr_model, model);
+                q.optional(type::jstr_analyzed_mu, analyzed_mu);
+                q.optional(type::jstr_simulated_mu, simulated_mu);
+                q.required(type::jstr_threshold_count, threshold_count);
+                q.required(type::jstr_threshold_spacing, threshold_spacing_str);
+                q.required(type::jstr_init_rules, init_rules);
+                
+                // Reconstruct the object.
+                if (!q.good())
                 {
-                    init_info<t_value_type> z = k;
-                    init_rules.emplace(z.rule_id(), z);
-                } // for (...)
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
 
                 // Validate.
                 std::size_t pair_count = analyzed_mu.size();
@@ -220,14 +230,16 @@ namespace ropufu
                     aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Analyzed and simulated mu's have to be of the same size.", __FUNCTION__, __LINE__);
                     return;
                 } // if (...)
-                
-                // Reconstruct the object.
+                if (!aftermath::try_parse(threshold_spacing_str, threshold_spacing))
+                {
+                    aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Threshold spacing not recognized.", __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
+
                 x = type(model);
                 for (std::size_t i = 0; i < pair_count; ++i) x.study(analyzed_mu[i], simulated_mu[i]);
-                x.configure_thresholds(threshold_count, threshold_spacing);
-                for (const std::pair<std::size_t, init_info<t_value_type>>& item : init_rules) x.study(item.second);
-
-                q.validate();
+                x.configure_thresholds(threshold_count.null(), threshold_count.alt(), threshold_spacing);
+                for (const init_info<t_value_type>& item : init_rules) x.study(item);
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential
@@ -261,8 +273,8 @@ namespace ropufu
                     ec = std::make_error_code(std::errc::function_not_supported);
                     return { };
                 } // if (...)
-                std::size_t threshold_count = left.threshold_count();
-                std::string threshold_spacing = left.threshold_spacing();
+                sequential::hypotheses::hypothesis_pair<std::size_t> threshold_count = left.threshold_count();
+                aftermath::spacing threshold_spacing = left.threshold_spacing();
                 std::size_t pair_count = left.simulation_pairs().size();
                 std::size_t rule_count = left.init_rules().size();
 
@@ -299,7 +311,7 @@ namespace ropufu
                 // Finally, reconstruct the object.
                 value_type x(model);
                 for (const simulation_pair_type& item : simulation_pairs) x.study(item.analyzed_mu(), item.simulated_mu());
-                x.configure_thresholds(threshold_count, threshold_spacing);
+                x.configure_thresholds(threshold_count.null(), threshold_count.alt(), threshold_spacing);
                 for (const init_info_type& item : init_rules) x.study(item);
                 return x;
             } // interpolate(...)

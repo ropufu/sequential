@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_TRANSITIONARY_SIGNAL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../json.hpp"
+#include "../../draft/quiet_json.hpp"
 
 #include "../signal_base.hpp"
 
@@ -118,7 +118,7 @@ namespace ropufu
             template <typename t_value_type, std::size_t t_transition_size>
             void from_json(const nlohmann::json& j, transitionary_signal<t_value_type, t_transition_size>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = transitionary_signal<t_value_type, t_transition_size>;
 
                 // Populate default values.
@@ -127,15 +127,21 @@ namespace ropufu
                 t_value_type stationary_level = x.stationary_level();
 
                 // Parse json entries.
-                if (!quiet_json::required(j, type::jstr_signal_type, signal_type_str)) return;
-                if (!quiet_json::required(j, type::jstr_transition, transition)) return;
-                if (!quiet_json::required(j, type::jstr_stationary_level, stationary_level)) return;
+                q.required(type::jstr_signal_type, signal_type_str);
+                q.required(type::jstr_transition, transition);
+                q.required(type::jstr_stationary_level, stationary_level);
                 
                 // Reconstruct the object.
+                if (!q.good())
+                {
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
                 for (std::size_t i = 0; i < t_transition_size; ++i) x.set_transitionary_level(i, transition[i]);
                 x.set_stationary_level(stationary_level);
-
-                q.validate();
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential

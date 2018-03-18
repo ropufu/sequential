@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_PROCESS_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "json.hpp"
+#include "../draft/quiet_json.hpp"
 
 #include "timed.hpp"
 #include "signal_base.hpp"
@@ -206,7 +206,7 @@ namespace ropufu
             template <typename t_signal_type, typename t_noise_type>
             void from_json(const nlohmann::json& j, process<t_signal_type, t_noise_type>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = process<t_signal_type, t_noise_type>;
 
                 // Populate default values.
@@ -215,15 +215,20 @@ namespace ropufu
                 typename type::value_type actual_mu = x.actual_mu();
 
                 // Parse json entries.
-                if (quiet_json::is_missing(j, type::jstr_signal)) return;
-                if (quiet_json::is_missing(j, type::jstr_noise)) return;
-                signal = j[type::jstr_signal];
-                noise = j[type::jstr_noise];
-                if (!quiet_json::optional(j, type::jstr_actual_mu, actual_mu)) return;
+                q.required(type::jstr_signal, signal);
+                q.required(type::jstr_noise, noise);
+                q.optional(type::jstr_actual_mu, actual_mu);
                 
                 // Reconstruct the object.
+                if (!q.good())
+                {
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
                 x = type(signal, noise, actual_mu);
-                q.validate();
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequentioal

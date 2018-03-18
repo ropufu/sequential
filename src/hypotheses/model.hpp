@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_MODEL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "json.hpp"
+#include "../draft/quiet_json.hpp"
 
 #include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
 
@@ -69,12 +69,6 @@ namespace ropufu
                 } // coerce(...)
 
             public:
-                // std::ostringstream& mat_prefix(std::ostringstream& os) const noexcept
-                // {
-                //     os << "_mu_null_" << this->m_null_mu << "_alt_" << this->m_smallest_alt_mu;
-                //     return os;
-                // } // mat_prefix(...)
-
                 model() noexcept { }
 
                 model(value_type null_mu, value_type smallest_alt_mu) noexcept
@@ -140,7 +134,7 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, model<t_value_type>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = model<t_value_type>;
 
                 // Populate default values.
@@ -148,13 +142,19 @@ namespace ropufu
                 t_value_type smallest_alt_mu = x.smallest_mu_under_alt();
 
                 // Parse json entries.
-                if (!quiet_json::optional(j, type::jstr_null_mu, null_mu)) return;
-                if (!quiet_json::required(j, type::jstr_smallest_alt_mu, smallest_alt_mu)) return;
+                q.optional(type::jstr_null_mu, null_mu);
+                q.required(type::jstr_smallest_alt_mu, smallest_alt_mu);
                 
                 // Reconstruct the object.
+                if (!q.good())
+                {
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
                 x.set_hypotheses(null_mu, smallest_alt_mu);
-
-                q.validate();
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential

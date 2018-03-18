@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "json.hpp"
+#include "../draft/quiet_json.hpp"
 
 #include "signal_base.hpp"
 #include "signals/constant_signal.hpp"
@@ -26,9 +26,10 @@ namespace ropufu
                     template <typename... t_all_signal_types>
                     static bool discriminate(const nlohmann::json& j, std::variant<t_all_signal_types...>& result) noexcept
                     {
+                        quiet_json q(j);
                         std::string signal_type_str { };
                         // Parse json entries.
-                        if (!quiet_json::required(j, t_signal_type::jstr_signal_type, signal_type_str)) return false;
+                        if (!q.required(t_signal_type::jstr_signal_type, signal_type_str)) return false;
                         if (signal_type_str == t_signal_type::signal_type_name)
                         {
                             t_signal_type x = j;
@@ -46,9 +47,10 @@ namespace ropufu
                     template <typename... t_all_signal_types>
                     static bool discriminate(const nlohmann::json& j, std::variant<t_all_signal_types...>& result) noexcept
                     {
+                        quiet_json q(j);
                         std::string signal_type_str { };
                         // Parse json entries.
-                        if (!quiet_json::required(j, t_signal_type::jstr_signal_type, signal_type_str)) return false;
+                        if (!q.required(t_signal_type::jstr_signal_type, signal_type_str)) return false;
                         if (signal_type_str == t_signal_type::signal_type_name)
                         {
                             t_signal_type x = j;

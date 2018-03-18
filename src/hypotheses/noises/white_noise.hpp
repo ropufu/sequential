@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_WHITE_NOISE_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../json.hpp"
+#include "../../draft/quiet_json.hpp"
 
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
 #include <aftermath/probability.hpp>  // aftermath::probability::dist_normal
@@ -144,10 +144,10 @@ namespace ropufu
             void to_json(nlohmann::json& j, const white_noise<t_value_type>& x) noexcept
             {
                 using type = white_noise<t_value_type>;
-                std::string noise_type = type::noise_type_name;
+                std::string noise_type_str = type::noise_type_name;
 
                 j = nlohmann::json{
-                    {type::jstr_noise_type, noise_type},
+                    {type::jstr_noise_type, noise_type_str},
                     {type::jstr_noise_sigma, x.noise_sigma()}
                 };
             } // to_json(...)
@@ -155,21 +155,28 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, white_noise<t_value_type>& x) noexcept
             {
-                quiet_json q(__FUNCTION__, __LINE__);
+                quiet_json q(j);
                 using type = white_noise<t_value_type>;
 
                 // Populate default values.
-                std::string noise_type = type::noise_type_name;
+                std::string noise_type_str = type::noise_type_name;
                 t_value_type noise_sigma = x.noise_sigma();
 
                 // Parse json entries.
-                if (!quiet_json::optional(j, type::jstr_noise_sigma, noise_sigma)) return;
+                q.required(type::jstr_noise_type, noise_type_str);
+                q.optional(type::jstr_noise_sigma, noise_sigma);
                 
                 // Reconstruct the object.
+                if (!q.good())
+                {
+                    aftermath::quiet_error::instance().push(
+                        aftermath::not_an_error::runtime_error,
+                        aftermath::severity_level::major,
+                        q.message(), __FUNCTION__, __LINE__);
+                    return;
+                } // if (...)
                 x.set_noise_level(noise_sigma);
                 x.reset();
-
-                q.validate();
             } // from_json(...)
         } // namespace hypotheses
     } // namespace sequential
