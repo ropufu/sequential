@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_CONSTANT_SIGNAL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include "../signal_base.hpp"
 
@@ -83,7 +83,7 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, constant_signal<t_value_type>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = constant_signal<t_value_type>;
 
                 // Populate default values.

@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_PROCESS_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include "timed.hpp"
 #include "signal_base.hpp"
@@ -206,7 +206,7 @@ namespace ropufu
             template <typename t_signal_type, typename t_noise_type>
             void from_json(const nlohmann::json& j, process<t_signal_type, t_noise_type>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = process<t_signal_type, t_noise_type>;
 
                 // Populate default values.

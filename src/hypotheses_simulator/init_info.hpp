@@ -3,11 +3,11 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_INIT_INFO_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
+#include <aftermath/algebra.hpp>      // aftermath::algebra::range
 #include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
 
-#include "../draft/range.hpp"
 #include "../hypotheses/core.hpp"
 #include "../hypotheses/modules/interpolator.hpp"
 #include "../hypotheses/modules/numbers.hpp"
@@ -32,7 +32,7 @@ namespace ropufu
             {
                 using type = init_info<t_value_type>;
                 using value_type = t_value_type;
-                using range_type = aftermath::range<t_value_type>;
+                using range_type = aftermath::algebra::range<t_value_type>;
 
                 // ~~ Json names ~~
                 static constexpr char jstr_rule_id[] = "id";
@@ -58,7 +58,7 @@ namespace ropufu
                     this->m_threshold_range = hypothesis_pair<range_type>(null_range, alt_range);
                 } // set_threshold_range(...)
 
-                void make_thresholds(const hypothesis_pair<std::size_t>& count, aftermath::spacing transform, std::vector<value_type>& null_thresholds, std::vector<value_type>& alt_thresholds) const noexcept
+                void make_thresholds(const hypothesis_pair<std::size_t>& count, aftermath::algebra::spacing transform, std::vector<value_type>& null_thresholds, std::vector<value_type>& alt_thresholds) const noexcept
                 {
                     this->m_threshold_range.null().explode(null_thresholds, count.null(), transform);
                     this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), transform);
@@ -96,7 +96,7 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, init_info<t_value_type>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = init_info<t_value_type>;
 
                 // Populate default values.
@@ -158,10 +158,10 @@ namespace ropufu
 
                 position_type q = 1 - p;
 
-                aftermath::range<t_value_type> null_thresholds(
+                aftermath::algebra::range<t_value_type> null_thresholds(
                     (q) * left.threshold_range().null().from() + (p) * right.threshold_range().null().from(),
                     (q) * left.threshold_range().null().to() + (p) * right.threshold_range().null().to());
-                aftermath::range<t_value_type> alt_thresholds(
+                aftermath::algebra::range<t_value_type> alt_thresholds(
                     (q) * left.threshold_range().alt().from() + (p) * right.threshold_range().alt().from(),
                     (q) * left.threshold_range().alt().to() + (p) * right.threshold_range().alt().to());
                 t_value_type anticipated_run_length = (q) * left.anticipated_run_length() + (p) * right.anticipated_run_length();

@@ -3,11 +3,11 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_RUN_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
+#include <aftermath/algebra.hpp>      //  aftermath::algebra::range
 #include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
 
-#include "../draft/range.hpp"
 #include "../hypotheses/model.hpp"
 #include "../hypotheses/modules/interpolator.hpp"
 #include "../hypotheses/modules/numbers.hpp"
@@ -55,7 +55,7 @@ namespace ropufu
             private:
                 model_type m_model = { };
                 hypothesis_pair<std::size_t> m_threshold_count = { };
-                aftermath::spacing m_threshold_spacing = aftermath::spacing::logarithmic;
+                aftermath::algebra::spacing m_threshold_spacing = aftermath::algebra::spacing::logarithmic;
                 std::vector<simulation_pair<value_type>> m_simulation_pairs = { };
                 std::map<std::size_t, init_info<value_type>> m_init_rules = { };
 
@@ -101,9 +101,9 @@ namespace ropufu
                 const model_type& model() const noexcept { return this->m_model; }
 
                 const hypothesis_pair<std::size_t>& threshold_count() const noexcept { return this->m_threshold_count; }
-                aftermath::spacing threshold_spacing() const noexcept { return this->m_threshold_spacing; }
+                aftermath::algebra::spacing threshold_spacing() const noexcept { return this->m_threshold_spacing; }
 
-                void configure_thresholds(std::size_t null_count, std::size_t alt_count, aftermath::spacing transform) noexcept
+                void configure_thresholds(std::size_t null_count, std::size_t alt_count, aftermath::algebra::spacing transform) noexcept
                 {
                     this->m_threshold_count = hypothesis_pair<std::size_t>(null_count, alt_count);
                     this->m_threshold_spacing = transform;
@@ -184,7 +184,7 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, run<t_value_type>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = run<t_value_type>;
                 using model_type = model<t_value_type>;
 
@@ -198,7 +198,7 @@ namespace ropufu
                     simulated_mu.push_back(pair.simulated_mu());
                 }
                 hypothesis_pair<std::size_t> threshold_count = x.threshold_count();
-                aftermath::spacing threshold_spacing = x.threshold_spacing();
+                aftermath::algebra::spacing threshold_spacing = x.threshold_spacing();
                 std::string threshold_spacing_str = std::to_string(threshold_spacing);
                 std::map<std::size_t, init_info<t_value_type>> init_rules_map = x.init_rules();
                 std::vector<init_info<t_value_type>> init_rules { };
@@ -230,7 +230,7 @@ namespace ropufu
                     aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Analyzed and simulated mu's have to be of the same size.", __FUNCTION__, __LINE__);
                     return;
                 } // if (...)
-                if (!aftermath::try_parse(threshold_spacing_str, threshold_spacing))
+                if (!aftermath::algebra::try_parse(threshold_spacing_str, threshold_spacing))
                 {
                     aftermath::quiet_error::instance().push(aftermath::not_an_error::logic_error, aftermath::severity_level::major, "Threshold spacing not recognized.", __FUNCTION__, __LINE__);
                     return;
@@ -274,7 +274,7 @@ namespace ropufu
                     return { };
                 } // if (...)
                 sequential::hypotheses::hypothesis_pair<std::size_t> threshold_count = left.threshold_count();
-                aftermath::spacing threshold_spacing = left.threshold_spacing();
+                aftermath::algebra::spacing threshold_spacing = left.threshold_spacing();
                 std::size_t pair_count = left.simulation_pairs().size();
                 std::size_t rule_count = left.init_rules().size();
 

@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_HYPOTHESIS_PAIR_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
 
@@ -80,7 +80,7 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, hypothesis_pair<t_value_type>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = hypothesis_pair<t_value_type>;
 
                 // Populate default values.

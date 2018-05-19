@@ -2,7 +2,7 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_AUTOMATOR_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_AUTOMATOR_INCLUDED
 
-#include <aftermath/algebra.hpp>      // aftermath::algebra::matrix
+#include <aftermath/algebra.hpp>      // aftermath::algebra::matrix, aftermath::algebra::range
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
 
 #include "../hypotheses/de_auto_regress.hpp"
@@ -13,7 +13,6 @@
 #include "../hypotheses/rules.hpp"
 #include "../hypotheses/monte_carlo.hpp"
 
-#include "../draft/range.hpp"
 #include "../hypotheses/moment_statistic.hpp"
 #include "../hypotheses/modules/interpolator.hpp"
 #include "../hypotheses/modules/numbers.hpp"
@@ -132,7 +131,7 @@ namespace ropufu
                 void execute(const model_type& model, const simulation_pair<value_type>& mu_pair,
                     std::vector<rule_type>& rules_to_run,
                     std::vector<init_info<value_type>>& rules_init,
-                    const hypothesis_pair<std::size_t>& threshold_count, aftermath::spacing threshold_spacing,
+                    const hypothesis_pair<std::size_t>& threshold_count, aftermath::algebra::spacing threshold_spacing,
                     bool is_verbal) noexcept
                 {
                     std::size_t k = rules_to_run.size();
@@ -241,8 +240,8 @@ namespace ropufu
                         // First, build up the operating characteristics.
                         std::cout << "Model " << model << std::endl;
                         std::cout << "Estimating operating characteristics in " << this->m_monte_carlo.count_simulations() << " Monte Carlo runs..." << std::endl;
-                        oc_array<void> oc_list { };
-                        std::vector<oc_array<statistic_type>> oc_statistics(rules_to_run.size()); // One default-initialized <oc_array> for each rule.
+                        oc_array_t<void> oc_list { };
+                        std::vector<oc_array_t<statistic_type>> oc_statistics(rules_to_run.size()); // One default-initialized <oc_array_t> for each rule.
                         for (operating_characteristic oc : oc_list)
                         {
                             simulation_pair<value_type> mu_pair(oc, model);
@@ -252,7 +251,7 @@ namespace ropufu
                             for (std::size_t k = 0; k < rules_to_run.size(); ++k)
                             {
                                 const rule_type& rule = rules_to_run[k];
-                                oc_array<statistic_type>& oc_statistic_array = oc_statistics[k];
+                                oc_array_t<statistic_type>& oc_statistic_array = oc_statistics[k];
                                 oc_statistic_array[oc] = mu_pair.read_oc(oc, rule);
                             } // for (...)
                         } // for (...)
@@ -261,7 +260,7 @@ namespace ropufu
                         for (std::size_t k = 0; k < rules_to_run.size(); ++k)
                         {
                             const rule_type& rule = rules_to_run[k];
-                            const oc_array<statistic_type>& oc_statistic_array = oc_statistics[k];
+                            const oc_array_t<statistic_type>& oc_statistic_array = oc_statistics[k];
 
                             const statistic_type& fa = oc_statistic_array[operating_characteristic::probability_of_false_alarm];
                             const statistic_type& ms = oc_statistic_array[operating_characteristic::probability_of_missed_signal];

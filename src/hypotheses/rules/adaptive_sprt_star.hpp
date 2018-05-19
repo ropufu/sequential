@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_ADAPTIVE_SPRT_STAR_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include <aftermath/not_an_error.hpp>
 
@@ -175,7 +175,7 @@ namespace ropufu
             template <typename t_signal_type, typename t_noise_type, bool t_sync_check>
             void from_json(const nlohmann::json& j, adaptive_sprt_star<t_signal_type, t_noise_type, t_sync_check>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = adaptive_sprt_star<t_signal_type, t_noise_type, t_sync_check>;
 
                 // Populate default values.

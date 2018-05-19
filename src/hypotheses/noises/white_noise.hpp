@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_WHITE_NOISE_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
 #include <aftermath/probability.hpp>  // aftermath::probability::dist_normal
@@ -155,7 +155,7 @@ namespace ropufu
             template <typename t_value_type>
             void from_json(const nlohmann::json& j, white_noise<t_value_type>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = white_noise<t_value_type>;
 
                 // Populate default values.

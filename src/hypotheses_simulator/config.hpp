@@ -5,7 +5,7 @@
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
 
 #include <nlohmann/json.hpp>
-#include "../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include "../hypotheses/signals.hpp"
 #include "../hypotheses/noises.hpp"
@@ -120,7 +120,7 @@ namespace ropufu
                         i >> this->m_json;
                         this->m_is_good = true;
                         //const nlohmann::json& j = this->m_json;
-                        quiet_json q(this->m_json);
+                        aftermath::quiet_json q(this->m_json);
 
                         // Populate default values.
                         std::string mat_output_path = this->m_mat_output_path;

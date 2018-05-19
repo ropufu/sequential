@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_TRANSITIONARY_SIGNAL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include "../signal_base.hpp"
 
@@ -118,7 +118,7 @@ namespace ropufu
             template <typename t_value_type, std::size_t t_transition_size>
             void from_json(const nlohmann::json& j, transitionary_signal<t_value_type, t_transition_size>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = transitionary_signal<t_value_type, t_transition_size>;
 
                 // Populate default values.

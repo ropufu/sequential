@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include "noise_base.hpp"
 #include "noises/white_noise.hpp"
@@ -25,7 +25,7 @@ namespace ropufu
                     template <typename... t_all_noise_types>
                     static bool discriminate(const nlohmann::json& j, std::variant<t_all_noise_types...>& result) noexcept
                     {
-                        quiet_json q(j);
+                        aftermath::quiet_json q(j);
                         std::string noise_type_str { };
                         // Parse json entries.
                         if (!q.required(t_noise_type::jstr_noise_type, noise_type_str)) return false;
@@ -46,7 +46,7 @@ namespace ropufu
                     template <typename... t_all_noise_types>
                     static bool discriminate(const nlohmann::json& j, std::variant<t_all_noise_types...>& result) noexcept
                     {
-                        quiet_json q(j);
+                        aftermath::quiet_json q(j);
                         std::string noise_type_str { };
                         // Parse json entries.
                         if (!q.required(t_noise_type::jstr_noise_type, noise_type_str)) return false;

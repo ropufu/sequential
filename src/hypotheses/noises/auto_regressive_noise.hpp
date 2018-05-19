@@ -3,7 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include "../../draft/quiet_json.hpp"
+#include <aftermath/quiet_json.hpp>
 
 #include <aftermath/not_an_error.hpp> // aftermath::quiet_error
 
@@ -250,7 +250,7 @@ namespace ropufu
             template <typename t_value_type, std::size_t t_ar_size>
             void from_json(const nlohmann::json& j, auto_regressive_noise<t_value_type, t_ar_size>& x) noexcept
             {
-                quiet_json q(j);
+                aftermath::quiet_json q(j);
                 using type = auto_regressive_noise<t_value_type, t_ar_size>;
 
                 // Populate default values.

@@ -142,7 +142,7 @@ namespace ropufu
                 bool good() const noexcept { return this->m_is_good; }
 
                 template <typename t_rule_type>
-                void write_mat(const model_type& model, const t_rule_type& rule, const oc_array<typename t_rule_type::statistic_type>& oc) noexcept
+                void write_mat(const model_type& model, const t_rule_type& rule, const oc_array_t<typename t_rule_type::statistic_type>& oc) noexcept
                 {
                     if (!this->enforce_good(__FUNCTION__, __LINE__)) return; // Make sure the writer has been successfully initialized.
 
