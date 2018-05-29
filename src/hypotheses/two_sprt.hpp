@@ -107,9 +107,9 @@ namespace ropufu
                     this->m_count = 0;
                     this->m_likelihood.reset();
 
-                    this->m_has_decided_null.erase();
-                    this->m_has_decided_alt.erase();
-                    this->m_counts.erase();
+                    this->m_has_decided_null.wipe();
+                    this->m_has_decided_alt.wipe();
+                    this->m_counts.wipe();
                     this->m_first_uncrossed_null_index = 0;
                     this->m_first_uncrossed_alt_index = 0;
                 } // soft_reset(...)
