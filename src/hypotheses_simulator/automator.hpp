@@ -70,10 +70,10 @@ namespace ropufu
                     //   a --- b      x --- y
                     //   | ... |  pm  | ... |
                     //   c --- d      z --- w
-                    t_data_type a = emat.unchecked_at(0, n); t_data_type x = std::sqrt(vmat.unchecked_at(0, n));
-                    t_data_type b = emat.unchecked_at(m, n); t_data_type y = std::sqrt(vmat.unchecked_at(m, n));
-                    t_data_type c = emat.unchecked_at(0, 0); t_data_type z = std::sqrt(vmat.unchecked_at(0, 0));
-                    t_data_type d = emat.unchecked_at(m, 0); t_data_type w = std::sqrt(vmat.unchecked_at(m, 0));
+                    t_data_type a = emat(0, n); t_data_type x = std::sqrt(vmat(0, n));
+                    t_data_type b = emat(m, n); t_data_type y = std::sqrt(vmat(m, n));
+                    t_data_type c = emat(0, 0); t_data_type z = std::sqrt(vmat(0, 0));
+                    t_data_type d = emat(m, 0); t_data_type w = std::sqrt(vmat(m, 0));
 
                     std::cout << blank  << std::setw(fixed_width) << std::left << a << " --- " << std::setw(fixed_width) << std::right << b
                         << "        "   << std::setw(fixed_width) << std::left << x << " --- " << std::setw(fixed_width) << std::right << y << std::endl;

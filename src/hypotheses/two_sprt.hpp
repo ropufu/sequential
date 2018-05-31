@@ -232,8 +232,8 @@ namespace ropufu
                             next_uncrossed_null_index = i + 1;
                             for (std::size_t j = this->m_first_uncrossed_alt_index; j < n; ++j)
                             {
-                                this->m_has_decided_null.unchecked_at(i, j) = true; // Mark threshold as crossed.
-                                this->m_counts.unchecked_at(i, j) = this->m_count; // Record the freshly stopped times.
+                                this->m_has_decided_null(i, j) = true; // Mark threshold as crossed.
+                                this->m_counts(i, j) = this->m_count; // Record the freshly stopped times.
                             }
                         } // else (...)
                     } // for (...)
@@ -249,8 +249,8 @@ namespace ropufu
                             next_uncrossed_alt_index = j + 1;
                             for (std::size_t i = this->m_first_uncrossed_null_index; i < m; ++i)
                             {
-                                this->m_has_decided_alt.unchecked_at(i, j) = true; // Mark threshold as crossed.
-                                this->m_counts.unchecked_at(i, j) = this->m_count; // Record the freshly stopped times.
+                                this->m_has_decided_alt(i, j) = true; // Mark threshold as crossed.
+                                this->m_counts(i, j) = this->m_count; // Record the freshly stopped times.
                             }
                         } // else (...)
                     } // for (...)
@@ -282,8 +282,8 @@ namespace ropufu
                     {
                         for (std::size_t j = 0; j < n; ++j)
                         {
-                            bool has_crossed_null = have_crossed_null.unchecked_at(i, j);
-                            bool has_crossed_alt = have_crossed_alt.unchecked_at(i, j);
+                            bool has_crossed_null = have_crossed_null(i, j);
+                            bool has_crossed_alt = have_crossed_alt(i, j);
                             // Check if the stopping time has stopped!
                             if (!has_crossed_null && !has_crossed_alt)
                             {
@@ -292,7 +292,7 @@ namespace ropufu
                                 return;
                             } // if (...)
                     
-                            std::size_t run_length = run_lengths.unchecked_at(i, j);
+                            std::size_t run_length = run_lengths(i, j);
                             std::size_t error = 0;
                             if (has_crossed_null && has_crossed_alt) error = 1;
                             if (has_crossed_null && is_alt_true) error = 1;
@@ -302,8 +302,8 @@ namespace ropufu
                             value_type correction = std::exp(proc.unscaled_log_likelihood_between(proc.actual_mu(), this->m_analyzed_mu, run_length) / proc.log_likelihood_scale());
                             value_type t = run_length / correction;
                             value_type e = error / correction;
-                            corrected_run_lengths.unchecked_at(i, j) = t;
-                            corrected_errors.unchecked_at(i, j) = e;
+                            corrected_run_lengths(i, j) = t;
+                            corrected_errors(i, j) = e;
                         } // for(...)
                     } // for(...)
 

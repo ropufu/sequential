@@ -155,8 +155,8 @@ namespace ropufu
                     // Threshold matrices.
                     matrix_t<value_type> unscaled_null_thresholds = rule.unscaled_null_thresholds();
                     matrix_t<value_type> unscaled_alt_thresholds = rule.unscaled_alt_thresholds();
-                    unscaled_null_thresholds.reshape(unscaled_null_thresholds.size(), 1);
-                    unscaled_alt_thresholds.reshape(1, unscaled_alt_thresholds.size());
+                    unscaled_null_thresholds.try_reshape(unscaled_null_thresholds.size(), 1);
+                    unscaled_alt_thresholds.try_reshape(1, unscaled_alt_thresholds.size());
 
                     std::string mat_path_str = mat_path.string();
                     matstream_type mat(mat_path_str);
@@ -203,8 +203,8 @@ namespace ropufu
                     // Threshold matrices.
                     matrix_t<value_type> unscaled_null_thresholds = rule.unscaled_null_thresholds();
                     matrix_t<value_type> unscaled_alt_thresholds = rule.unscaled_alt_thresholds();
-                    unscaled_null_thresholds.reshape(unscaled_null_thresholds.size(), 1);
-                    unscaled_alt_thresholds.reshape(1, unscaled_alt_thresholds.size());
+                    unscaled_null_thresholds.try_reshape(unscaled_null_thresholds.size(), 1);
+                    unscaled_alt_thresholds.try_reshape(1, unscaled_alt_thresholds.size());
                     // Observation matrices.
                     const statistic_type& errors = rule.errors();
                     const statistic_type& run_lengths = rule.run_lengths();
