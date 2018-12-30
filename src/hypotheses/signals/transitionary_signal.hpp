@@ -3,148 +3,181 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_TRANSITIONARY_SIGNAL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include <aftermath/quiet_json.hpp>
+#include <ropufu/json_traits.hpp>
+
+#include <ropufu/on_error.hpp> // aftermath::detail::on_error
 
 #include "../signal_base.hpp"
 
 #include <array>    // std::array
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
+#include <stdexcept>    // std::runtime_error
 #include <string>   // std::string
+#include <system_error> // std::error_code, std::errc
+#include <vector>   // std::vector
 
-namespace ropufu
+namespace ropufu::sequential::hypotheses
 {
-    namespace sequential
+    namespace detail
     {
-        namespace hypotheses
+        template <std::size_t... t_digits>
+        struct transitionary_signal_chars
         {
-            namespace detail
+            static constexpr char typename_string[] = { 't', 'r', 'a', 'n', 's', 'i', 't', ' ', ('0' + t_digits)..., 0};
+        }; // struct transitionary_signal_chars
+        template <> struct transitionary_signal_chars<> { static constexpr char typename_string[] = "transit 0"; };
+        template <std::size_t... t_digits> constexpr char transitionary_signal_chars<t_digits...>::typename_string[];
+
+        template <std::size_t t_remainder, std::size_t... t_digits>
+        struct named_transitionary_signal : public named_transitionary_signal<t_remainder / 10, t_remainder % 10, t_digits...> { };
+
+        template <std::size_t... t_digits>
+        struct named_transitionary_signal<0, t_digits...> : public transitionary_signal_chars<t_digits...> { };
+    } // namespace detail
+
+    template <typename t_value_type, std::size_t t_transition_size>
+    struct transitionary_signal;
+    template <typename t_value_type, std::size_t t_transition_size>
+    void to_json(nlohmann::json& j, const transitionary_signal<t_value_type, t_transition_size>& x) noexcept;
+    template <typename t_value_type, std::size_t t_transition_size>
+    void from_json(const nlohmann::json& j, transitionary_signal<t_value_type, t_transition_size>& x);
+
+    /** Represents a transitionary signal. */
+    template <typename t_value_type, std::size_t t_transition_size>
+    struct transitionary_signal
+        : public signal_base<transitionary_signal<t_value_type, t_transition_size>, t_value_type>,
+        public detail::named_transitionary_signal<t_transition_size>
+    {
+        using type = transitionary_signal<t_value_type, t_transition_size>;
+        using base_type = signal_base<type, t_value_type>;
+        friend base_type;
+
+        using value_type = typename base_type::value_type;
+        using signal_base_type = typename base_type::signal_base_type;
+        using transition_container_type = std::array<t_value_type, t_transition_size>;
+        static constexpr std::size_t transition_size = t_transition_size;
+
+        // ~~ Json names ~~
+        static constexpr char jstr_typename[] = "type";
+        static constexpr char jstr_transition[] = "transition";
+        static constexpr char jstr_stationary_level[] = "stationary level";
+
+    private:
+        value_type m_stationary_level = 1;
+        transition_container_type m_transition = {};
+
+    protected:
+        bool validate(std::error_code& ec) const noexcept
+        {
+            if (std::isnan(this->m_stationary_level) || std::isinf(this->m_stationary_level)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
+            for (const value_type& x : this->m_transition)
             {
-                template <std::size_t... t_digits>
-                struct transitionary_signal_chars
-                {
-                    static constexpr char signal_type_name[] = { 't', 'r', 'a', 'n', 's', 'i', 't', ' ', ('0' + t_digits)..., 0};
-                };
-                template <> struct transitionary_signal_chars<> { static constexpr char signal_type_name[] = "transit 0"; };
-                template <std::size_t... t_digits> constexpr char transitionary_signal_chars<t_digits...>::signal_type_name[];
+                if (std::isnan(x) || std::isinf(x)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
+            } // for (...)
+            return true;
+        } // validate(...)
 
-                template <std::size_t t_remainder, std::size_t... t_digits>
-                struct named_transitionary_signal : public named_transitionary_signal<t_remainder / 10, t_remainder % 10, t_digits...> { };
-
-                template <std::size_t... t_digits>
-                struct named_transitionary_signal<0, t_digits...> : public transitionary_signal_chars<t_digits...> { };
-            } // namespace detail
-
-            /** Represents a transitionary signal. */
-            template <typename t_value_type, std::size_t t_transition_size>
-            struct transitionary_signal
-                : public signal_base<transitionary_signal<t_value_type, t_transition_size>, t_value_type>,
-                public detail::named_transitionary_signal<t_transition_size>
+        void coerce() noexcept
+        {
+            if (std::isnan(this->m_stationary_level) || std::isinf(this->m_stationary_level)) this->m_stationary_level = 0;
+            for (value_type& x : this->m_transition)
             {
-                using type = transitionary_signal<t_value_type, t_transition_size>;
-                using base_type = signal_base<type, t_value_type>;
-                friend base_type;
+                if (std::isnan(x) || std::isinf(x)) x = 0;
+            } // for (...)
+        } // coerce(...)
 
-                using value_type = typename base_type::value_type;
-                using signal_base_type = typename base_type::signal_base_type;
-                using transition_container_type = std::array<t_value_type, t_transition_size>;
-                static constexpr std::size_t transition_size = t_transition_size;
+    public:
+        /** Constant signal when no AR noise is present. */
+        transitionary_signal() noexcept { }
 
-                // ~~ Json names ~~
-                static constexpr char jstr_signal_type[] = "type";
-                static constexpr char jstr_transition[] = "transition";
-                static constexpr char jstr_stationary_level[] = "stationary level";
-
-            private:
-                value_type m_stationary_level = 1;
-                transition_container_type m_transition = { };
-
-            public:
-                /** Constant signal when no AR noise is present. */
-                transitionary_signal() noexcept { }
-
-                /** Constant signal when no AR noise is present. */
-                transitionary_signal(value_type stationary_level, const transition_container_type& transition) noexcept
-                    : m_stationary_level(stationary_level), m_transition(transition)
-                {
-                } // transitionary_signal(...)
-
-                /** Signal level when in transition mode. */
-                const transition_container_type& transition() const noexcept { return this->m_transition; }
-
-                /** Signal level when in stationary mode. */
-                value_type stationary_level() const noexcept { return this->m_stationary_level; }
-                /** Signal level when in stationary mode. */
-                void set_stationary_level(value_type value) noexcept { this->m_stationary_level = value; }
-
-                /** Signal level when in transition mode. */
-                value_type transitionary_level(std::size_t time_index) const noexcept { return this->m_transition[time_index]; }
-                /** Signal level when in transition mode. */
-                void set_transitionary_level(std::size_t time_index, value_type value) noexcept { this->m_transition[time_index] = value; }
-
-                /** @brief Signal value at an arbitrary time. */
-                value_type at(std::size_t time_index) const noexcept
-                {
-                    if (time_index < transition_size) return this->transitionary_level(time_index);
-                    return this->stationary_level();
-                } // at(...)
-
-                /** Output to a stream. */
-                friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
-                {
-                    nlohmann::json j = self;
-                    return os << j;
-                }
-            }; // struct transitionary_signal
-
-            // ~~ Json name definitions ~~
-            template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_signal_type[];
-            template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_transition[];
-            template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_stationary_level[];
-            
-            template <typename t_value_type, std::size_t t_transition_size>
-            void to_json(nlohmann::json& j, const transitionary_signal<t_value_type, t_transition_size>& x) noexcept
-            {
-                using type = transitionary_signal<t_value_type, t_transition_size>;
-                std::string signal_type_str = type::signal_type_name;
-
-                j = nlohmann::json{
-                    {type::jstr_signal_type, signal_type_str},
-                    {type::jstr_transition, x.transition()},
-                    {type::jstr_stationary_level, x.stationary_level()}
-                };
-            } // to_json(...)
+        /** Constant signal when no AR noise is present. */
+        transitionary_signal(value_type stationary_level, const transition_container_type& transition, std::error_code& ec) noexcept
+            : m_stationary_level(stationary_level), m_transition(transition)
+        {
+            if (!this->validate(ec)) this->coerce();
+        } // transitionary_signal(...)
         
-            template <typename t_value_type, std::size_t t_transition_size>
-            void from_json(const nlohmann::json& j, transitionary_signal<t_value_type, t_transition_size>& x) noexcept
+        transitionary_signal(const nlohmann::json& j, std::error_code& ec) noexcept
+        {
+            // Ensure correct type.
+            std::string typename_str {};
+            aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
+            if (typename_str != type::typename_string)
             {
-                aftermath::quiet_json q(j);
-                using type = transitionary_signal<t_value_type, t_transition_size>;
+                aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal type mismatch.");
+                return;
+            } // if (...)
 
-                // Populate default values.
-                std::string signal_type_str = type::signal_type_name;
-                std::array<t_value_type, t_transition_size> transition = x.transition();
-                t_value_type stationary_level = x.stationary_level();
+            // Parse json entries.
+            aftermath::noexcept_json::required(j, type::jstr_stationary_level, this->m_stationary_level, ec);
+            aftermath::noexcept_json::required(j, type::jstr_transition, this->m_transition, ec);
+            
+            if (!this->validate(ec)) this->coerce();
+        } // transitionary_signal(...)
 
-                // Parse json entries.
-                q.required(type::jstr_signal_type, signal_type_str);
-                q.required(type::jstr_transition, transition);
-                q.required(type::jstr_stationary_level, stationary_level);
-                
-                // Reconstruct the object.
-                if (!q.good())
-                {
-                    aftermath::quiet_error::instance().push(
-                        aftermath::not_an_error::runtime_error,
-                        aftermath::severity_level::major,
-                        q.message(), __FUNCTION__, __LINE__);
-                    return;
-                } // if (...)
-                for (std::size_t i = 0; i < t_transition_size; ++i) x.set_transitionary_level(i, transition[i]);
-                x.set_stationary_level(stationary_level);
-            } // from_json(...)
-        } // namespace hypotheses
-    } // namespace sequential
-} // namespace ropufu
+        /** Signal level when in transition mode. */
+        const transition_container_type& transition() const noexcept { return this->m_transition; }
+
+        /** Signal level when in stationary mode. */
+        value_type stationary_level() const noexcept { return this->m_stationary_level; }
+        /** Signal level when in stationary mode. */
+        void set_stationary_level(value_type value, std::error_code& ec) noexcept
+        {
+            this->m_stationary_level = value;
+            if (!this->validate(ec)) this->coerce();
+        } // set_stationary_level(...)
+
+        /** Signal level when in transition mode. */
+        value_type transitionary_level(std::size_t time_index) const noexcept { return this->m_transition[time_index]; }
+        /** Signal level when in transition mode. */
+        void set_transitionary_level(std::size_t time_index, value_type value, std::error_code& ec) noexcept
+        {
+            this->m_transition[time_index] = value;
+            if (!this->validate(ec)) this->coerce();
+        } // set_transitionary_level(...)
+
+        /** @brief Signal value at an arbitrary time. */
+        value_type at(std::size_t time_index) const noexcept
+        {
+            if (time_index < transition_size) return this->transitionary_level(time_index);
+            return this->stationary_level();
+        } // at(...)
+
+        /** Output to a stream. */
+        friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
+        {
+            nlohmann::json j = self;
+            return os << j;
+        } // operator <<(...)
+    }; // struct transitionary_signal
+
+    // ~~ Json name definitions ~~
+    template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_typename[];
+    template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_transition[];
+    template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_stationary_level[];
+    
+    template <typename t_value_type, std::size_t t_transition_size>
+    void to_json(nlohmann::json& j, const transitionary_signal<t_value_type, t_transition_size>& x) noexcept
+    {
+        using type = transitionary_signal<t_value_type, t_transition_size>;
+        std::string typename_str = type::typename_string;
+
+        j = nlohmann::json{
+            {type::jstr_typename, typename_str},
+            {type::jstr_transition, x.transition()},
+            {type::jstr_stationary_level, x.stationary_level()}
+        };
+    } // to_json(...)
+
+    template <typename t_value_type, std::size_t t_transition_size>
+    void from_json(const nlohmann::json& j, transitionary_signal<t_value_type, t_transition_size>& x)
+    {
+        using type = transitionary_signal<t_value_type, t_transition_size>;
+        std::error_code ec {};
+        x = type(j, ec);
+        if (ec.value() != 0) throw std::runtime_error("Parsing failed: " + j.dump());
+    } // from_json(...)
+} // namespace ropufu::sequential::hypotheses
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_TRANSITIONARY_SIGNAL_HPP_INCLUDED

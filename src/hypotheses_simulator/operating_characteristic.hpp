@@ -2,7 +2,7 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_OPERATING_CHARACTERISTIC_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_OPERATING_CHARACTERISTIC_HPP_INCLUDED
 
-#include <aftermath/enum_array.hpp>
+#include <ropufu/enum_array.hpp>
 
 #include <array>   // std::array
 #include <cstddef> // std::size_t

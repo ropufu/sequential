@@ -9,7 +9,7 @@
                 "/usr/include",
                 "${workspaceRoot}",
                 "${workspaceRoot}/../opensource",
-                "${workspaceRoot}/../aftermath"
+                "${workspaceRoot}/../aftermath/src"
             ],
             "defines": [],
             "intelliSenseMode": "clang-x64",
@@ -21,7 +21,7 @@
                     "/usr/include",
                     "${workspaceRoot}",
                     "${workspaceRoot}/../opensource",
-                    "${workspaceRoot}/../aftermath"
+                    "${workspaceRoot}/../aftermath/src"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""
@@ -38,7 +38,7 @@
                 "/usr/local/include",
                 "${workspaceRoot}",
                 "${workspaceRoot}/../opensource",
-                "${workspaceRoot}/../aftermath"
+                "${workspaceRoot}/../aftermath/src"
             ],
             "defines": [],
             "intelliSenseMode": "clang-x64",
@@ -48,7 +48,7 @@
                     "/usr/local/include",
                     "${workspaceRoot}",
                     "${workspaceRoot}/../opensource",
-                    "${workspaceRoot}/../aftermath"
+                    "${workspaceRoot}/../aftermath/src"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""
@@ -57,11 +57,11 @@
         {
             "name": "Win32",
             "includePath": [
-                "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.14.26428/include",
-                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17134.0/ucrt",
+                "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.16.27023/include",
+                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17763.0.0/ucrt",
                 "${workspaceRoot}",
                 "${workspaceRoot}/../opensource",
-                "${workspaceRoot}/../aftermath"
+                "${workspaceRoot}/../aftermath/src"
             ],
             "defines": [
                 "_DEBUG",
@@ -70,11 +70,11 @@
             "intelliSenseMode": "msvc-x64",
             "browse": {
                 "path": [
-                    "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.14.26428/include",
-                    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17134.0/ucrt",
+                    "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.16.27023/include",
+                    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17763.0/ucrt",
                     "${workspaceRoot}",
                     "${workspaceRoot}/../opensource",
-                    "${workspaceRoot}/../aftermath"
+                    "${workspaceRoot}/../aftermath/src"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""

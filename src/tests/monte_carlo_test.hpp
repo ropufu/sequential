@@ -15,6 +15,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <system_error> // std::error_code, std::errc
 #include <vector>
 
 namespace ropufu
@@ -39,6 +40,7 @@ namespace ropufu
                     
                     using xsprt_type = hypotheses::xsprt_t<t_process_type>;
                     using tested_type = hypotheses::monte_carlo_t<t_process_type>;
+                    std::error_code ec {};
 
                     // Create rules.
                     value_type theta = static_cast<value_type>(0.5);
@@ -58,15 +60,15 @@ namespace ropufu
                     // Monte Carlo.
                     tested_type mc(1'000);
                     mc.run(proc, rules,
-                        [&] () {
+                        [&] (std::error_code& ecx) {
                             ss << "Simulation start." << std::endl;
-                            for (auto& r : rules) generator<value_type, 1>::reset_rule(r, proc);
+                            for (auto& r : rules) generator<value_type, 1>::reset_rule(r, proc, ecx);
                         },
                         [&] () {
                             ss << "Simulation stop." << std::endl;
-                        });
+                        }, ec);
                     
-                    return true;
+                    return (ec.value() == 0);
                 }
 
                 static bool test_all() noexcept

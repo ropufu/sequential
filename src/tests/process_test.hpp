@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <system_error> // std::error_code, std::errc
 #include <vector>
 
 namespace ropufu
@@ -27,20 +28,21 @@ namespace ropufu
                 template <typename t_process_type>
                 static bool test_tic(t_process_type& proc, std::size_t max_time = 100)
                 {
-                    /**using signal_type = typename t_process_type::signal_type;*/
-                    /**using noise_type = typename t_process_type::noise_type;*/
+                    /*using signal_type = typename t_process_type::signal_type;*/
+                    /*using noise_type = typename t_process_type::noise_type;*/
+                    std::error_code ec {};
 
                     for (std::size_t time = 0; time < max_time; ++time) proc.tic();
                     if (proc.count() != max_time) return false;
                     proc.reset();
 
-                    auto adjusted_proc = adjust_process(proc);
+                    auto adjusted_proc = adjust_process(proc, ec);
 
                     for (std::size_t time = 0; time < max_time; ++time) adjusted_proc.tic();
                     if (adjusted_proc.count() != max_time) return false;
                     adjusted_proc.reset();
 
-                    return true;
+                    return (ec.value() == 0);
                 }
 
                 static bool test_constant_white() noexcept
@@ -48,22 +50,23 @@ namespace ropufu
                     using signal_type = hypotheses::constant_signal<value_type>;
                     using noise_type = hypotheses::white_noise<value_type>;
                     using tested_type = hypotheses::process<signal_type, noise_type>;
+                    std::error_code ec {};
 
                     value_type sigma_one = 1;
                     value_type sigma_two = 2;
 
-                    signal_type s((sigma_one + sigma_two) / 2);
-                    noise_type n1(sigma_one);
-                    noise_type n2(sigma_two);
+                    signal_type s((sigma_one + sigma_two) / 2, ec);
+                    noise_type n1(sigma_one, ec);
+                    noise_type n2(sigma_two, ec);
 
                     tested_type x(s, n1, 0.1);
                     tested_type y(s, n2, 0.5);
-                    tested_type z { };
+                    tested_type z {};
 
                     if (!type::test_tic(x)) return false;
                     if (!type::test_tic(y)) return false;
                     if (!type::test_tic(z)) return false;
-                    return true;
+                    return (ec.value() == 0);
                 } // test_constant_white(...)
 
                 template <std::size_t t_ar_size>
@@ -73,22 +76,23 @@ namespace ropufu
                     using noise_type = hypotheses::auto_regressive_noise<value_type, t_ar_size>;
                     using tested_type = hypotheses::process<signal_type, noise_type>;
                     using noise_generator_type = generator<value_type, t_ar_size>;
+                    std::error_code ec {};
                     
                     value_type sigma_one = 1;
                     value_type sigma_two = 2;
 
-                    signal_type s((sigma_one + sigma_two) / 2);
-                    noise_type n1(sigma_one, noise_generator_type::make_lin_array());
-                    noise_type n2(sigma_two, noise_generator_type::make_quad_array());
+                    signal_type s((sigma_one + sigma_two) / 2, ec);
+                    noise_type n1(sigma_one, noise_generator_type::make_lin_array(), ec);
+                    noise_type n2(sigma_two, noise_generator_type::make_quad_array(), ec);
 
                     tested_type x(s, n1, 0.1);
                     tested_type y(s, n2, 0.5);
-                    tested_type z { };
+                    tested_type z {};
 
                     if (!type::test_tic(x)) return false;
                     if (!type::test_tic(y)) return false;
                     if (!type::test_tic(z)) return false;
-                    return true;
+                    return (ec.value() == 0);
                 } // test_constant_ar(...)
 
                 template <std::size_t t_transition_size>
@@ -98,22 +102,23 @@ namespace ropufu
                     using noise_type = hypotheses::white_noise<value_type>;
                     using tested_type = hypotheses::process<signal_type, noise_type>;
                     using signal_generator_type = generator<value_type, t_transition_size>;
+                    std::error_code ec {};
                     
                     value_type level_one = 1;
                     value_type level_two = 2;
 
-                    signal_type s1(level_one, signal_generator_type::make_lin_array());
-                    signal_type s2(level_two, signal_generator_type::make_quad_array());
-                    noise_type n(0.4);
+                    signal_type s1(level_one, signal_generator_type::make_lin_array(), ec);
+                    signal_type s2(level_two, signal_generator_type::make_quad_array(), ec);
+                    noise_type n(0.4, ec);
 
                     tested_type x(s1, n, 0.1);
                     tested_type y(s2, n, 0.5);
-                    tested_type z { };
+                    tested_type z {};
 
                     if (!type::test_tic(x)) return false;
                     if (!type::test_tic(y)) return false;
                     if (!type::test_tic(z)) return false;
-                    return true;
+                    return (ec.value() == 0);
                 } // test_transit_white(...)
 
                 template <std::size_t t_ar_size, std::size_t t_transition_size>
@@ -124,33 +129,34 @@ namespace ropufu
                     using tested_type = hypotheses::process<signal_type, noise_type>;
                     using signal_generator_type = generator<value_type, t_transition_size>;
                     using noise_generator_type = generator<value_type, t_ar_size>;
+                    std::error_code ec {};
                     
                     value_type level_one = 1;
                     value_type level_two = 3;
                     value_type sigma_one = 2;
                     value_type sigma_two = 4;
 
-                    signal_type s1(level_one, signal_generator_type::make_lin_array());
-                    signal_type s2(level_two, signal_generator_type::make_quad_array());
-                    noise_type n1(sigma_one, noise_generator_type::make_lin_array());
-                    noise_type n2(sigma_two, noise_generator_type::make_quad_array());
+                    signal_type s1(level_one, signal_generator_type::make_lin_array(), ec);
+                    signal_type s2(level_two, signal_generator_type::make_quad_array(), ec);
+                    noise_type n1(sigma_one, noise_generator_type::make_lin_array(), ec);
+                    noise_type n2(sigma_two, noise_generator_type::make_quad_array(), ec);
 
                     tested_type u(s1, n1, 0.1);
                     tested_type v(s2, n1, 0.5);
                     tested_type x(s1, n2, 0.1);
                     tested_type y(s2, n2, 0.5);
-                    tested_type z { };
+                    tested_type z {};
 
                     if (!type::test_tic(u)) return false;
                     if (!type::test_tic(v)) return false;
                     if (!type::test_tic(x)) return false;
                     if (!type::test_tic(y)) return false;
                     if (!type::test_tic(z)) return false;
-                    return true;
+                    return (ec.value() == 0);
                 } // test_transit_ar(...)
 
                 static bool print() noexcept
-                {
+                {                    
                     auto x = generator<value_type, 3>::constant_white();
                     auto y = generator<value_type, 0>::constant_ar();
                     auto z = generator<value_type, 5>::constant_ar();

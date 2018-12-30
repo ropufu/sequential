@@ -8,6 +8,7 @@
 
 #include <array>   // std::array
 #include <cstddef> // std::size_t
+#include <system_error> // std::error_code, std::errc
 
 namespace ropufu
 {
@@ -27,9 +28,9 @@ namespace ropufu
                     using adjusted_signal_type = t_signal_type;
                     using adjusted_noise_type = t_noise_type;
 
-                    static constexpr adjusted_noise_type adjust_noise(const signal_type& /**signal*/, const noise_type& noise) noexcept { return noise; }
+                    static constexpr adjusted_noise_type adjust_noise(const signal_type& /*signal*/, const noise_type& noise, std::error_code& /*ec*/) noexcept { return noise; }
                     
-                    static constexpr adjusted_signal_type adjust_signal(const signal_type& signal, const noise_type& /**noise*/) noexcept { return signal; }
+                    static constexpr adjusted_signal_type adjust_signal(const signal_type& signal, const noise_type& /*noise*/, std::error_code& /*ec*/) noexcept { return signal; }
                 }; // struct de_auto_regress
 
                 template <typename t_value_type>
@@ -41,9 +42,9 @@ namespace ropufu
                     using adjusted_signal_type = constant_signal<t_value_type>;
                     using adjusted_noise_type = white_noise<t_value_type>;
 
-                    static adjusted_noise_type adjust_noise(const signal_type& /**signal*/, const noise_type& noise) noexcept { return adjusted_noise_type(noise.noise_sigma()); }
+                    static adjusted_noise_type adjust_noise(const signal_type& /*signal*/, const noise_type& noise, std::error_code& ec) noexcept { return adjusted_noise_type(noise.noise_sigma(), ec); }
                     
-                    static constexpr adjusted_signal_type adjust_signal(const signal_type& signal, const noise_type& /**noise*/) noexcept { return signal; }
+                    static constexpr adjusted_signal_type adjust_signal(const signal_type& signal, const noise_type& /*noise*/, std::error_code& /*ec*/) noexcept { return signal; }
                 }; // struct de_auto_regress
 
                 template <typename t_value_type, std::size_t t_ar_size>
@@ -55,20 +56,20 @@ namespace ropufu
                     using adjusted_signal_type = transitionary_signal<t_value_type, t_ar_size>;
                     using adjusted_noise_type = white_noise<t_value_type>;
 
-                    static adjusted_noise_type adjust_noise(const signal_type& /**signal*/, const noise_type& noise) noexcept { return adjusted_noise_type(noise.noise_sigma()); }
+                    static adjusted_noise_type adjust_noise(const signal_type& /*signal*/, const noise_type& noise, std::error_code& ec) noexcept { return adjusted_noise_type(noise.noise_sigma(), ec); }
                     
-                    static adjusted_signal_type adjust_signal(const signal_type& signal, const noise_type& noise) noexcept
+                    static adjusted_signal_type adjust_signal(const signal_type& signal, const noise_type& noise, std::error_code& ec) noexcept
                     {
                         t_value_type s = signal.level(); // Stationary level.
                         const std::array<t_value_type, t_ar_size>& rho = noise.ar_parameters(); // AR parameters.
-                        std::array<t_value_type, t_ar_size> transition;
+                        std::array<t_value_type, t_ar_size> transition {};
                         
                         for (std::size_t i = 0; i < t_ar_size; ++i)
                         {
                             transition[i] = s;
                             s -= rho[i] * signal.level();
                         }
-                        return adjusted_signal_type(s, transition);
+                        return adjusted_signal_type(s, transition, ec);
                     } // adjust_signal(...)
                     
                     // /** @brief Adjust the \p sequence to compensate for AR noise.
@@ -125,11 +126,11 @@ namespace ropufu
             } // namespace detail
 
             template <typename t_signal_type, typename t_noise_type>
-            auto adjust_process(const process<t_signal_type, t_noise_type>& proc) noexcept -> detail::adjusted_process_t<t_signal_type, t_noise_type>
+            auto adjust_process(const process<t_signal_type, t_noise_type>& proc, std::error_code& ec) noexcept -> detail::adjusted_process_t<t_signal_type, t_noise_type>
             {
-                /**using signal_type = t_signal_type;*/
-                /**using noise_type = t_noise_type;*/
-                /**using process_type = process<t_signal_type, t_noise_type>;*/
+                /*using signal_type = t_signal_type;*/
+                /*using noise_type = t_noise_type;*/
+                /*using process_type = process<t_signal_type, t_noise_type>;*/
 
                 using de_auto_regress_type = detail::de_auto_regress<t_signal_type, t_noise_type>;
 
@@ -137,8 +138,8 @@ namespace ropufu
                 using adjusted_signal_type = typename adjusted_process_type::signal_type;
                 using adjusted_noise_type = typename adjusted_process_type::noise_type;
 
-                adjusted_signal_type signal = de_auto_regress_type::adjust_signal(proc.signal(), proc.noise());
-                adjusted_noise_type noise = de_auto_regress_type::adjust_noise(proc.signal(), proc.noise());
+                adjusted_signal_type signal = de_auto_regress_type::adjust_signal(proc.signal(), proc.noise(), ec);
+                adjusted_noise_type noise = de_auto_regress_type::adjust_noise(proc.signal(), proc.noise(), ec);
                 return adjusted_process_type(signal, noise, proc.actual_mu());
             }; // adjust_process(...)
         } // namespace hypotheses

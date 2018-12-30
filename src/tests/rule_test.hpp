@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <system_error> // std::error_code, std::errc
 #include <vector>
 
 namespace ropufu
@@ -28,15 +29,16 @@ namespace ropufu
                 template <typename t_process_type, typename t_rule_type>
                 static bool test_tic(t_process_type& proc, t_rule_type& rule) noexcept
                 {
-                    /**using signal_type = typename t_process_type::signal_type;*/
-                    /**using noise_type = typename t_process_type::noise_type;*/
+                    /*using signal_type = typename t_process_type::signal_type;*/
+                    /*using noise_type = typename t_process_type::noise_type;*/
+                    std::error_code ec {};
 
                     while (rule.is_listening())
                     {
                         proc.tic();
-                        rule.tic(proc);
+                        rule.tic(proc, ec);
                     }
-                    rule.toc(proc);
+                    rule.toc(proc, ec);
                     proc.reset();
 
                     return true;
@@ -47,6 +49,7 @@ namespace ropufu
                 {
                     using tested_type = hypotheses::adaptive_sprt<typename t_process_type::signal_type, typename t_process_type::noise_type, true>;
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
+                    std::error_code ec {};
 
                     hypotheses::model<value_type> model { };
                     value_type analyzed_mu = 1;
@@ -56,12 +59,12 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
 
                     xsprt_type x_rule = rule;
                     if (!type::test_tic(proc, rule)) return false;
                     if (!type::test_tic(proc, x_rule)) return false;
-                    return true;
+                    return (ec.value() == 0);
                 } // test_asprt_with(...)
 
                 template <typename t_process_type>
@@ -69,6 +72,7 @@ namespace ropufu
                 {
                     using tested_type = hypotheses::adaptive_sprt_star<typename t_process_type::signal_type, typename t_process_type::noise_type, true>;
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
+                    std::error_code ec {};
 
                     hypotheses::model<value_type> model { };
                     value_type analyzed_mu = 1;
@@ -78,12 +82,12 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
 
                     xsprt_type x_rule = rule;
                     if (!type::test_tic(proc, rule)) return false;
                     if (!type::test_tic(proc, x_rule)) return false;
-                    return true;
+                    return (ec.value() == 0);
                 } // test_bsprt_with(...)
 
                 template <typename t_process_type>
@@ -91,6 +95,7 @@ namespace ropufu
                 {
                     using tested_type = hypotheses::generalized_sprt<typename t_process_type::signal_type, typename t_process_type::noise_type, true>;
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
+                    std::error_code ec {};
 
                     hypotheses::model<value_type> model { };
                     value_type analyzed_mu = 1;
@@ -100,12 +105,12 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
 
                     xsprt_type x_rule = rule;
                     if (!type::test_tic(proc, rule)) return false;
                     if (!type::test_tic(proc, x_rule)) return false;
-                    return true;
+                    return (ec.value() == 0);
                 } // test_gsprt_with(...)
 
                 template <typename t_process_type>
@@ -113,6 +118,7 @@ namespace ropufu
                 {
                     using tested_type = hypotheses::generalized_sprt_star<typename t_process_type::signal_type, typename t_process_type::noise_type, true>;
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
+                    std::error_code ec {};
 
                     hypotheses::model<value_type> model { };
                     value_type analyzed_mu = 1;
@@ -122,12 +128,12 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
 
                     xsprt_type x_rule = rule;
                     if (!type::test_tic(proc, rule)) return false;
                     if (!type::test_tic(proc, x_rule)) return false;
-                    return true;
+                    return (ec.value() == 0);
                 } // test_hsprt_with(...)
                 
                 static bool test_asprt() noexcept
@@ -185,6 +191,7 @@ namespace ropufu
                     using tested_type_xc = hypotheses::xsprt_t<decltype(c)>;
                     using tested_type_xd = hypotheses::xsprt_t<decltype(d)>;
                     using tested_type_xe = hypotheses::xsprt_t<decltype(e)>;
+                    std::error_code ec {};
 
                     value_type theta = static_cast<value_type>(0.5);
                     tested_type_a x { 0, theta, theta };
@@ -199,11 +206,11 @@ namespace ropufu
                     tested_type_xd maybe_v { };
                     tested_type_xe maybe_w { };
 
-                    generator<value_type, 1>::reset_rule(x, a);
-                    generator<value_type, 1>::reset_rule(y, b);
-                    generator<value_type, 1>::reset_rule(z, c);
-                    generator<value_type, 1>::reset_rule(v, d);
-                    generator<value_type, 1>::reset_rule(w, e);
+                    generator<value_type, 1>::reset_rule(x, a, ec);
+                    generator<value_type, 1>::reset_rule(y, b, ec);
+                    generator<value_type, 1>::reset_rule(z, c, ec);
+                    generator<value_type, 1>::reset_rule(v, d, ec);
+                    generator<value_type, 1>::reset_rule(w, e, ec);
 
                     maybe_x = x;
                     maybe_y = y;
@@ -222,7 +229,7 @@ namespace ropufu
                     test_ostream(maybe_z, json_round_trip(maybe_z));
                     test_ostream(maybe_v, json_round_trip(maybe_v));
                     test_ostream(maybe_w, json_round_trip(maybe_w));
-                    return true;
+                    return (ec.value() == 0);
                 } // print(...)
             }; // struct rule_test
         } // namespace hypotheses_test

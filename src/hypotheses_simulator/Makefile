@@ -1,11 +1,11 @@
 
 PNAME = simulator.out
 
-CC = g++
+CC = g++-8
 
 CFLAGS = -std=c++17 -Wall
 
-PATHINC = -I./../../../aftermath -I./../../../opensource -I./..
+PATHINC = -I./../../../aftermath/src -I./../../../opensource -I./..
 
 PATHLIB =
 

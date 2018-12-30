@@ -2,8 +2,8 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_LIKELIHOOD_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_LIKELIHOOD_HPP_INCLUDED
 
-#include <aftermath/probability.hpp>  // dist_normal
-#include <aftermath/not_an_error.hpp> // quiet_error, not_an_error, severity_level
+#include <ropufu/probability.hpp>
+#include <ropufu/on_error.hpp> // aftermath::detail::on_error
 
 #include "model.hpp"
 #include "process.hpp"
@@ -48,7 +48,7 @@ namespace ropufu
                 } // on_reset(...)
 
                 /** @brief Auxiliary function to be executed right after the \c tic() call. */
-                void on_tic(const process_type& proc) noexcept
+                void on_tic(const process_type& proc, std::error_code& /*ec*/) noexcept
                 {
                     value_type mu_hat = proc.estimate_mu();
                     value_type mu_hat_null = (mu_hat < this->m_model.mu_under_null()) ? this->m_model.mu_under_null() : mu_hat;
@@ -58,7 +58,7 @@ namespace ropufu
                 } // on_tic(...)
                 
                 /** @brief Auxiliary function to be executed right before the \c toc() call. */
-                void on_toc(const process_type& proc) noexcept
+                void on_toc(const process_type& /*proc*/, std::error_code& /*ec*/) noexcept
                 {
                     this->on_reset();
                 } // on_toc(...)

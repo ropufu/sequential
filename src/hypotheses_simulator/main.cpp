@@ -1,6 +1,4 @@
 
-#include <aftermath/not_an_error.hpp>
-
 #include "config.hpp"
 #include "automator.hpp"
 
@@ -8,10 +6,15 @@
 #include <cstdint>  // std::int32_t
 #include <iostream> // std::cout, std::endl
 #include <string>   // std::string, std::to_string
+#include <system_error> // std::error_code
 #include <variant>  // std::visit
 
 using config_type = ropufu::sequential::hypotheses::config<double>;
-using error_manager_type = ropufu::aftermath::quiet_error;
+template <typename t_signal_type, typename t_noise_type>
+using automator_t = ropufu::sequential::hypotheses::automator<t_signal_type, t_noise_type, true>;
+
+static std::error_code s_error {};
+static config_type s_config { "./simulator.config" };
 
 struct sprt_visitor
 {
@@ -22,41 +25,32 @@ struct sprt_visitor
         std::cout << '\t' << signal << std::endl;
         std::cout << '\t' << noise << std::endl;
 
-        ropufu::sequential::hypotheses::automator<t_signal_type, t_noise_type, true> aut(signal, noise);
-        aut.execute();
-    }
+        automator_t<t_signal_type, t_noise_type> aut(signal, noise, ::s_config, ::s_error);
+        aut.execute(::s_config);
+    } // operator ()(...)
 }; // struct sprt_visitor
 
 std::int32_t main()
 {
-    error_manager_type& err = error_manager_type::instance();
-    const config_type& config = config_type::instance();
-
-    if (!config.good()) std::cout << "Failed to read config file." << std::endl;
+    if (!::s_config.good())
+    {
+        std::cout << "Failed to read config file." << std::endl;
+        for (const std::string& message : ::s_config.log()) std::cout << '\t' << "-- " << message << std::endl;
+    } // if (...)
     else
     {
         std::cout << "Initialization completed." << std::endl;
         std::cout << "Rules:" << std::endl;
-        for (const auto& x : config.rules()) std::cout << '\t' << x << std::endl;
+        for (const auto& x : ::s_config.rules()) std::cout << '\t' << x << std::endl;
         // std::cout << "Runs:" << std::endl;
         // for (const auto& x : config.runs()) std::cout << '\t' << x << std::endl;
 
         // std::cout << std::endl;
-        std::visit(sprt_visitor{}, config.signal(), config.noise());
-    }
+        std::visit(sprt_visitor{}, ::s_config.signal(), ::s_config.noise());
+    } // else (...)
 
-    if (!err.good()) std::cout << "~~ Oh no! Errors encoutered: ~~" << std::endl;
-    else if (!err.empty()) std::cout << "~~ Something to keep in mind: ~~" << std::endl;
+    if (::s_error.value() != 0) std::cout << "~~ Errors encountered. ~~" << std::endl;
     else std::cout << "~~ Simulation completed successfully. ~~" << std::endl;
-    while (!err.empty())
-    {
-        ropufu::aftermath::quiet_error_descriptor desc = err.pop();
-        std::cout << '\t' <<
-            "" << std::to_string(desc.severity()) <<
-            " \"" << std::to_string(desc.error_code()) << "\"" <<
-            " on line " << desc.caller_line_number() <<
-            " of <" << desc.caller_function_name() << ">:\t" << desc.description() << std::endl;
-    }
-
+    
     return 0;
 } // main(...)

@@ -15,6 +15,7 @@
 #include <iostream>
 #include <sstream> // std::ostringstream
 #include <string>  // std::string
+#include <system_error> // std::error_code, std::errc
 #include <utility> // std::forward
 #include <vector>
 
@@ -35,8 +36,8 @@ namespace ropufu
             template <typename t_type>
             static bool test_ostream(const t_type& x, const t_type& y) noexcept
             {
-                std::ostringstream ssx { };
-                std::ostringstream ssy { };
+                std::ostringstream ssx {};
+                std::ostringstream ssy {};
 
                 ssx << x;
                 ssy << y;
@@ -55,14 +56,14 @@ namespace ropufu
             public:
                 static std::array<value_type, t_size> make_lin_array(value_type seed = 1) noexcept
                 {
-                    std::array<value_type, t_size> result = { };
+                    std::array<value_type, t_size> result {};
                     for (std::size_t i = 0; i < t_size; ++i) result[i] = (i + 1) * seed / 100;
                     return result;
                 } // make_array(...)
 
                 static std::array<value_type, t_size> make_quad_array(value_type seed = 1) noexcept
                 {
-                    std::array<value_type, t_size> result = { };
+                    std::array<value_type, t_size> result {};
                     for (std::size_t i = 0; i < t_size; ++i)
                     {
                         value_type a = (i + 1) * (i + 2) * seed / 500;
@@ -79,9 +80,10 @@ namespace ropufu
                     using signal_type = hypotheses::constant_signal<value_type>;
                     using noise_type = hypotheses::white_noise<value_type>;
                     using process_type = hypotheses::process<signal_type, noise_type>;
+                    std::error_code ec {};
 
-                    signal_type s(level);
-                    noise_type n(sigma);
+                    signal_type s(level, ec);
+                    noise_type n(sigma, ec);
                     return process_type(s, n, mu);
                 } // constant_white(...)
 
@@ -92,9 +94,10 @@ namespace ropufu
                     using signal_type = hypotheses::constant_signal<value_type>;
                     using noise_type = hypotheses::auto_regressive_noise<value_type, t_size>;
                     using process_type = hypotheses::process<signal_type, noise_type>;
+                    std::error_code ec {};
 
-                    signal_type s(level);
-                    noise_type n(sigma, type::make_quad_array());
+                    signal_type s(level, ec);
+                    noise_type n(sigma, type::make_quad_array(), ec);
                     return process_type(s, n, mu);
                 } // constant_ar(...)
 
@@ -105,9 +108,10 @@ namespace ropufu
                     using signal_type = hypotheses::transitionary_signal<value_type, t_size>;
                     using noise_type = hypotheses::white_noise<value_type>;
                     using process_type = hypotheses::process<signal_type, noise_type>;
+                    std::error_code ec {};
 
-                    signal_type s(level, type::make_quad_array());
-                    noise_type n(sigma);
+                    signal_type s(level, type::make_quad_array(), ec);
+                    noise_type n(sigma, ec);
                     return process_type(s, n, mu);
                 } // transit_white(...)
 
@@ -118,22 +122,23 @@ namespace ropufu
                     using signal_type = hypotheses::transitionary_signal<value_type, t_size>;
                     using noise_type = hypotheses::auto_regressive_noise<value_type, t_size>;
                     using process_type = hypotheses::process<signal_type, noise_type>;
+                    std::error_code ec {};
 
-                    signal_type s(level, type::make_lin_array());
-                    noise_type n(sigma, type::make_quad_array());
+                    signal_type s(level, type::make_lin_array(), ec);
+                    noise_type n(sigma, type::make_quad_array(), ec);
                     return process_type(s, n, mu);
                 } // transit_ar(...)
 
                 template <typename t_rule_type, typename t_process_type>
-                static void reset_rule(t_rule_type& rule, t_process_type&& proc)
+                static void reset_rule(t_rule_type& rule, t_process_type&& proc, std::error_code& ec)
                 {
-                    hypotheses::model<value_type> model { };
+                    hypotheses::model<value_type> model {};
                     value_type analyzed_mu = 1;
                     value_type anticipated_run_length = 1;
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
                 } // reset_rule(...)
             }; // struct generator
 
