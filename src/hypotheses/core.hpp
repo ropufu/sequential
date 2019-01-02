@@ -2,7 +2,6 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_CORE_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_CORE_HPP_INCLUDED
 
-#include <cmath>   // std::isnan, std::isinf
 #include <cstddef> // std::size_t
 #include <string>  // std::string, std::to_string
 #include <type_traits> // std::is_floating_point

@@ -20,11 +20,11 @@ namespace ropufu
 
             private:
                 std::size_t m_count = 0;
-                matrix_type m_zero = { };
-                matrix_type m_sum = { };
+                matrix_type m_zero = {};
+                matrix_type m_sum = {};
                 //matrix_type m_sum_of_squares;
-                matrix_type m_shift = { }; // Shift to use in the sum of squares, m.
-                matrix_type m_sum_of_shifted_squares = { }; // sum(x - m)^2 = (n - 1) var + n (mean - m)^2
+                matrix_type m_shift = {}; // Shift to use in the sum of squares, m.
+                matrix_type m_sum_of_shifted_squares = {}; // sum(x - m)^2 = (n - 1) var + n (mean - m)^2
 
             public:
                 moment_statistic() noexcept { }
@@ -94,6 +94,8 @@ namespace ropufu
 
                     variance -= x;
                     variance.transform([&](value_type& e) { e /= (this->m_count - 1); });
+
+                    variance.transform([&](value_type& e) { if (e < 0) e = 0; });
                     return variance;
                 }
             };

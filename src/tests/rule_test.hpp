@@ -51,7 +51,7 @@ namespace ropufu
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
                     std::error_code ec {};
 
-                    hypotheses::model<value_type> model { };
+                    hypotheses::model<value_type> model {};
                     value_type analyzed_mu = 1;
                     value_type anticipated_run_length = 1;
                     value_type guess_mu = model.mu_relative(static_cast<value_type>(0.5));
@@ -74,7 +74,7 @@ namespace ropufu
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
                     std::error_code ec {};
 
-                    hypotheses::model<value_type> model { };
+                    hypotheses::model<value_type> model {};
                     value_type analyzed_mu = 1;
                     value_type anticipated_run_length = 1;
                     value_type guess_mu = model.mu_relative(static_cast<value_type>(0.5));
@@ -97,7 +97,7 @@ namespace ropufu
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
                     std::error_code ec {};
 
-                    hypotheses::model<value_type> model { };
+                    hypotheses::model<value_type> model {};
                     value_type analyzed_mu = 1;
                     value_type anticipated_run_length = 1;
                     //value_type guess_mu = model.mu_relative(static_cast<value_type>(0.5));
@@ -120,7 +120,7 @@ namespace ropufu
                     using xsprt_type = hypotheses::xsprt_t<t_process_type, true>;
                     std::error_code ec {};
 
-                    hypotheses::model<value_type> model { };
+                    hypotheses::model<value_type> model {};
                     value_type analyzed_mu = 1;
                     value_type anticipated_run_length = 1;
                     value_type guess_mu = model.mu_relative(static_cast<value_type>(0.5));
@@ -200,11 +200,11 @@ namespace ropufu
                     tested_type_d v { 3 };
                     tested_type_e w { 4, theta };
 
-                    tested_type_xa maybe_x { };
-                    tested_type_xb maybe_y { };
-                    tested_type_xc maybe_z { };
-                    tested_type_xd maybe_v { };
-                    tested_type_xe maybe_w { };
+                    tested_type_xa maybe_x {};
+                    tested_type_xb maybe_y {};
+                    tested_type_xc maybe_z {};
+                    tested_type_xd maybe_v {};
+                    tested_type_xe maybe_w {};
 
                     generator<value_type, 1>::reset_rule(x, a, ec);
                     generator<value_type, 1>::reset_rule(y, b, ec);

@@ -23,7 +23,7 @@ namespace ropufu::sequential::hypotheses
             static bool discriminate(const nlohmann::json& j, std::variant<t_all_noise_types...>& result) noexcept
             {
                 std::error_code ec {};
-                std::string typename_str { };
+                std::string typename_str {};
                 // Parse json entries.
                 aftermath::noexcept_json::required(j, t_noise_type::jstr_typename, typename_str, ec);
                 if (ec.value() != 0) return false;
@@ -46,7 +46,7 @@ namespace ropufu::sequential::hypotheses
             static bool discriminate(const nlohmann::json& j, std::variant<t_all_noise_types...>& result) noexcept
             {
                 std::error_code ec {};
-                std::string typename_str { };
+                std::string typename_str {};
                 // Parse json entries.
                 aftermath::noexcept_json::required(j, t_noise_type::jstr_typename, typename_str, ec);
                 if (ec.value() != 0) return false;

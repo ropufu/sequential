@@ -6,6 +6,7 @@
 #include <ropufu/json_traits.hpp>
 
 #include <ropufu/on_error.hpp> // aftermath::detail::on_error
+#include "../draft/algebra/numbers.hpp"
 
 #include "../signal_base.hpp"
 
@@ -46,13 +47,13 @@ namespace ropufu::sequential::hypotheses
     protected:
         bool validate(std::error_code& ec) const noexcept
         {
-            if (std::isnan(this->m_level) || std::isinf(this->m_level)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
+            if (modules::is_nan(this->m_level) || modules::is_infinite(this->m_level)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
             return true;
         } // validate(...)
 
         void coerce() noexcept
         {
-            if (std::isnan(this->m_level) || std::isinf(this->m_level)) this->m_level = 0;
+            if (modules::is_nan(this->m_level) || modules::is_infinite(this->m_level)) this->m_level = 0;
         } // coerce(...)
 
     public:

@@ -31,7 +31,9 @@ namespace ropufu::sequential::hypotheses
     using invalid_sprt_t = invalid_sprt<typename t_process_type::signal_type, typename t_process_type::noise_type, t_sync_check>;
 
     template <typename t_signal_type, typename t_noise_type, bool t_sync_check>
-    struct invalid_sprt : public two_sprt<invalid_sprt<t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
+    struct invalid_sprt : public two_sprt<
+        invalid_sprt<t_signal_type, t_noise_type, t_sync_check>,
+        t_signal_type, t_noise_type, t_sync_check>
     {
         using type = invalid_sprt<t_signal_type, t_noise_type, t_sync_check>;
         using base_type = two_sprt<type, t_signal_type, t_noise_type, t_sync_check>;
@@ -55,6 +57,9 @@ namespace ropufu::sequential::hypotheses
         std::string m_typename = "??";
 
     protected:
+        /** @brief Indicates if the choice of thresholds does not affect other design parameters. */
+        bool is_design_threshold_independent() const noexcept { return true; }
+
         /** @brief Auxiliary function to be executed right after the \c initialize() call. */
         void on_initialized() noexcept { }
 

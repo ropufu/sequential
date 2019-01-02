@@ -6,13 +6,13 @@
 #include <ropufu/json_traits.hpp>
 
 #include <ropufu/on_error.hpp> // aftermath::detail::on_error
+#include "../draft/algebra/numbers.hpp"
 
 #include "../noise_base.hpp"
 #include "../sliding_array.hpp"
 #include "white_noise.hpp"
 
 #include <array>    // std::array
-#include <cmath>    // std::isnan, std::isinf
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
 #include <stdexcept>    // std::runtime_error
@@ -151,7 +151,7 @@ namespace ropufu::sequential::hypotheses
             value_type sum_squared = 0;
             for (const value_type& x : this->m_ar_parameters)
             {
-                if (std::isnan(x) || std::isinf(x)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "AR parameters have to be finite numbers.", false);
+                if (modules::is_nan(x) || modules::is_infinite(x)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "AR parameters have to be finite numbers.", false);
                 sum_squared += (x * x);
             } // for (...)
             if (sum_squared >= 1) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "AR parameters have to lie inside a unit sphere.", false);
@@ -163,7 +163,7 @@ namespace ropufu::sequential::hypotheses
             value_type sum_squared = 0;
             for (value_type& x : this->m_ar_parameters)
             {
-                if (std::isnan(x) || std::isinf(x)) x = 0;
+                if (modules::is_nan(x) || modules::is_infinite(x)) x = 0;
                 sum_squared += (x * x);
             } // for (...)
             if (sum_squared >= 1) this->m_ar_parameters.fill(0);

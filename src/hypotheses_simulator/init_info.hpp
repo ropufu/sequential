@@ -5,13 +5,12 @@
 #include <nlohmann/json.hpp>
 
 #include <ropufu/algebra.hpp>      // aftermath::algebra::range
-
-#include "../hypotheses/core.hpp"
 #include "../draft/algebra/interpolator.hpp"
 #include "../draft/algebra/numbers.hpp"
+
+#include "../hypotheses/core.hpp"
 #include "hypothesis_pair.hpp"
 
-#include <cmath>    // std::isnan, std::isinf
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
 #include <string>   // std::string

@@ -53,17 +53,17 @@ namespace ropufu::sequential::hypotheses
         bool m_is_good = false;
         bool m_has_changed = false;
         std::string m_filename = ""; // Where the configuration was loaded from.
-        nlohmann::json m_json = { }; // Raw configuration json.
-        std::vector<std::string> m_logger = { };
+        nlohmann::json m_json = {}; // Raw configuration json.
+        std::vector<std::string> m_logger = {};
         // ~~ Specific properties ~~
         std::string m_mat_output_path = "./mat/";
         std::size_t m_count_simulations = 10'000;
         std::size_t m_count_threads = 1;
         std::size_t m_count_interpolated_runs = 0;
-        signal_variant_type m_signal = { };
-        noise_variant_type m_noise = { };
-        std::vector<rule_type> m_rules = { };
-        std::vector<run<value_type>> m_runs = { };
+        signal_variant_type m_signal = {};
+        noise_variant_type m_noise = {};
+        std::vector<rule_type> m_rules = {};
+        std::vector<run<value_type>> m_runs = {};
 
     public:
         // Always try to read the default configuration on construction.
@@ -176,7 +176,7 @@ namespace ropufu::sequential::hypotheses
             catch (...)
             {
                 this->m_is_good = false;
-                this->m_json = { };
+                this->m_json = {};
                 return false;
             }
         } // read(...)

@@ -8,11 +8,11 @@
 #include <ropufu/on_error.hpp>    // aftermath::detail::on_error
 #include <ropufu/probability.hpp> // aftermath::probability::normal_distribution
 #include <ropufu/random.hpp>      // aftermath::random::default_sampler_normal_t
+#include "../draft/algebra/numbers.hpp"
 
 #include "../noise_base.hpp"
 
 #include <chrono>   // std::chrono::high_resolution_clock
-#include <cmath>    // std::isnan, std::isinf
 #include <cstddef>  // std::size_t
 #include <cstdint>  // std::int32_t
 #include <iostream> // std::ostream
@@ -86,14 +86,14 @@ namespace ropufu::sequential::hypotheses
     protected:
         bool validate(std::error_code& ec) const noexcept
         {
-            if (std::isnan(this->m_noise_sigma) || std::isinf(this->m_noise_sigma)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Noise standard deviation has to be a finite number.", false);
+            if (modules::is_nan(this->m_noise_sigma) || modules::is_infinite(this->m_noise_sigma)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Noise standard deviation has to be a finite number.", false);
             if (this->m_noise_sigma <= 0) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Noise standard deviation has to be poisitive.", false);
             return true;
         } // validate(...)
 
         void coerce() noexcept
         {
-            if (std::isnan(this->m_noise_sigma) || std::isinf(this->m_noise_sigma)) this->m_noise_sigma = 0;
+            if (modules::is_nan(this->m_noise_sigma) || modules::is_infinite(this->m_noise_sigma)) this->m_noise_sigma = 0;
             if (this->m_noise_sigma <= 0) this->m_noise_sigma = 1;
             this->m_noise_variance = this->m_noise_sigma * this->m_noise_sigma;
         } // coerce(...)

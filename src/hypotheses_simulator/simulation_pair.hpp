@@ -3,11 +3,11 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATION_PAIR_HPP_INCLUDED
 
 #include <ropufu/on_error.hpp> // aftermath::detail::on_error
+#include "../draft/algebra/interpolator.hpp"
+#include "../draft/algebra/numbers.hpp"
 
 #include "../hypotheses/core.hpp"
 #include "../hypotheses/model.hpp"
-#include "../draft/algebra/interpolator.hpp"
-#include "../draft/algebra/numbers.hpp"
 #include "operating_characteristic.hpp"
 
 #include <array>      // std::array
@@ -114,8 +114,8 @@ namespace std
 
         result_type operator ()(argument_type const& x) const noexcept
         {
-            std::hash<typename argument_type::value_type> value_hash = { };
-            //std::hash<ropufu::sequential::hypotheses::operating_characteristic> oc_hash = { };
+            std::hash<typename argument_type::value_type> value_hash = {};
+            //std::hash<ropufu::sequential::hypotheses::operating_characteristic> oc_hash = {};
 
             return
                 //oc_hash(x.oc()) ^

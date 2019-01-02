@@ -33,7 +33,9 @@ namespace ropufu::sequential::hypotheses
     using generalized_sprt_star_t = generalized_sprt_star<typename t_process_type::signal_type, typename t_process_type::noise_type, t_sync_check>;
 
     template <typename t_signal_type, typename t_noise_type, bool t_sync_check>
-    struct generalized_sprt_star : public two_sprt<generalized_sprt_star<t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
+    struct generalized_sprt_star : public two_sprt<
+        generalized_sprt_star<t_signal_type, t_noise_type, t_sync_check>,
+        t_signal_type, t_noise_type, t_sync_check>
     {
         using type = generalized_sprt_star<t_signal_type, t_noise_type, t_sync_check>;
         using base_type = two_sprt<type, t_signal_type, t_noise_type, t_sync_check>;
@@ -66,6 +68,9 @@ namespace ropufu::sequential::hypotheses
         bool m_is_estimator_high = false; // Indicator if the latest estimator of mu is above the threshold.
 
     protected:
+        /** @brief Indicates if the choice of thresholds does not affect other design parameters. */
+        bool is_design_threshold_independent() const noexcept { return true; }
+
         /** @brief Auxiliary function to be executed right after the \c initialize() call. */
         void on_initialized() noexcept
         {

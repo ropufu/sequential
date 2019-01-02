@@ -34,10 +34,10 @@ namespace ropufu
                 using model_type = hypotheses::model<value_type>;
 
             private:
-                model_type m_model = { };
+                model_type m_model = {};
                 // ~~ Statistics ~~
-                std::vector<value_type> m_estimator_of_mu = { }; // Unconstrained estimator of signal "strength".
-                std::vector<value_type> m_null_estimator_of_mu = { }; // Estimator of signal "strength", constrained from below by the signal "strength" in the null hypothesis.
+                std::vector<value_type> m_estimator_of_mu = {}; // Unconstrained estimator of signal "strength".
+                std::vector<value_type> m_null_estimator_of_mu = {}; // Estimator of signal "strength", constrained from below by the signal "strength" in the null hypothesis.
 
             protected:
                 /** @brief Auxiliary function to be executed right before the \c reset() call. */

@@ -9,7 +9,6 @@
 #include "signal_base.hpp"
 #include "noise_base.hpp"
 
-#include <cmath>    // std::isnan, std::isinf
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
 #include <random>   // std::normal_distribution, std::default_random_engine
@@ -40,6 +39,8 @@ namespace ropufu::sequential::hypotheses
         using noise_type = t_noise_type;
         using value_type = typename t_noise_type::value_type;
 
+        static constexpr std::size_t default_history_capacity = 100;
+
         // ~~ Json names ~~
         static constexpr char jstr_signal[] = "signal";
         static constexpr char jstr_noise[] = "noise";
@@ -50,16 +51,18 @@ namespace ropufu::sequential::hypotheses
         using noise_base_type = noise_base<typename noise_type::noise_base_type, typename noise_type::value_type>;
 
         // ~~ Signal ~~
-        signal_type m_signal = { }; // Signal.
-        noise_type m_noise = { };   // Parameters in the AR noise.
+        signal_type m_signal = {}; // Signal.
+        noise_type m_noise = {};   // Parameters in the AR noise.
         value_type m_actual_mu = 0; // Actual signal "strength".
 
         // ~~ Observation generated members ~~
-        std::vector<value_type> m_history = { }; // Full history of process.
+        std::vector<value_type> m_history = {}; // Full history of process.
 
         // ~~ Estimators of signal "strength" ~~
         value_type m_running_sum_ry = 0; // The running sum (signal) x (observation).
         value_type m_running_sum_rr = 0; // The running sum (signal) x (signal).
+        std::vector<value_type> m_running_sum_ry_history = {};
+        std::vector<value_type> m_running_sum_rr_history = {};
         
         static signal_base_type& signal_cast(signal_type& signal) noexcept { return static_cast<signal_base_type&>(signal); }
         static const signal_base_type& signal_cast(const signal_type& signal) noexcept { return static_cast<const signal_base_type&>(signal); }
@@ -70,6 +73,9 @@ namespace ropufu::sequential::hypotheses
     protected:
         void coerce() noexcept
         {
+            this->m_history.reserve(type::default_history_capacity);
+            this->m_running_sum_ry_history.reserve(type::default_history_capacity);
+            this->m_running_sum_rr_history.reserve(type::default_history_capacity);
         } // coerce(...)
 
         /** @brief To be executed right after the \c tic() call. */
@@ -86,12 +92,16 @@ namespace ropufu::sequential::hypotheses
             // ~~ Statistics: null estimator of signal "strength", mu. ~~
             this->m_running_sum_ry += r * y; // Add current value of (signal) x (observation).
             this->m_running_sum_rr += r * r; // Add current value of (signal) x (signal).
+            this->m_running_sum_ry_history.push_back(this->m_running_sum_ry);
+            this->m_running_sum_rr_history.push_back(this->m_running_sum_rr);
         } // on_tic(...)
 
         /** @brief To be executed right before the \c reset() call. */
         void on_reset() noexcept
         {
             this->m_history.clear();
+            this->m_running_sum_ry_history.clear();
+            this->m_running_sum_rr_history.clear();
             this->m_noise.reset();
 
             this->m_running_sum_ry = 0;
@@ -99,7 +109,7 @@ namespace ropufu::sequential::hypotheses
         } // on_reset(...)
 
     public:
-        process() noexcept { }
+        process() noexcept { this->coerce(); }
 
         /** Initializes a new time window of a given width. */
         explicit process(const signal_type& signal, const noise_type& noise, value_type actual_mu) noexcept
@@ -157,18 +167,19 @@ namespace ropufu::sequential::hypotheses
         } // unscaled_log_likelihood_between(...)
 
         /** Computes unscaled log-likelihood ratio between two hypothetical values of signal "strength". */
-        value_type unscaled_log_likelihood_between(value_type theta, value_type eta, std::size_t count) const noexcept
+        value_type unscaled_log_likelihood_between(value_type theta, value_type eta, std::size_t time_index) const noexcept
         {
             if (theta == eta) return 0;
             value_type value = 0;
             value_type shift = theta - eta;
             value_type mean = (theta + eta) / 2;
-            for (std::size_t i = 0; i < count; ++i)
-            {
-                value_type r = this->m_signal.at(i);
-                value_type y = this->m_history[i];
-                value += shift * r * (y - mean * r);
-            }
+            // for (std::size_t i = 0; i <= time_index; ++i)
+            // {
+            //     value_type r = this->m_signal.at(i);
+            //     value_type y = this->m_history[i];
+            //     value += shift * r * (y - mean * r);
+            // } // for (...)
+            value = shift * (this->m_running_sum_ry_history[time_index] - mean * this->m_running_sum_rr_history[time_index]);
             return value;
         } // unscaled_log_likelihood_between(...)
 
@@ -187,10 +198,10 @@ namespace ropufu::sequential::hypotheses
          *  @remark \tparam t_eta_estimator_func has to implement operator (std::size_t) -> value_type.
          */
         template <typename t_theta_estimator_func, typename t_eta_estimator_func>
-        value_type unscaled_adaptive_log_likelihood_between(const t_theta_estimator_func& theta, const t_eta_estimator_func& eta, std::size_t count) const noexcept
+        value_type unscaled_adaptive_log_likelihood_between(const t_theta_estimator_func& theta, const t_eta_estimator_func& eta, std::size_t time_index) const noexcept
         {
             value_type value = 0;
-            for (std::size_t i = 0; i < count; ++i) value += unscaled_log_likelihood_at(i, theta(i), eta(i));
+            for (std::size_t i = 0; i <= time_index; ++i) value += this->unscaled_log_likelihood_at(i, theta(i), eta(i));
             return value;
         } // unscaled_adaptive_log_likelihood_between(...)
 

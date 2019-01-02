@@ -6,6 +6,7 @@
 #include <ropufu/json_traits.hpp>
 
 #include <ropufu/on_error.hpp> // aftermath::detail::on_error
+#include "../draft/algebra/numbers.hpp"
 
 #include "../signal_base.hpp"
 
@@ -70,20 +71,20 @@ namespace ropufu::sequential::hypotheses
     protected:
         bool validate(std::error_code& ec) const noexcept
         {
-            if (std::isnan(this->m_stationary_level) || std::isinf(this->m_stationary_level)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
+            if (modules::is_nan(this->m_stationary_level) || modules::is_infinite(this->m_stationary_level)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
             for (const value_type& x : this->m_transition)
             {
-                if (std::isnan(x) || std::isinf(x)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
+                if (modules::is_nan(x) || modules::is_infinite(x)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
             } // for (...)
             return true;
         } // validate(...)
 
         void coerce() noexcept
         {
-            if (std::isnan(this->m_stationary_level) || std::isinf(this->m_stationary_level)) this->m_stationary_level = 0;
+            if (modules::is_nan(this->m_stationary_level) || modules::is_infinite(this->m_stationary_level)) this->m_stationary_level = 0;
             for (value_type& x : this->m_transition)
             {
-                if (std::isnan(x) || std::isinf(x)) x = 0;
+                if (modules::is_nan(x) || modules::is_infinite(x)) x = 0;
             } // for (...)
         } // coerce(...)
 

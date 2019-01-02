@@ -6,12 +6,11 @@
 #include <ropufu/json_traits.hpp>
 
 #include <ropufu/on_error.hpp> // aftermath::detail::on_error
-
-#include "core.hpp"
 #include "../draft/algebra/interpolator.hpp"
 #include "../draft/algebra/numbers.hpp"
 
-#include <cmath>    // std::isnan, std::isinf
+#include "core.hpp"
+
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
 #include <stdexcept>    // std::runtime_error
@@ -45,16 +44,16 @@ namespace ropufu::sequential::hypotheses
     protected:
         bool validate(std::error_code& ec) const noexcept
         {
-            if (std::isnan(this->m_null_mu) || std::isinf(this->m_null_mu)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Null mu has to be a finite number.", false);
-            if (std::isnan(this->m_smallest_alt_mu) || std::isinf(this->m_smallest_alt_mu)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Smallest alternative mu has to be a finite number.", false);
+            if (modules::is_nan(this->m_null_mu) || modules::is_infinite(this->m_null_mu)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Null mu has to be a finite number.", false);
+            if (modules::is_nan(this->m_smallest_alt_mu) || modules::is_infinite(this->m_smallest_alt_mu)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Smallest alternative mu has to be a finite number.", false);
             if (this->m_null_mu >= this->m_smallest_alt_mu) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Smallest alternative has to be greater than null mu.", false);
             return true;
         } // validate(...)
 
         void coerce() noexcept
         {
-            if (std::isnan(this->m_null_mu) || std::isinf(this->m_null_mu)) this->m_null_mu = 0;
-            if (std::isnan(this->m_smallest_alt_mu) || std::isinf(this->m_smallest_alt_mu)) this->m_smallest_alt_mu = 0;
+            if (modules::is_nan(this->m_null_mu) || modules::is_infinite(this->m_null_mu)) this->m_null_mu = 0;
+            if (modules::is_nan(this->m_smallest_alt_mu) || modules::is_infinite(this->m_smallest_alt_mu)) this->m_smallest_alt_mu = 0;
             if (this->m_null_mu >= this->m_smallest_alt_mu) this->m_smallest_alt_mu = this->m_null_mu + 1;
         } // coerce(...)
 

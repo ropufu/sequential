@@ -2,7 +2,9 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_AUTOMATOR_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_AUTOMATOR_INCLUDED
 
-#include <ropufu/algebra.hpp>      // aftermath::algebra::matrix, aftermath::algebra::range
+#include <ropufu/algebra.hpp> // aftermath::algebra::matrix, aftermath::algebra::range
+#include "../draft/algebra/interpolator.hpp"
+#include "../draft/algebra/numbers.hpp"
 
 #include "../hypotheses/de_auto_regress.hpp"
 #include "../hypotheses/signals.hpp"
@@ -13,8 +15,6 @@
 #include "../hypotheses/monte_carlo.hpp"
 
 #include "../hypotheses/moment_statistic.hpp"
-#include "../draft/algebra/interpolator.hpp"
-#include "../draft/algebra/numbers.hpp"
 
 #include "config.hpp"
 #include "run.hpp"
@@ -105,12 +105,12 @@ namespace ropufu::sequential::hypotheses
         using congif_type = config<value_type>;
 
     private:
-        std::string m_mat_output_path = { }; // Where to dump the statistic mat files.
-        adjusted_signal_type m_signal = { }; // Signal.
-        adjusted_noise_type m_noise = { }; // Noise.
-        monte_carlo_type m_monte_carlo = { }; // Monte carlo.
-        std::map<std::size_t, rule_type> m_rules = { }; // Potential rules to run.
-        std::vector<run<value_type>> m_runs = { }; // MC simulations to perform.
+        std::string m_mat_output_path = {}; // Where to dump the statistic mat files.
+        adjusted_signal_type m_signal = {}; // Signal.
+        adjusted_noise_type m_noise = {}; // Noise.
+        monte_carlo_type m_monte_carlo = {}; // Monte carlo.
+        std::map<std::size_t, rule_type> m_rules = {}; // Potential rules to run.
+        std::vector<run<value_type>> m_runs = {}; // MC simulations to perform.
 
         void build_rules(const congif_type& config) noexcept
         {
@@ -145,8 +145,8 @@ namespace ropufu::sequential::hypotheses
 
             process_type proc(this->m_signal, this->m_noise, mu_pair.simulated_mu()); // Set up the process.
 
-            std::chrono::steady_clock::time_point start { };
-            std::chrono::steady_clock::time_point end { };
+            std::chrono::steady_clock::time_point start {};
+            std::chrono::steady_clock::time_point end {};
 
             std::error_code ec {};
             this->m_monte_carlo.run(proc, rules_to_run,
@@ -173,7 +173,7 @@ namespace ropufu::sequential::hypotheses
                         rule_type& rule = rules_to_run[i];
 
                         // Report.
-                        value_type temp { };
+                        value_type temp {};
 
                         // ESS.
                         value_type ess_a = rule.run_lengths().mean().front();
@@ -220,8 +220,8 @@ namespace ropufu::sequential::hypotheses
                 if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
 
                 // Match up rules to run.
-                std::vector<rule_type> rules_to_run { };
-                std::vector<init_info<value_type>> rules_init { };
+                std::vector<rule_type> rules_to_run {};
+                std::vector<init_info<value_type>> rules_init {};
                 rules_to_run.reserve(this->m_rules.size());
                 rules_init.reserve(this->m_rules.size());
                 for (const std::pair<std::size_t, init_info<value_type>>& item : r.init_rules())

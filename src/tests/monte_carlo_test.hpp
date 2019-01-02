@@ -55,7 +55,7 @@ namespace ropufu
                     std::vector<xsprt_type> rules = { x, y, z, v, w };
 
                     // Output stream.
-                    std::ostringstream ss { };
+                    std::ostringstream ss {};
 
                     // Monte Carlo.
                     tested_type mc(1'000);

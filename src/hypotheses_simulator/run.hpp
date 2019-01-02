@@ -7,10 +7,10 @@
 
 #include <ropufu/algebra.hpp>  //  aftermath::algebra::range
 #include <ropufu/on_error.hpp> // aftermath::detail::on_error
-
-#include "../hypotheses/model.hpp"
 #include "../draft/algebra/interpolator.hpp"
 #include "../draft/algebra/numbers.hpp"
+
+#include "../hypotheses/model.hpp"
 #include "hypothesis_pair.hpp"
 #include "init_info.hpp"
 #include "operating_characteristic.hpp"
@@ -122,11 +122,11 @@ namespace ropufu::sequential::hypotheses
             */
             
             std::size_t count_pairs = keyframe_runs.size() - 1;
-            std::vector<type> result { };
+            std::vector<type> result {};
             result.reserve(keyframe_runs.size() + count_pairs * count_in_between);
             
             result.push_back(keyframe_runs.front());
-            std::error_code ec { };
+            std::error_code ec {};
             for (std::size_t i = 1; i < keyframe_runs.size(); ++i)
             {
                 const type& left = keyframe_runs[i - 1];
@@ -175,8 +175,8 @@ namespace ropufu::sequential::hypotheses
             if (left.m_simulation_pairs.size() != right.m_simulation_pairs.size()) return false;
 
             // Make sure the runs have the same rules.
-            std::set<std::size_t> left_rule_ids { };
-            std::set<std::size_t> right_rule_ids { };
+            std::set<std::size_t> left_rule_ids {};
+            std::set<std::size_t> right_rule_ids {};
             for (const std::pair<std::size_t, init_info<value_type>>& item : left.m_init_rules) left_rule_ids.insert(item.first);
             for (const std::pair<std::size_t, init_info<value_type>>& item : right.m_init_rules) right_rule_ids.insert(item.first);
 
@@ -206,15 +206,15 @@ namespace ropufu::sequential::hypotheses
     {
         using type = run<t_value_type>;
 
-        std::vector<t_value_type> analyzed_mu { };
-        std::vector<t_value_type> simulated_mu { };
+        std::vector<t_value_type> analyzed_mu {};
+        std::vector<t_value_type> simulated_mu {};
         for (const simulation_pair<t_value_type>& pair : x.simulation_pairs())
         {
             analyzed_mu.push_back(pair.analyzed_mu());
             simulated_mu.push_back(pair.simulated_mu());
         }
         std::string threshold_spacing_str = std::to_string(x.threshold_spacing());
-        std::vector<init_info<t_value_type>> init_rules { };
+        std::vector<init_info<t_value_type>> init_rules {};
         for (const std::pair<std::size_t, init_info<t_value_type>>& item : x.init_rules()) init_rules.push_back(item.second);
 
         j = nlohmann::json{
