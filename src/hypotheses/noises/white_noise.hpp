@@ -108,7 +108,10 @@ namespace ropufu::sequential::hypotheses
         } // next_value(...)
         
     public:
-        white_noise() noexcept : base_type() { }
+        white_noise() noexcept : base_type()
+        {
+            this->chrono_seed();
+        } // white_noise(...)
 
         /** No AR. */
         white_noise(value_type noise_sigma, std::error_code& ec) noexcept
@@ -134,6 +137,7 @@ namespace ropufu::sequential::hypotheses
             aftermath::noexcept_json::optional(j, type::jstr_noise_sigma, this->m_noise_sigma, ec);
             
             if (!this->validate(ec)) this->coerce();
+            this->chrono_seed();
         } // white_noise(...)
 
         /** Standard deviation of noise. */

@@ -45,7 +45,7 @@ namespace ropufu::sequential::hypotheses
         using value_type = typename base_type::value_type;
         using model_type = typename base_type::model_type;
         using likelihood_type = typename base_type::likelihood_type;
-        using statistic_type = typename base_type::statistic_type;
+        using moment_statistic_type = typename base_type::moment_statistic_type;
         
         static constexpr char typename_string[] = "invalid sprt";
 
@@ -99,8 +99,8 @@ namespace ropufu::sequential::hypotheses
             return result;
         } // to_path_string(...)
 
-        bool do_decide_null(value_type /*threshold*/) const noexcept { return true; }
-        bool do_decide_alt(value_type /*threshold*/) const noexcept { return false; }
+        bool do_decide_null(value_type /*threshold*/, std::size_t /*row_index*/, std::size_t /*column_index*/) const noexcept { return true; }
+        bool do_decide_alt(value_type /*threshold*/, std::size_t /*row_index*/, std::size_t /*column_index*/) const noexcept { return true; }
 
         /** Output to a stream. */
         friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept

@@ -4,6 +4,7 @@
 
 #include <ropufu/algebra.hpp>  // aftermath::algebra::matrix
 #include <ropufu/on_error.hpp> // aftermath::detail::on_error
+#include "../draft/algebra/matrix_mask.hpp"
 #include "../draft/algebra/numbers.hpp"
 
 #include "likelihood.hpp"
@@ -49,10 +50,13 @@ namespace ropufu::sequential::hypotheses
         using value_type = typename base_type::value_type;
         using model_type = hypotheses::model<value_type>;
         using likelihood_type = hypotheses::likelihood<t_signal_type, t_noise_type, t_sync_check>;
+        using matrix_mask_type = aftermath::algebra::matrix_mask<std::size_t>;
+        // using matrix_cell_type = typename matrix_mask_type::value_type;
+        using matrix_cell_type = aftermath::algebra::sparse_matrix_cell<std::size_t, bool>;
 
         template <typename t_data_type>
         using matrix_t = aftermath::algebra::matrix<t_data_type>;
-        using statistic_type = moment_statistic<matrix_t<value_type>>;
+        using moment_statistic_type = moment_statistic<matrix_t<value_type>>;
 
     private:
         using derived_type = t_derived_type;
@@ -67,29 +71,29 @@ namespace ropufu::sequential::hypotheses
 
         // ~~ Members reset with each \c \reset(), but persisting across \c toc() calls ~~
         bool m_is_initialized = false;
-        statistic_type m_errors = {}; // Track erroneous decisions made by the stopping time.
-        statistic_type m_run_lengths = {}; // Track run lengths of the stopping time.
+        moment_statistic_type m_errors = {}; // Track erroneous decisions made by the stopping time.
+        moment_statistic_type m_run_lengths = {}; // Track run lengths of the stopping time.
 
         // ~~ Members reset with each \c toc() ~~
         bool m_is_listening = false;
-        std::size_t m_count = false; // Number of collected observations.
-        matrix_t<bool> m_has_decided_null = {}; // m-by-n matrix indicating if the procedure has decided in favor of the null hypothesis.
-        matrix_t<bool> m_has_decided_alt = {};  // m-by-n matrix indicating if the procedure has decided in favor of the alternative hypothesis.
-        matrix_t<std::size_t> m_counts = {};    // m-by-n matrix counting the number of observations prior to stopping.
+        matrix_mask_type m_thresholds_mask = {}; // List of thresholds where the decision has not yet been made.
+        matrix_t<bool> m_has_decided_null = {};  // m-by-n matrix indicating if the procedure has decided in favor of the null hypothesis.
+        matrix_t<bool> m_has_decided_alt = {};   // m-by-n matrix indicating if the procedure has decided in favor of the alternative hypothesis.
+        matrix_t<std::size_t> m_run_length = {}; // m-by-n matrix counting the number of observations prior to stopping.
         std::size_t m_first_uncrossed_null_index = 0; // Keep track of the first uncrossed null index: there is no need to re-check the smaller ones.
         std::size_t m_first_uncrossed_alt_index = 0;  // Keep track of the first uncrossed alt index: there is no need to re-check the smaller ones.
 
     private:
-        /** @brief Resets the time to zero, but keeps the statistics. */
+        /** @brief Resets the time to zero, but keeps the run length & error statistics. */
         void soft_reset() noexcept
         {
             this->m_is_listening = this->m_is_initialized;
-            this->m_count = 0;
             this->m_likelihood.reset();
+            this->m_thresholds_mask.wipe();
 
             this->m_has_decided_null.wipe();
             this->m_has_decided_alt.wipe();
-            this->m_counts.wipe();
+            this->m_run_length.wipe();
             this->m_first_uncrossed_null_index = 0;
             this->m_first_uncrossed_alt_index = 0;
         } // soft_reset(...)
@@ -204,12 +208,10 @@ namespace ropufu::sequential::hypotheses
             if (this->has_stopped()) return; // Do nothing if the process hasn't collected any observations.
 
             if (!this->m_is_initialized) aftermath::detail::on_error(ec, std::errc::function_not_supported, "Decision rule has not been initialized.");
-            if (proc.time() != this->m_count) aftermath::detail::on_error(ec, std::errc::function_not_supported, "Process and stopping time are out of sync.");
             if (ec.value() != 0) return;
 
             this->m_likelihood.tic(proc, ec);
             this->on_tic_override(proc);  // Make sure the override goes before the \c do_decide_null(...) and \c do_decide_alt(...) are called.
-            this->m_count = proc.count();
 
             // Null thresholds: a.
             // Alt thresholds: b.
@@ -235,14 +237,14 @@ namespace ropufu::sequential::hypotheses
                 for (std::size_t i = this->m_first_uncrossed_null_index; i < m; ++i)
                 {
                     value_type a = this->m_unscaled_null_thresholds[i];
-                    if (!this->do_decide_null(a)) break; // Break the loop the first time the null hypothesis is not accepted.
+                    if (!this->do_decide_null(a, i, 0)) break; // Break the loop the first time the null hypothesis is not accepted.
                     else
                     {
                         next_uncrossed_null_index = i + 1;
                         for (std::size_t j = this->m_first_uncrossed_alt_index; j < n; ++j)
                         {
                             this->m_has_decided_null(i, j) = true; // Mark threshold as crossed.
-                            this->m_counts(i, j) = this->m_count; // Record the freshly stopped times.
+                            this->m_run_length(i, j) = proc.count(); // Record the freshly stopped times.
                         } // for (...)
                     } // else (...)
                 } // for (...)
@@ -252,14 +254,14 @@ namespace ropufu::sequential::hypotheses
                 for (std::size_t j = this->m_first_uncrossed_alt_index; j < n; ++j)
                 {
                     value_type b = this->m_unscaled_alt_thresholds[j];
-                    if (!this->do_decide_alt(b)) break; // Break the loop the first time the alternative hypothesis is not accepted.
+                    if (!this->do_decide_alt(b, 0, j)) break; // Break the loop the first time the alternative hypothesis is not accepted.
                     else
                     {
                         next_uncrossed_alt_index = j + 1;
                         for (std::size_t i = this->m_first_uncrossed_null_index; i < m; ++i)
                         {
                             this->m_has_decided_alt(i, j) = true; // Mark threshold as crossed.
-                            this->m_counts(i, j) = this->m_count; // Record the freshly stopped times.
+                            this->m_run_length(i, j) = proc.count(); // Record the freshly stopped times.
                         } // for (...)
                     } // else (...)
                 } // for (...)
@@ -270,7 +272,22 @@ namespace ropufu::sequential::hypotheses
             } // if (...)
             else
             {
-
+                // Traverse all remaining thresholds (vertical and horizontal).
+                for (matrix_cell_type& cell : this->m_thresholds_mask)
+                {
+                    std::size_t i = cell.row();
+                    std::size_t j = cell.column();
+                    value_type a = this->m_unscaled_null_thresholds[i];
+                    value_type b = this->m_unscaled_alt_thresholds[j];
+                    bool maybe_null = this->do_decide_null(a, i, j);
+                    bool maybe_alt = this->do_decide_alt(b, i, j);
+                    this->m_has_decided_null(i, j) = maybe_null;
+                    this->m_has_decided_alt(i, j) = maybe_alt;
+                    this->m_run_length(i, j) = proc.count();
+                    
+                    if (maybe_null || maybe_alt) cell.set(); // The decision has been made.
+                } // for (...)
+                this->m_thresholds_mask.commit();
             } // else (...)
         } // on_tic(...)
 
@@ -279,7 +296,7 @@ namespace ropufu::sequential::hypotheses
         {
             this->on_toc_override(proc);
 
-            const matrix_t<std::size_t>& run_lengths = this->m_counts;
+            const matrix_t<std::size_t>& run_lengths = this->m_run_length;
             const matrix_t<bool>& have_crossed_null = this->m_has_decided_null;
             const matrix_t<bool>& have_crossed_alt = this->m_has_decided_alt;
 
@@ -327,7 +344,7 @@ namespace ropufu::sequential::hypotheses
             this->soft_reset(); // Reset time, but keep the statistics.
         } // on_toc(...)
 
-        const matrix_t<std::size_t>& counts() const noexcept { return this->m_counts; }
+        const matrix_t<std::size_t>& run_length() const noexcept { return this->m_run_length; }
 
         const matrix_t<bool>& has_decided_null() const noexcept { return this->m_has_decided_null; }
 
@@ -350,10 +367,10 @@ namespace ropufu::sequential::hypotheses
         value_type anticipated_run_length() const noexcept { return this->m_anticipated_run_length; }
 
         /** Track erroneous decisions made by the stopping time. */
-        const statistic_type& errors() const noexcept { return this->m_errors; }
+        const moment_statistic_type& errors() const noexcept { return this->m_errors; }
 
         /** Track run lengths of the stopping time. */
-        const statistic_type& run_lengths() const noexcept { return this->m_run_lengths; }
+        const moment_statistic_type& run_lengths() const noexcept { return this->m_run_lengths; }
 
         const std::vector<value_type>& unscaled_null_thresholds() const noexcept { return this->m_unscaled_null_thresholds; }
         const std::vector<value_type>& unscaled_alt_thresholds() const noexcept { return this->m_unscaled_alt_thresholds; }
@@ -367,22 +384,22 @@ namespace ropufu::sequential::hypotheses
             return that->to_path_string(decimal_places);
         } // do_decide_alt(...)
 
-        bool do_decide_null(value_type threshold) const noexcept
+        bool do_decide_null(value_type threshold, std::size_t row_index, std::size_t column_index) const noexcept
         {
             constexpr bool is_overwritten = !std::is_same<decltype(&derived_type::do_decide_null), decltype(&type::do_decide_null)>::value;
             static_assert(is_overwritten, "static polymorphic function <do_decide_null> was not overwritten.");
 
             const derived_type* that = static_cast<const derived_type*>(this);
-            return that->do_decide_null(threshold);
+            return that->do_decide_null(threshold, row_index, column_index);
         } // do_decide_null(...)
 
-        bool do_decide_alt(value_type threshold) const noexcept
+        bool do_decide_alt(value_type threshold, std::size_t row_index, std::size_t column_index) const noexcept
         {
             constexpr bool is_overwritten = !std::is_same<decltype(&derived_type::do_decide_alt), decltype(&type::do_decide_alt)>::value;
             static_assert(is_overwritten, "static polymorphic function <do_decide_alt> was not overwritten.");
             
             const derived_type* that = static_cast<const derived_type*>(this);
-            return that->do_decide_alt(threshold);
+            return that->do_decide_alt(threshold, row_index, column_index);
         } // do_decide_alt(...)
 
         /** @remark Thresholds have to be of the same size; they are independently(!) sorted and then paired up. */
@@ -415,7 +432,7 @@ namespace ropufu::sequential::hypotheses
 
             this->m_has_decided_null = matrix_t<bool>(m, n); // Align cross indicators to thresholds.
             this->m_has_decided_alt = matrix_t<bool>(m, n); // Align cross indicators to thresholds.
-            this->m_counts = matrix_t<size_t>(m, n); // Align observation counts to thresholds.
+            this->m_run_length = matrix_t<size_t>(m, n); // Align observation counts to thresholds.
 
             this->m_unscaled_null_thresholds = null_thresholds;
             this->m_unscaled_alt_thresholds = alt_thresholds;
@@ -431,8 +448,8 @@ namespace ropufu::sequential::hypotheses
             matrix_t<value_type> zero(m, n);
             matrix_t<value_type> anticipated_mean(m, n, this->m_anticipated_run_length);
 
-            this->m_errors = statistic_type(zero, zero); // Align cross indicators to match threshold size.
-            this->m_run_lengths = statistic_type(zero, anticipated_mean); // Align observation counts to match threshold size.
+            this->m_errors = moment_statistic_type(zero, zero); // Align cross indicators to match threshold size.
+            this->m_run_lengths = moment_statistic_type(zero, anticipated_mean); // Align observation counts to match threshold size.
 
             // Finish up.
             if (ec.value() != 0) return;
