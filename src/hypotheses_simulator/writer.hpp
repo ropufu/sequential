@@ -40,9 +40,8 @@ namespace ropufu::sequential::hypotheses
 
         template <typename t_data_type>
         using matrix_t = aftermath::algebra::matrix<t_data_type>;
-        using statistic_type = hypotheses::moment_statistic<matrix_t<value_type>>;
 
-        using congif_type = config<value_type>;
+        using congif_type = hypotheses::config<value_type>;
 
     private:
         bool m_is_good = false;
@@ -132,7 +131,7 @@ namespace ropufu::sequential::hypotheses
         bool good() const noexcept { return this->m_is_good; }
 
         template <typename t_rule_type>
-        void write_mat(const model_type& model, const t_rule_type& rule, const oc_array_t<typename t_rule_type::statistic_type>& oc, std::error_code& ec) noexcept
+        void write_mat(const model_type& model, const t_rule_type& rule, const oc_array_t<typename t_rule_type::moment_statistic_type>& oc, std::error_code& ec) noexcept
         {
             if (!this->enforce_good(__FUNCTION__, __LINE__, ec)) return; // Make sure the writer has been successfully initialized.
 
@@ -168,7 +167,7 @@ namespace ropufu::sequential::hypotheses
                     aftermath::detail::on_error(ec, std::errc::argument_out_of_domain, "OC not recognized.");
                     return;
                 } // if (...)
-                const typename t_rule_type::statistic_type& value = pair.value();
+                const typename t_rule_type::moment_statistic_type& value = pair.value();
                 mat << expected_value_varname << value.mean() << variance_varname << value.variance();
             } // for (...)
         } // write_mat(...)
@@ -193,8 +192,8 @@ namespace ropufu::sequential::hypotheses
             unscaled_null_thresholds.try_reshape(unscaled_null_thresholds.size(), 1);
             unscaled_alt_thresholds.try_reshape(1, unscaled_alt_thresholds.size());
             // Observation matrices.
-            const statistic_type& errors = rule.errors();
-            const statistic_type& run_lengths = rule.run_lengths();
+            const typename t_rule_type::moment_statistic_type& errors = rule.errors();
+            const typename t_rule_type::moment_statistic_type& run_lengths = rule.run_lengths();
 
             std::string mat_path_str = mat_path.string();
             matstream_type mat(mat_path_str);

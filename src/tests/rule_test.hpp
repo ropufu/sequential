@@ -59,7 +59,7 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc.log_likelihood_scale(), null_thresholds, alt_thresholds, ec);
 
                     xsprt_type x_rule = rule;
                     if (!type::test_tic(proc, rule)) return false;
@@ -82,7 +82,7 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc.log_likelihood_scale(), null_thresholds, alt_thresholds, ec);
 
                     xsprt_type x_rule = rule;
                     if (!type::test_tic(proc, rule)) return false;
@@ -105,7 +105,7 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc.log_likelihood_scale(), null_thresholds, alt_thresholds, ec);
 
                     xsprt_type x_rule = rule;
                     if (!type::test_tic(proc, rule)) return false;
@@ -128,7 +128,7 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc, null_thresholds, alt_thresholds, ec);
+                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc.log_likelihood_scale(), null_thresholds, alt_thresholds, ec);
 
                     xsprt_type x_rule = rule;
                     if (!type::test_tic(proc, rule)) return false;

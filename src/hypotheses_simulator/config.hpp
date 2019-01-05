@@ -27,6 +27,7 @@ namespace ropufu::sequential::hypotheses
     {
         using type = config<t_value_type>;
         using value_type = t_value_type;
+
         using signal_variant_type = std::variant<
             unit_signal<t_value_type>,
             constant_signal<t_value_type>,
@@ -36,7 +37,12 @@ namespace ropufu::sequential::hypotheses
             white_noise<t_value_type>,
             auto_regressive_noise<t_value_type, 1>
             /*auto_regressive_noise<t_value_type, 2>*/>;
-        using rule_type = hypotheses::xsprt<no_signal_t<value_type>, no_noise_t<value_type>, false>;
+        using design_variant_type = std::variant<
+            adaptive_sprt_a_design<t_value_type>,
+            adaptive_sprt_b_design<t_value_type>,
+            double_sprt_design<t_value_type>,
+            generalized_sprt_a_design<t_value_type>,
+            generalized_sprt_b_design<t_value_type>>;
 
         // ~~ Json names ~~
         static constexpr char jstr_mat_output_path[] = "mat output";
@@ -62,7 +68,7 @@ namespace ropufu::sequential::hypotheses
         std::size_t m_count_interpolated_runs = 0;
         signal_variant_type m_signal = {};
         noise_variant_type m_noise = {};
-        std::vector<rule_type> m_rules = {};
+        std::vector<design_variant_type> m_rules = {};
         std::vector<run<value_type>> m_runs = {};
 
     public:
@@ -102,7 +108,7 @@ namespace ropufu::sequential::hypotheses
 
         const noise_variant_type& noise() const noexcept { return this->m_noise; }
 
-        const std::vector<rule_type>& rules() const noexcept { return this->m_rules; }
+        const std::vector<design_variant_type>& rules() const noexcept { return this->m_rules; }
 
         const std::vector<run<value_type>>& runs() const noexcept { return this->m_runs; }
 
@@ -117,7 +123,7 @@ namespace ropufu::sequential::hypotheses
                 this->m_filename = filename; // Remember the filename.
 
                 i >> this->m_json;
-                this->m_is_good = true;
+                this->m_is_good = false;
                 const nlohmann::json& j = this->m_json;
                 std::error_code ec {};
 
@@ -126,7 +132,7 @@ namespace ropufu::sequential::hypotheses
                 std::size_t count_simulations = this->m_count_simulations;
                 std::size_t count_threads = this->m_count_threads;
                 std::size_t count_interpolated_runs = this->m_count_interpolated_runs;
-                std::vector<rule_type> rules = this->m_rules;
+                std::vector<design_variant_type> rules = this->m_rules;
                 std::vector<run<value_type>> runs = this->m_runs;
                 
                 // Parse json entries.
@@ -134,15 +140,18 @@ namespace ropufu::sequential::hypotheses
                 aftermath::noexcept_json::optional(j, type::jstr_count_simulations, count_simulations, ec);
                 aftermath::noexcept_json::optional(j, type::jstr_count_threads, count_threads, ec);
                 aftermath::noexcept_json::optional(j, type::jstr_count_interpolated_runs, count_interpolated_runs, ec);
-                aftermath::noexcept_json::required(j, type::jstr_rules, rules, ec);
                 aftermath::noexcept_json::required(j, type::jstr_runs, runs, ec);
 
                 signal_variant_type signal = this->m_signal;
                 noise_variant_type noise = this->m_noise;
+                
                 if (j.count(type::jstr_signal) == 0) { this->m_logger.push_back("Signal descriptor missing."); return false; }
                 if (j.count(type::jstr_noise) == 0) { this->m_logger.push_back("Noise descriptor missing."); return false; }
+                if (j.count(type::jstr_rules) == 0) { this->m_logger.push_back("Rules descriptor missing."); return false; }
+
                 const nlohmann::json& signal_json = j[type::jstr_signal];
                 const nlohmann::json& noise_json = j[type::jstr_noise];
+                const nlohmann::json& rules_json = j[type::jstr_rules];
 
                 // Reconstruct the object.
                 if (ec.value() != 0)
@@ -150,18 +159,32 @@ namespace ropufu::sequential::hypotheses
                     this->m_logger.push_back(ec.message());
                     return false;
                 } // if (...)
+
                 // Signal discriminator.
                 if (!hypotheses::try_discriminate_signal(signal_json, signal))
                 {
-                    this->m_logger.push_back("Signal not recognized.");
+                    this->m_logger.push_back(std::string("Signal not recognized: ") + signal_json.dump() + std::string("."));
                     return false;
-                }
+                } // if (...)
                 // Noise discriminator.
                 if (!hypotheses::try_discriminate_noise(noise_json, noise))
                 {
-                    this->m_logger.push_back("Noise not recognized.");
+                    this->m_logger.push_back(std::string("Noise not recognized: ") + noise_json.dump() + std::string("."));
                     return false;
-                }
+                } // if (...)
+                
+                if (!rules_json.is_array()) { this->m_logger.push_back("Rules descriptor must be an array."); return false; }
+                for (const nlohmann::json& r_json : rules_json)
+                {
+                    design_variant_type rule {};
+                    if (!hypotheses::try_discriminate_rule(r_json, rule))
+                    {
+                        this->m_logger.push_back(std::string("Rule not recognized: ") + r_json.dump() + std::string("."));
+                        return false;
+                    } // if (...)
+                    rules.push_back(rule);
+                } // for (...)
+
                 this->m_mat_output_path = mat_output_path;
                 this->m_count_simulations = count_simulations;
                 this->m_count_threads = count_threads;
@@ -171,14 +194,15 @@ namespace ropufu::sequential::hypotheses
                 this->m_rules = rules;
                 this->m_runs = runs;
 
+                this->m_is_good = true;
                 return true;
-            }
+            } // try
             catch (...)
             {
                 this->m_is_good = false;
                 this->m_json = {};
                 return false;
-            }
+            } // catch (...)
         } // read(...)
         
         /** Write the configuration to a file. */
@@ -199,7 +223,12 @@ namespace ropufu::sequential::hypotheses
             j[type::jstr_count_interpolated_runs] = this->m_count_interpolated_runs;
             std::visit([&] (auto&& arg) { j[type::jstr_signal] = arg; }, this->m_signal);
             std::visit([&] (auto&& arg) { j[type::jstr_noise] = arg; }, this->m_noise);
-            j[type::jstr_rules] = this->m_rules;
+            nlohmann::json rules_json = nlohmann::json::array();
+            for (const design_variant_type& rule : this->m_rules)
+            {
+                std::visit([&] (auto&& arg) { nlohmann::json k = arg; rules_json.push_back(k); }, rule);
+            } // for (...)
+            j[type::jstr_rules] = rules_json;
             j[type::jstr_runs] = this->m_runs;
 
             try
@@ -207,11 +236,11 @@ namespace ropufu::sequential::hypotheses
                 o << std::setw(4) << this->m_json << std::endl;
                 this->m_has_changed = false;
                 return true;
-            }
+            } // try
             catch (...)
             {
                 return false;
-            }
+            } // catch (...)
         } // write(...)
     }; // struct config
 

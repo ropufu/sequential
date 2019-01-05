@@ -1,13 +1,13 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_DOUBLE_SPRT_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_DOUBLE_SPRT_HPP_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_GENERALIZED_SPRT_A_HPP_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_GENERALIZED_SPRT_A_HPP_INCLUDED
 
 #include <ropufu/on_error.hpp>
 
 #include "../model.hpp"
 #include "../process.hpp"
 #include "../two_sprt.hpp"
-#include "double_sprt_design.hpp"
+#include "generalized_sprt_a_design.hpp"
 
 #include <cstddef>   // std::size_t
 #include <iostream>  // std::ostream
@@ -18,17 +18,17 @@
 namespace ropufu::sequential::hypotheses
 {
     template <typename t_signal_type, typename t_noise_type>
-    struct double_sprt;
+    struct generalized_sprt_a;
 
     template <typename t_process_type>
-    using double_sprt_t = double_sprt<typename t_process_type::signal_type, typename t_process_type::noise_type>;
+    using generalized_sprt_a_t = generalized_sprt_a<typename t_process_type::signal_type, typename t_process_type::noise_type>;
 
     template <typename t_signal_type, typename t_noise_type>
-    struct double_sprt : public two_sprt<
-        double_sprt<t_signal_type, t_noise_type>,
+    struct generalized_sprt_a : public two_sprt<
+        generalized_sprt_a<t_signal_type, t_noise_type>,
         t_signal_type, t_noise_type>
     {
-        using type = double_sprt<t_signal_type, t_noise_type>;
+        using type = generalized_sprt_a<t_signal_type, t_noise_type>;
         using base_type = two_sprt<type, t_signal_type, t_noise_type>;
         friend base_type;
 
@@ -39,12 +39,11 @@ namespace ropufu::sequential::hypotheses
         using model_type = typename base_type::model_type;
         using likelihood_type = typename base_type::likelihood_type;
         using moment_statistic_type = typename base_type::moment_statistic_type;
-        using design_type = double_sprt_design<value_type>;
+        using design_type = generalized_sprt_a_design<value_type>;
 
     private:
         // ~~ Fundamental members ~~
         design_type m_design = {};
-        value_type m_mu_intermediate = 0; // Threshold used to measure distance from.
 
         // ~~ Members reset with each \c toc() ~~
         value_type m_unscaled_distance_from_null = 0; // Latest (unscaled) LLR vs. null estimator.
@@ -57,7 +56,6 @@ namespace ropufu::sequential::hypotheses
         /** @brief Auxiliary function to be executed right after the \c initialize() call. */
         void on_initialized() noexcept
         {
-            this->m_mu_intermediate = this->likelihood().model().mu_relative(this->m_design.relative_mu_intermediate());
             this->on_reset_override();
         } // on_initialized(...)
 
@@ -73,9 +71,11 @@ namespace ropufu::sequential::hypotheses
         {
             value_type null_mu = this->likelihood().model().mu_under_null();
             value_type alt_mu = this->likelihood().model().smallest_mu_under_alt();
-
-            this->m_unscaled_distance_from_null = proc.unscaled_log_likelihood_between(this->m_mu_intermediate, null_mu);
-            this->m_unscaled_distance_from_alt = proc.unscaled_log_likelihood_between(this->m_mu_intermediate, alt_mu);
+            value_type mu_null_hat = this->likelihood().null_estimator_of_mu().back();
+            value_type mu_alt_hat = (mu_null_hat < alt_mu) ? alt_mu : mu_null_hat;
+            
+            this->m_unscaled_distance_from_null = proc.unscaled_log_likelihood_between(mu_null_hat, null_mu);
+            this->m_unscaled_distance_from_alt = proc.unscaled_log_likelihood_between(mu_null_hat, mu_alt_hat);
         } // on_tic_override(...)
 
         /** @brief Auxiliary function to be executed right before the \c on_toc() call. */
@@ -85,12 +85,12 @@ namespace ropufu::sequential::hypotheses
         } // on_toc_override(...)
 
     public:
-        double_sprt() noexcept : base_type() { }
+        generalized_sprt_a() noexcept : base_type() { }
 
-        /*implicit*/ double_sprt(const design_type& design) noexcept
+        /*implicit*/ generalized_sprt_a(const design_type& design) noexcept
             : base_type(design.id()), m_design(design)
         {
-        } // double_sprt(...)
+        } // generalized_sprt_a(...)
 
         const design_type& design() const noexcept { return this->m_design; }
 
@@ -102,10 +102,9 @@ namespace ropufu::sequential::hypotheses
         /** Output to a stream. */
         friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
         {
-            nlohmann::json j = self;
-            return os << j;
+            return os << self.m_design;
         } // operator <<(...)
-    }; // struct double_sprt
+    }; // struct generalized_sprt_a
 } // namespace ropufu::sequential::hypotheses
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_DOUBLE_SPRT_HPP_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_GENERALIZED_SPRT_A_HPP_INCLUDED

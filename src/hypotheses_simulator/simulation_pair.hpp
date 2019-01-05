@@ -64,7 +64,7 @@ namespace ropufu::sequential::hypotheses
         } // simulation_pair(...)
 
         template <typename t_rule_type>
-        auto read_oc(operating_characteristic oc, const t_rule_type& rule, std::error_code& ec) const noexcept -> typename t_rule_type::statistic_type
+        auto read_oc(operating_characteristic oc, const t_rule_type& rule, std::error_code& ec) const noexcept -> typename t_rule_type::moment_statistic_type
         {
             switch (oc)
             {

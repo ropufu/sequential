@@ -17,8 +17,9 @@
 #include "../hypotheses/moment_statistic.hpp"
 
 #include "config.hpp"
-#include "run.hpp"
 #include "init_info.hpp"
+#include "known_sprts.hpp"
+#include "run.hpp"
 #include "simulation_pair.hpp"
 #include "writer.hpp"
 
@@ -82,10 +83,10 @@ namespace ropufu::sequential::hypotheses
     } // namespace detail
 
     /** @brief Class for reading and writing configurtation setting. */
-    template <typename t_signal_type, typename t_noise_type, bool t_sync_check = true>
+    template <typename t_signal_type, typename t_noise_type>
     struct automator
     {
-        using type = automator<t_signal_type, t_noise_type, t_sync_check>;
+        using type = automator<t_signal_type, t_noise_type>;
         using de_auto_regress_type = hypotheses::detail::de_auto_regress<t_signal_type, t_noise_type>;
 
         using signal_type = t_signal_type;
@@ -95,28 +96,22 @@ namespace ropufu::sequential::hypotheses
         using process_type = hypotheses::process<adjusted_signal_type, adjusted_noise_type>; // Adjusted process.
         using value_type = typename process_type::value_type;
         using model_type = hypotheses::model<value_type>;
-        using rule_type = hypotheses::xsprt<adjusted_signal_type, adjusted_noise_type, t_sync_check>;
+        using rule_collection_type = hypotheses::known_sprts<adjusted_signal_type, adjusted_noise_type>;
         using monte_carlo_type = hypotheses::monte_carlo<adjusted_signal_type, adjusted_noise_type>;
 
         template <typename t_data_type>
         using matrix_t = aftermath::algebra::matrix<t_data_type>;
-        using statistic_type = hypotheses::moment_statistic<matrix_t<value_type>>;
+        using moment_statistic_type = hypotheses::moment_statistic<matrix_t<value_type>>;
 
         using congif_type = config<value_type>;
 
     private:
-        std::string m_mat_output_path = {}; // Where to dump the statistic mat files.
         adjusted_signal_type m_signal = {}; // Signal.
         adjusted_noise_type m_noise = {}; // Noise.
+        rule_collection_type m_rules = {}; // Potential rules to run.
+        std::string m_mat_output_path = {}; // Where to dump the statistic mat files.
         monte_carlo_type m_monte_carlo = {}; // Monte carlo.
-        std::map<std::size_t, rule_type> m_rules = {}; // Potential rules to run.
         std::vector<run<value_type>> m_runs = {}; // MC simulations to perform.
-
-        void build_rules(const congif_type& config) noexcept
-        {
-            this->m_rules.clear();
-            for (const typename congif_type::rule_type& x : config.rules()) this->m_rules.emplace(x.id(), x);
-        } // build_rules(...)
 
         void build_runs(const congif_type& config) noexcept
         {
@@ -126,8 +121,8 @@ namespace ropufu::sequential::hypotheses
         } // build_runs(...)
 
         bool try_execute(const model_type& model, const simulation_pair<value_type>& mu_pair,
-            std::vector<rule_type>& rules_to_run,
-            std::vector<init_info<value_type>>& rules_init,
+            rule_collection_type& rules_to_run,
+            const std::vector<init_info<value_type>>& rules_init,
             const hypothesis_pair<std::size_t>& threshold_count, aftermath::algebra::spacing threshold_spacing,
             bool is_verbal) noexcept
         {
@@ -153,42 +148,45 @@ namespace ropufu::sequential::hypotheses
                 [&] (std::error_code& ecx) {
                     if (is_verbal) std::cout << "Simulation start." << std::endl;
                     start = std::chrono::steady_clock::now();
-                    for (std::size_t i = 0; i < k; ++i)
+
+                    for (const init_info<value_type>& init : rules_init)
                     {
-                        rule_type& rule = rules_to_run[i];
-                        init_info<value_type>& init = rules_init[i];
-                        if (is_verbal) std::cout << "Initializing rule #" << rule.id() << " with " << init << "." << std::endl;
+                        if (is_verbal) 
+                            std::cout << "Initializing rule #" << init.rule_id() << " with " << init << "." << std::endl;
 
                         std::vector<value_type> null_thresholds {};
                         std::vector<value_type> alt_thresholds {};
                         init.make_thresholds(threshold_count, threshold_spacing, null_thresholds, alt_thresholds);
-                        rule.initialize(model, mu_pair.analyzed_mu(), init.anticipated_run_length(), proc, null_thresholds, alt_thresholds, ecx);
-                        if (ecx.value() != 0) std::cout << "Initializing rule #" << rule.id() << "failed: " << ecx.message() << "." << std::endl;
+                        rules_to_run.initialize(init,
+                            model,
+                            mu_pair.analyzed_mu(),
+                            proc.log_likelihood_scale(), 
+                            null_thresholds, alt_thresholds, ecx);
+                        if (ecx.value() != 0) std::cout << "Initializing rule #" << init.rule_id() << "failed: " << ecx.message() << "." << std::endl;
                     } // for (...)
                 },
                 [&] () {
                     end = std::chrono::steady_clock::now();
-                    for (std::size_t i = 0; i < k; ++i)
-                    {
-                        rule_type& rule = rules_to_run[i];
+                    rules_to_run.report([&] (std::size_t rule_id, const moment_statistic_type& run_lengths, const moment_statistic_type& errors)
+                        {
+                            // Report.
+                            value_type temp {};
 
-                        // Report.
-                        value_type temp {};
+                            // ESS.
+                            value_type ess_a = run_lengths.mean().front();
+                            value_type ess_b = run_lengths.mean().back();
+                            if (ess_b < ess_a) { temp = ess_b; ess_b = ess_a; ess_a = temp; }
 
-                        // ESS.
-                        value_type ess_a = rule.run_lengths().mean().front();
-                        value_type ess_b = rule.run_lengths().mean().back();
-                        if (ess_b < ess_a) { temp = ess_b; ess_b = ess_a; ess_a = temp; }
+                            // Errors.
+                            value_type err_a = errors.mean().front();
+                            value_type err_b = errors.mean().back();
+                            if (err_b < err_a) { temp = err_b; err_b = err_a; err_a = temp; }
 
-                        // Errors.
-                        value_type err_a = rule.errors().mean().front();
-                        value_type err_b = rule.errors().mean().back();
-                        if (err_b < err_a) { temp = err_b; err_b = err_a; err_a = temp; }
+                            if (is_verbal) std::cout << "Rule #" << rule_id
+                                << " ESS = " << ess_a << "--" << ess_b << ","
+                                << " P(error) = " << err_a << "--" << err_b << "." << std::endl;
+                        });
 
-                        if (is_verbal) std::cout << "Rule #" << rule.id()
-                            << " ESS = " << ess_a << "--" << ess_b << ","
-                            << " P(error) = " << err_a << "--" << err_b << "." << std::endl;
-                    } // for (...)
                     if (is_verbal) std::cout << "Simulation end." << std::endl;
                     value_type elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / static_cast<value_type>(1'000);
 
@@ -201,11 +199,12 @@ namespace ropufu::sequential::hypotheses
         automator() noexcept { }
 
         automator(const signal_type& signal, const noise_type& noise, const congif_type& config, std::error_code& ec) noexcept
-            : m_signal(de_auto_regress_type::adjust_signal(signal, noise, ec)), m_noise(de_auto_regress_type::adjust_noise(signal, noise, ec))
+            : m_signal(de_auto_regress_type::adjust_signal(signal, noise, ec)),
+            m_noise(de_auto_regress_type::adjust_noise(signal, noise, ec)),
+            m_rules(config.rules(), ec)
         {
             this->m_mat_output_path = config.mat_output_path();
             this->m_monte_carlo = monte_carlo_type(config.simulation_count());
-            this->build_rules(config);
             this->build_runs(config);
         } // automator(...)
 
@@ -220,55 +219,33 @@ namespace ropufu::sequential::hypotheses
                 if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
 
                 // Match up rules to run.
-                std::vector<rule_type> rules_to_run {};
-                std::vector<init_info<value_type>> rules_init {};
-                rules_to_run.reserve(this->m_rules.size());
-                rules_init.reserve(this->m_rules.size());
-                for (const std::pair<std::size_t, init_info<value_type>>& item : r.init_rules())
-                {
-                    std::size_t rule_id = item.first;
-                    auto match_iterator = this->m_rules.find(rule_id);
-                    if (match_iterator != this->m_rules.end())
-                    {
-                        rules_to_run.push_back(match_iterator->second);
-                        rules_init.push_back(item.second);
-                    } // if (...)
-                } // for (...)
+                rule_collection_type rules_to_run = this->m_rules.filter(r.init_rules());
 
                 // First, build up the operating characteristics.
                 std::cout << "Model " << model << std::endl;
                 std::cout << "Estimating operating characteristics in " << this->m_monte_carlo.count_simulations() << " Monte Carlo runs..." << std::endl;
-                oc_array_t<void> oc_list { };
-                std::vector<oc_array_t<statistic_type>> oc_statistics(rules_to_run.size()); // One default-initialized <oc_array_t> for each rule.
+                oc_array_t<void> oc_list {};
                 for (operating_characteristic oc : oc_list)
                 {
                     simulation_pair<value_type> mu_pair(oc, model, ec);
                     if (ec.value() != 0) std::cout << "Constructing simulation pair failed: " + ec.message() + "." << std::endl;
                     if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
 
-                    bool is_okay = this->try_execute(model, mu_pair, rules_to_run, rules_init, r.threshold_count(), r.threshold_spacing(), false); // Run the simulation, suppress display.
+                    bool is_okay = this->try_execute(model, mu_pair, rules_to_run, r.init_rules(), r.threshold_count(), r.threshold_spacing(), false); // Run the simulation, suppress display.
                     if (!is_okay) std::cout << "Something went wrong in " << __FUNCTION__ << " on line " << __LINE__ << "." << std::endl;
                     if (!is_okay) { std::cout << "Aborting." << std::endl; return; }
 
                     // Collect statistics to be stored later, once all OC simulations are completed.
-                    for (std::size_t k = 0; k < rules_to_run.size(); ++k)
-                    {
-                        const rule_type& rule = rules_to_run[k];
-                        oc_array_t<statistic_type>& oc_statistic_array = oc_statistics[k];
-                        oc_statistic_array[oc] = mu_pair.read_oc(oc, rule, ec);
-                        if (ec.value() != 0) std::cout << "Reading operating characteristic failed: " + ec.message() + "." << std::endl;
-                        if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
-                    } // for (...)
+                    rules_to_run.record_oc(oc, mu_pair, ec);
+                    if (ec.value() != 0) std::cout << "Reading operating characteristic failed: " + ec.message() + "." << std::endl;
+                    if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
                 } // for (...)
 
                 // Present the statistics.
-                for (std::size_t k = 0; k < rules_to_run.size(); ++k)
+                for (const oc_array_t<moment_statistic_type>& oc_statistic_array : rules_to_run.oc_statistics())
                 {
-                    const rule_type& rule = rules_to_run[k];
-                    const oc_array_t<statistic_type>& oc_statistic_array = oc_statistics[k];
-
-                    const statistic_type& fa = oc_statistic_array[operating_characteristic::probability_of_false_alarm];
-                    const statistic_type& ms = oc_statistic_array[operating_characteristic::probability_of_missed_signal];
+                    const moment_statistic_type& fa = oc_statistic_array[operating_characteristic::probability_of_false_alarm];
+                    const moment_statistic_type& ms = oc_statistic_array[operating_characteristic::probability_of_missed_signal];
 
                     matrix_t<value_type> pfa = fa.mean();
                     matrix_t<value_type> pms = ms.mean();
@@ -276,17 +253,18 @@ namespace ropufu::sequential::hypotheses
                     matrix_t<value_type> vms = ms.variance();
                     //vfa.transform([] (value_type x) { return std::sqrt(x); });
                     //vms.transform([] (value_type x) { return std::sqrt(x); });
+                    std::string rule_name = "??";
                     
-                    std::cout << "Rule " << rule << ":" << std::endl;
+                    std::cout << "Rule " << rule_name << ":" << std::endl;
                     detail::print_corners(pfa, vfa, "    " + std::to_string(operating_characteristic::probability_of_false_alarm) + " = ");
                     std::cout << std::endl;
                     detail::print_corners(pms, vms, "    " + std::to_string(operating_characteristic::probability_of_missed_signal) + " = ");
                     std::cout << std::endl;
-
-                    w.write_mat(model, rule, oc_statistic_array, ec); // Write to .mat file.
-                    if (ec.value() != 0) std::cout << "Writing operating characteristics failed: " + ec.message() + "." << std::endl;
-                    ec.clear();
                 } // for (...)
+
+                rules_to_run.dump_oc(w, model, ec); // Write to .mat file.
+                if (ec.value() != 0) std::cout << "Writing operating characteristics failed: " + ec.message() + "." << std::endl;
+                ec.clear();
 
                 // Second, then run the auxiliary simulations.
                 if (!r.simulation_pairs().empty())
@@ -294,18 +272,14 @@ namespace ropufu::sequential::hypotheses
                     std::cout << "Estimating other characteristics..." << std::endl;
                     for (const simulation_pair<value_type>& mu_pair : r.simulation_pairs())
                     {
-                        bool is_okay = this->try_execute(model, mu_pair, rules_to_run, rules_init, r.threshold_count(), r.threshold_spacing(), true); // Run the simulation, allow display.
+                        bool is_okay = this->try_execute(model, mu_pair, rules_to_run, r.init_rules(), r.threshold_count(), r.threshold_spacing(), true); // Run the simulation, allow display.
                         if (!is_okay) std::cout << "Something went wrong in " << __FUNCTION__ << " on line " << __LINE__ << "." << std::endl;
                         if (!is_okay) { std::cout << "Aborting." << std::endl; return; }
 
                         // Store the statistics right away.
-                        for (std::size_t k = 0; k < rules_to_run.size(); ++k)
-                        {
-                            const rule_type& rule = rules_to_run[k];
-                            w.write_mat(model, rule, mu_pair, ec); // Write to .mat file.
-                            if (ec.value() != 0) std::cout << "Writing operating characteristics failed: " + ec.message() + "." << std::endl;
-                            ec.clear();
-                        } // for (...)
+                        rules_to_run.dump(w, model, mu_pair, ec); // Write to .mat file.
+                        if (ec.value() != 0) std::cout << "Writing operating characteristics failed: " + ec.message() + "." << std::endl;
+                        ec.clear();
                     } // for (...)
                 } // if (...)
             } // for (...)

@@ -33,7 +33,7 @@ namespace ropufu::sequential::hypotheses
                     if (ec.value() != 0) return false;
                     result = x;
                     return true;
-                }
+                } // if (...)
                 return noise_discriminator<t_more_noise_types...>::discriminate(j, result);
             } // discriminate(...)
         }; // struct noise_discriminator

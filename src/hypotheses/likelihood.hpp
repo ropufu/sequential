@@ -20,11 +20,11 @@ namespace ropufu
         namespace hypotheses
         {
             /** @brief Process observer that keep track of likelihood statistics. */
-            template <typename t_signal_type, typename t_noise_type, bool t_sync_check = true>
-            struct likelihood : public observer<likelihood<t_signal_type, t_noise_type, t_sync_check>, t_signal_type, t_noise_type, t_sync_check>
+            template <typename t_signal_type, typename t_noise_type>
+            struct likelihood : public observer<likelihood<t_signal_type, t_noise_type>, t_signal_type, t_noise_type>
             {
-                using type = likelihood<t_signal_type, t_noise_type, t_sync_check>;
-                using base_type = observer<type, t_signal_type, t_noise_type, t_sync_check>;
+                using type = likelihood<t_signal_type, t_noise_type>;
+                using base_type = observer<type, t_signal_type, t_noise_type>;
                 friend base_type;
 
                 using signal_type = typename base_type::signal_type;

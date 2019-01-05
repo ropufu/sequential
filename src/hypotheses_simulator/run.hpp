@@ -16,15 +16,15 @@
 #include "operating_characteristic.hpp"
 #include "simulation_pair.hpp"
 
-#include <cstddef>  // std::size_t
-#include <iostream> // std::ostream
-#include <map>      // std::map
-#include <set>      // std::set
-#include <stdexcept>    // std::runtime_error
-#include <string>       // std::string, std::to_string
+#include <algorithm> // std::sort
+#include <cstddef>   // std::size_t
+#include <iostream>  // std::ostream
+#include <set>       // std::set
+#include <stdexcept> // std::runtime_error
+#include <string>    // std::string, std::to_string
 #include <system_error> // std::error_code, std::make_error_code, std::errc
-#include <utility>  // std::pair
-#include <vector>   // std::vector
+#include <utility> // std::pair
+#include <vector> // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
@@ -61,7 +61,15 @@ namespace ropufu::sequential::hypotheses
         hypothesis_pair<std::size_t> m_threshold_count = {};
         aftermath::algebra::spacing m_threshold_spacing = aftermath::algebra::spacing::logarithmic;
         std::vector<simulation_pair<value_type>> m_simulation_pairs = {};
-        std::map<std::size_t, init_info<value_type>> m_init_rules = {};
+        std::vector<init_info<value_type>> m_init_rules = {};
+
+        void coerce() noexcept
+        {
+            std::sort(this->m_init_rules.begin(), this->m_init_rules.end(),
+                [] (const init_info<value_type>& a, const init_info<value_type>& b) {
+                return a.rule_id() < b.rule_id();
+            });
+        } // coerce(...)
 
     public:
         run() noexcept { }
@@ -81,18 +89,13 @@ namespace ropufu::sequential::hypotheses
             
             std::string threshold_spacing_str = std::to_string(this->m_threshold_spacing);
 
-            std::map<std::size_t, init_info<value_type>> init_rules_map = this->m_init_rules;
-            std::vector<init_info<value_type>> init_rules {};
-            init_rules.reserve(init_rules_map.size());
-            for (const std::pair<std::size_t, init_info<value_type>>& item : init_rules_map) init_rules.push_back(item.second);
-
             // Parse json entries.
             aftermath::noexcept_json::required(j, type::jstr_model, this->m_model, ec);
             aftermath::noexcept_json::optional(j, type::jstr_analyzed_mu, analyzed_mu, ec);
             aftermath::noexcept_json::optional(j, type::jstr_simulated_mu, simulated_mu, ec);
             aftermath::noexcept_json::required(j, type::jstr_threshold_count, this->m_threshold_count, ec);
             aftermath::noexcept_json::required(j, type::jstr_threshold_spacing, threshold_spacing_str, ec);
-            aftermath::noexcept_json::required(j, type::jstr_init_rules, init_rules, ec);
+            aftermath::noexcept_json::required(j, type::jstr_init_rules, this->m_init_rules, ec);
             
             // Enum structures etc.
             if (!aftermath::detail::try_parse_enum(threshold_spacing_str, this->m_threshold_spacing))
@@ -107,7 +110,7 @@ namespace ropufu::sequential::hypotheses
             } // if (...)
 
             for (std::size_t i = 0; i < analyzed_mu.size(); ++i) this->study(analyzed_mu[i], simulated_mu[i]);
-            for (const init_info<value_type>& item : init_rules) this->study(item);
+            this->coerce();
         } // run(...)
 
         /** @brief Adds \p count_in_between runs in-between each pair of existing \p runs. */
@@ -161,9 +164,12 @@ namespace ropufu::sequential::hypotheses
         /** Add an explicit simulation pair to be run---in addition to the standard OC runs. */
         void study(value_type analyzed_mu, value_type simulated_mu) noexcept { this->m_simulation_pairs.emplace_back(analyzed_mu, simulated_mu); }
 
-        const std::map<std::size_t, init_info<value_type>>& init_rules() const noexcept { return this->m_init_rules; }
-
-        void study(const init_info<value_type>& init) noexcept { this->m_init_rules.emplace(init.rule_id(), init); }
+        const std::vector<init_info<value_type>>& init_rules() const noexcept { return this->m_init_rules; }
+        void set_init_rules(const std::vector<init_info<value_type>>& value) noexcept
+        {
+            this->m_init_rules = value;
+            this->coerce();
+        } // set_init_rules(...)
 
         static bool is_comparable(const type& left, const type& right) noexcept
         {
@@ -174,11 +180,14 @@ namespace ropufu::sequential::hypotheses
             // Make sure the runs have compatible simulation pairs.
             if (left.m_simulation_pairs.size() != right.m_simulation_pairs.size()) return false;
 
+            // Make sure the runs have compatible init rules.
+            if (left.m_init_rules.size() != right.m_init_rules.size()) return false;
+
             // Make sure the runs have the same rules.
             std::set<std::size_t> left_rule_ids {};
             std::set<std::size_t> right_rule_ids {};
-            for (const std::pair<std::size_t, init_info<value_type>>& item : left.m_init_rules) left_rule_ids.insert(item.first);
-            for (const std::pair<std::size_t, init_info<value_type>>& item : right.m_init_rules) right_rule_ids.insert(item.first);
+            for (const init_info<value_type>& item : left.m_init_rules) left_rule_ids.insert(item.rule_id());
+            for (const init_info<value_type>& item : right.m_init_rules) right_rule_ids.insert(item.rule_id());
 
             if (left_rule_ids != right_rule_ids) return false;
 
@@ -214,8 +223,6 @@ namespace ropufu::sequential::hypotheses
             simulated_mu.push_back(pair.simulated_mu());
         }
         std::string threshold_spacing_str = std::to_string(x.threshold_spacing());
-        std::vector<init_info<t_value_type>> init_rules {};
-        for (const std::pair<std::size_t, init_info<t_value_type>>& item : x.init_rules()) init_rules.push_back(item.second);
 
         j = nlohmann::json{
             {type::jstr_model, x.model()},
@@ -223,7 +230,7 @@ namespace ropufu::sequential::hypotheses
             {type::jstr_simulated_mu, simulated_mu},
             {type::jstr_threshold_count, x.threshold_count()},
             {type::jstr_threshold_spacing, threshold_spacing_str},
-            {type::jstr_init_rules, init_rules}
+            {type::jstr_init_rules, x.init_rules()}
         };
     } // to_json(...)
 
@@ -287,11 +294,10 @@ namespace ropufu::modules
             } // for (...)
 
             // Fifth, interpolate the init rules.
-            std::vector<init_info_type> init_rules {};
-            init_rules.reserve(rule_count);
-            for (const std::pair<std::size_t, init_info_type>& item : left.init_rules())
+            std::vector<init_info_type> init_rules(rule_count);
+            for (std::size_t i = 0; i < rule_count; ++i) 
             {
-                init_rules.push_back(interpolator_t<init_info_type>::interpolate(item.second, right.init_rules().find(item.first)->second, p, ec));
+                init_rules[i] = interpolator_t<init_info_type>::interpolate(left.init_rules()[i], right.init_rules()[i], p, ec);
                 if (ec.value() != 0) return bad;
             } // for (...)
 
@@ -299,7 +305,7 @@ namespace ropufu::modules
             value_type x(model);
             for (const simulation_pair_type& item : simulation_pairs) x.study(item.analyzed_mu(), item.simulated_mu());
             x.configure_thresholds(threshold_count.null(), threshold_count.alt(), threshold_spacing);
-            for (const init_info_type& item : init_rules) x.study(item);
+            x.set_init_rules(init_rules);
             return x;
         } // interpolate(...)
     }; // struct interpolator<...>

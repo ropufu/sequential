@@ -35,13 +35,13 @@ namespace ropufu::sequential::hypotheses
      *          bool do_decide_null(typename t_noise_type::value_type) const noexcept
      *          bool do_decide_alt(typename t_noise_type::value_type) const noexcept
      */
-    template <typename t_derived_type, typename t_signal_type, typename t_noise_type, bool t_sync_check = true>
+    template <typename t_derived_type, typename t_signal_type, typename t_noise_type>
     struct two_sprt : public observer<
-        two_sprt<t_derived_type, t_signal_type, t_noise_type, t_sync_check>,
-        t_signal_type, t_noise_type, t_sync_check>
+        two_sprt<t_derived_type, t_signal_type, t_noise_type>,
+        t_signal_type, t_noise_type>
     {
-        using type = two_sprt<t_derived_type, t_signal_type, t_noise_type, t_sync_check>;
-        using base_type = observer<type, t_signal_type, t_noise_type, t_sync_check>;
+        using type = two_sprt<t_derived_type, t_signal_type, t_noise_type>;
+        using base_type = observer<type, t_signal_type, t_noise_type>;
         friend base_type;
 
         using signal_type = typename base_type::signal_type;
@@ -49,7 +49,7 @@ namespace ropufu::sequential::hypotheses
         using process_type = typename base_type::process_type;
         using value_type = typename base_type::value_type;
         using model_type = hypotheses::model<value_type>;
-        using likelihood_type = hypotheses::likelihood<t_signal_type, t_noise_type, t_sync_check>;
+        using likelihood_type = hypotheses::likelihood<t_signal_type, t_noise_type>;
         using matrix_mask_type = aftermath::algebra::matrix_mask<std::size_t>;
         // using matrix_cell_type = typename matrix_mask_type::value_type;
         using matrix_cell_type = aftermath::algebra::sparse_matrix_cell<std::size_t, bool>;
@@ -270,7 +270,7 @@ namespace ropufu::sequential::hypotheses
                 this->m_first_uncrossed_alt_index = next_uncrossed_alt_index;
                 this->m_is_listening = (this->m_first_uncrossed_null_index < m) && (this->m_first_uncrossed_alt_index < n);
             } // if (...)
-            else
+            else // Threshold-based design.
             {
                 // Traverse all remaining thresholds (vertical and horizontal).
                 for (matrix_cell_type& cell : this->m_thresholds_mask)
@@ -285,7 +285,7 @@ namespace ropufu::sequential::hypotheses
                     this->m_has_decided_alt(i, j) = maybe_alt;
                     this->m_run_length(i, j) = proc.count();
                     
-                    if (maybe_null || maybe_alt) cell.set(); // The decision has been made.
+                    if (maybe_null || maybe_alt) cell.set(); // Decision has been made.
                 } // for (...)
                 this->m_thresholds_mask.commit();
             } // else (...)
@@ -404,7 +404,8 @@ namespace ropufu::sequential::hypotheses
 
         /** @remark Thresholds have to be of the same size; they are independently(!) sorted and then paired up. */
         void initialize(const model_type& model, value_type analyzed_mu, value_type anticipated_run_length,
-            const process_type& proc,
+            //const process_type& proc,
+            value_type log_likelihood_scale,
             const std::vector<value_type>& null_thresholds,
             const std::vector<value_type>& alt_thresholds,
             std::error_code& ec) noexcept
@@ -440,9 +441,12 @@ namespace ropufu::sequential::hypotheses
             std::sort(this->m_unscaled_null_thresholds.begin(), this->m_unscaled_null_thresholds.end());
             std::sort(this->m_unscaled_alt_thresholds.begin(), this->m_unscaled_alt_thresholds.end());
             // ~~ Rescale ~~
-            value_type factor = proc.log_likelihood_scale(); // @todo Think, can we get rid of \c proc, and move the scale elsewhere?
-            for (value_type& a : this->m_unscaled_null_thresholds) a *= factor;
-            for (value_type& b : this->m_unscaled_alt_thresholds) b *= factor;
+            //value_type factor = proc.log_likelihood_scale(); // @todo Think, can we get rid of \c proc, and move the scale elsewhere?
+            if (log_likelihood_scale != 1)
+            {
+                for (value_type& a : this->m_unscaled_null_thresholds) a *= log_likelihood_scale;
+                for (value_type& b : this->m_unscaled_alt_thresholds) b *= log_likelihood_scale;
+            } // if (...)
             
             // Now that the stopping time has verified the threshold structure, go on and resize the empirical measures accordingly.
             matrix_t<value_type> zero(m, n);

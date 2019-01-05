@@ -14,49 +14,6 @@
 
 namespace ropufu::sequential::hypotheses
 {
-    namespace detail
-    {
-        template <bool t_sync_check>
-        struct sync_counter
-        {
-            using type = sync_counter<t_sync_check>;
-
-        private:
-            std::size_t m_count = 0; // Number of observations taken.
-
-        public:
-            void reset() noexcept { this->m_count = 0; }
-
-            /* @brief Prefix increment operator. */
-            type& operator ++() noexcept
-            {
-                ++this->m_count;
-                return *this;
-            } // operator ++(...)
-
-            template <typename t_timed_type>
-            void sync(const timed<t_timed_type>& proc) const
-            {
-                if (proc.count() != this->m_count)
-                    throw std::runtime_error("Synchronization failed.");
-            }
-        }; // struct sync_counter
-
-        template <>
-        struct sync_counter<false>
-        {
-            using type = sync_counter<false>;
-
-            void reset() noexcept { }
-
-            /* @brief Prefix increment operator. */
-            type& operator ++() noexcept { return *this; }
-            
-            template <typename t_timed_type>
-            void sync(const timed<t_timed_type>& proc) const noexcept { }
-        }; // struct sync_counter<...>
-    } // namespace detail
-
     /** @brief Abstract class (CRTP) outlining the basic structure of an observer type.
      *  @remark The inheriting type must friend the base class \c observer<...>.
      *  @remark The inheriting type is required to implement the following public functions:
@@ -69,10 +26,10 @@ namespace ropufu::sequential::hypotheses
      *          void on_tic(const process<t_signal_type, t_noise_type>&) noexcept
      *          void on_toc(const process<t_signal_type, t_noise_type>&) noexcept
      */
-    template <typename t_derived_type, typename t_signal_type, typename t_noise_type, bool t_sync_check = true>
+    template <typename t_derived_type, typename t_signal_type, typename t_noise_type>
     struct observer
     {
-        using type = observer<t_derived_type, t_signal_type, t_noise_type, t_sync_check>;
+        using type = observer<t_derived_type, t_signal_type, t_noise_type>;
         using observer_type = t_derived_type; // Type that this CRTP is templated on.
 
         using signal_type = t_signal_type;
@@ -82,8 +39,6 @@ namespace ropufu::sequential::hypotheses
 
     private:
         using derived_type = t_derived_type;
-
-        detail::sync_counter<t_sync_check> m_counter = {};
 
     protected:
         /** @brief Auxiliary function to be executed right before the \c reset() call. */
@@ -126,7 +81,6 @@ namespace ropufu::sequential::hypotheses
         /** @brief Resets the observer to its original state. */
         void reset() noexcept
         {
-            this->m_counter.reset();
             this->on_reset();
         } // reset(...)
 
@@ -145,8 +99,6 @@ namespace ropufu::sequential::hypotheses
         /** @brief Listens to new observations from \p proc. */
         void tic(const process_type& proc, std::error_code& ec) noexcept
         {
-            ++this->m_counter;
-            this->m_counter.sync(proc);
             this->on_tic(proc, ec);
         } // tic(...)
 
@@ -154,7 +106,6 @@ namespace ropufu::sequential::hypotheses
         void toc(const process_type& proc, std::error_code& ec) noexcept
         {
             this->on_toc(proc, ec);
-            this->m_counter.reset();
         } // toc(...)
     }; // struct observer
 } // namespace ropufu::sequential::hypotheses
