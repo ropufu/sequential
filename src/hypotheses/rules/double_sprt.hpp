@@ -67,6 +67,8 @@ namespace ropufu::sequential::hypotheses
             std::size_t m = unscaled_null_thresholds.size(); // Height of the threshold matrix.
             std::size_t n = unscaled_alt_thresholds.size(); // Width of the threshold matrix.
             this->m_mu_intermediate = matrix_t<value_type>(m, n);
+            this->m_unscaled_distance_from_null = matrix_t<value_type>(m, n);
+            this->m_unscaled_distance_from_alt = matrix_t<value_type>(m, n);
 
             if (this->m_design.is_threshold_independent())
             {
