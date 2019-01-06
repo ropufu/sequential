@@ -118,10 +118,14 @@ namespace ropufu::sequential::hypotheses
         std::string to_path_string(std::size_t decimal_places) const noexcept
         {
             std::string result = type::typename_string;
-            result += " guess null ";
-            result += detail::to_str(this->m_relative_mu_guess_for_null, decimal_places);
-            result += " alt ";
-            result += detail::to_str(this->m_relative_mu_guess_for_alt, decimal_places);
+            if (this->m_asymptotic_init) result += " asymp";
+            else
+            {
+                result += " guess null ";
+                result += detail::to_str(this->m_relative_mu_guess_for_null, decimal_places);
+                result += " alt ";
+                result += detail::to_str(this->m_relative_mu_guess_for_alt, decimal_places);
+            } // else (...)
             return result;
         } // to_path_string(...)
 

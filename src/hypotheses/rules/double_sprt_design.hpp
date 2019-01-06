@@ -107,8 +107,12 @@ namespace ropufu::sequential::hypotheses
         std::string to_path_string(std::size_t decimal_places) const noexcept
         {
             std::string result = type::typename_string;
-            result += " intermediate ";
-            result += detail::to_str(this->m_relative_mu_intermediate, decimal_places);
+            if (this->m_asymptotic_init) result += " asymp";
+            else
+            {
+                result += " intermediate ";
+                result += detail::to_str(this->m_relative_mu_intermediate, decimal_places);
+            } // else (...)
             return result;
         } // to_path_string(...)
 
