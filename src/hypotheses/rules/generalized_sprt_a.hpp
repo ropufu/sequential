@@ -54,7 +54,9 @@ namespace ropufu::sequential::hypotheses
         bool is_design_threshold_independent() const noexcept { return this->m_design.is_threshold_independent(); }
 
         /** @brief Auxiliary function to be executed right after the \c initialize() call. */
-        void on_initialized() noexcept
+        void on_initialized(
+            const std::vector<value_type>& /*unscaled_null_thresholds*/,
+            const std::vector<value_type>& /*unscaled_alt_thresholds*/) noexcept
         {
             this->on_reset_override();
         } // on_initialized(...)

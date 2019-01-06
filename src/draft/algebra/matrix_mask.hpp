@@ -94,7 +94,7 @@ namespace ropufu::aftermath::algebra
         std::size_t count_remaining() const noexcept { return this->m_todo.size() - this->m_count_completed; }
 
         std::size_t size() const noexcept { return this->count_remaining(); }
-        bool empty() const noexcept { return this->m_todo.empty(); }
+        bool empty() const noexcept { return this->m_todo.size() == this->m_count_completed; }
 
         const collection_type& all() const { return this->m_todo; }
 

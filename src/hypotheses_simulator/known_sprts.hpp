@@ -143,7 +143,7 @@ namespace ropufu::sequential::hypotheses
         {
             for (const std::variant<t_design_types...>& v : rule_designs)
             {
-                std::size_t sz = this->size();
+                std::size_t sz = this->size() + 1;
 
                 if (const typename type_0::design_type* design_ptr = std::get_if<typename type_0::design_type>(&v)) this->m_rules_0.emplace_back(*design_ptr);
                 if (const typename type_1::design_type* design_ptr = std::get_if<typename type_1::design_type>(&v)) this->m_rules_1.emplace_back(*design_ptr);

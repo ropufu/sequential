@@ -145,7 +145,9 @@ namespace ropufu::sequential::hypotheses
         } // is_design_threshold_independent(...)
 
         /** @brief Auxiliary function to be executed right after the \c initialize() call. */
-        void on_initialized() noexcept
+        void on_initialized(
+            const std::vector<value_type>& unscaled_null_thresholds,
+            const std::vector<value_type>& unscaled_alt_thresholds) noexcept
         {
             constexpr bool is_overwritten = !std::is_same<
                 decltype(&derived_type::on_initialized),
@@ -153,7 +155,7 @@ namespace ropufu::sequential::hypotheses
             static_assert(is_overwritten, "static polymorphic function <on_initialized> was not overwritten.");
 
             derived_type* that = static_cast<derived_type*>(this);
-            that->on_initialized();
+            that->on_initialized(unscaled_null_thresholds, unscaled_alt_thresholds);
         } // on_initialized(...)
 
         /** @brief Auxiliary function to be executed right before the \c on_reset() call. */
@@ -288,6 +290,7 @@ namespace ropufu::sequential::hypotheses
                     if (maybe_null || maybe_alt) cell.set(); // Decision has been made.
                 } // for (...)
                 this->m_thresholds_mask.commit();
+                if (this->m_thresholds_mask.empty()) this->m_is_listening = false;
             } // else (...)
         } // on_tic(...)
 
@@ -447,6 +450,7 @@ namespace ropufu::sequential::hypotheses
                 for (value_type& a : this->m_unscaled_null_thresholds) a *= log_likelihood_scale;
                 for (value_type& b : this->m_unscaled_alt_thresholds) b *= log_likelihood_scale;
             } // if (...)
+            this->m_thresholds_mask = matrix_mask_type(m, n);
             
             // Now that the stopping time has verified the threshold structure, go on and resize the empirical measures accordingly.
             matrix_t<value_type> zero(m, n);
@@ -457,7 +461,7 @@ namespace ropufu::sequential::hypotheses
 
             // Finish up.
             if (ec.value() != 0) return;
-            this->on_initialized();
+            this->on_initialized(this->m_unscaled_null_thresholds, this->m_unscaled_alt_thresholds);
             this->m_is_initialized = true;
             this->m_is_listening = true;
         } // initialize(...)

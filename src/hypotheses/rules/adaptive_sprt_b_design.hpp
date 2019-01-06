@@ -39,11 +39,13 @@ namespace ropufu::sequential::hypotheses
         static constexpr char jstr_id[] = "id";
         static constexpr char jstr_relative_mu_guess_null[] = "relative mu guess null";
         static constexpr char jstr_relative_mu_guess_alt[] = "relative mu guess alt";
+        static constexpr char jstr_asymptotic_init[] = "asymptotic init";
 
     private:
         std::size_t m_id = 0;
         value_type m_relative_mu_guess_for_null = 0;
         value_type m_relative_mu_guess_for_alt = 1;
+        bool m_asymptotic_init = false;
 
     protected:
         bool validate(std::error_code& ec) const noexcept
@@ -89,17 +91,29 @@ namespace ropufu::sequential::hypotheses
 
             // Parse json entries.
             aftermath::noexcept_json::required(j, type::jstr_id, this->m_id, ec);
-            aftermath::noexcept_json::required(j, type::jstr_relative_mu_guess_null, this->m_relative_mu_guess_for_null, ec);
-            aftermath::noexcept_json::required(j, type::jstr_relative_mu_guess_alt, this->m_relative_mu_guess_for_alt, ec);
+            bool is_asymptotic = j.count(type::jstr_asymptotic_init) != 0;
+            if (is_asymptotic)
+            {
+                aftermath::noexcept_json::optional(j, type::jstr_relative_mu_guess_null, this->m_relative_mu_guess_for_null, ec);
+                aftermath::noexcept_json::optional(j, type::jstr_relative_mu_guess_alt, this->m_relative_mu_guess_for_alt, ec);
+                aftermath::noexcept_json::required(j, type::jstr_asymptotic_init, this->m_asymptotic_init, ec);
+            } // if (...)
+            else
+            {
+                aftermath::noexcept_json::required(j, type::jstr_relative_mu_guess_null, this->m_relative_mu_guess_for_null, ec);
+                aftermath::noexcept_json::required(j, type::jstr_relative_mu_guess_alt, this->m_relative_mu_guess_for_alt, ec);
+                aftermath::noexcept_json::optional(j, type::jstr_asymptotic_init, this->m_asymptotic_init, ec);
+            } // else (...)
 
             if (!this->validate(ec)) this->coerce();
         } // adaptive_sprt_b_design(...)
 
-        constexpr bool is_threshold_independent() const noexcept { return true; }
+        bool is_threshold_independent() const noexcept { return !this->m_asymptotic_init; }
 
         std::size_t id() const noexcept { return this->m_id; }
         value_type relative_mu_guess_for_null() const noexcept { return this->m_relative_mu_guess_for_null; }
         value_type relative_mu_guess_for_alt() const noexcept { return this->m_relative_mu_guess_for_alt; }
+        bool asymptotic_init() const noexcept { return this->m_asymptotic_init; }
 
         std::string to_path_string(std::size_t decimal_places) const noexcept
         {
@@ -127,6 +141,7 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type> constexpr char adaptive_sprt_b_design<t_value_type>::jstr_id[];
     template <typename t_value_type> constexpr char adaptive_sprt_b_design<t_value_type>::jstr_relative_mu_guess_null[];
     template <typename t_value_type> constexpr char adaptive_sprt_b_design<t_value_type>::jstr_relative_mu_guess_alt[];
+    template <typename t_value_type> constexpr char adaptive_sprt_b_design<t_value_type>::jstr_asymptotic_init[];
     
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const adaptive_sprt_b_design<t_value_type>& x) noexcept
@@ -138,7 +153,8 @@ namespace ropufu::sequential::hypotheses
             {type::jstr_typename, sprt_type_str},
             {type::jstr_id, x.id()},
             {type::jstr_relative_mu_guess_null, x.relative_mu_guess_for_null()},
-            {type::jstr_relative_mu_guess_alt, x.relative_mu_guess_for_alt()}
+            {type::jstr_relative_mu_guess_alt, x.relative_mu_guess_for_alt()},
+            {type::jstr_asymptotic_init, x.asymptotic_init()}
         };
     } // to_json(...)
 

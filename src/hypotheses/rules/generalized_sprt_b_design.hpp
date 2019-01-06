@@ -38,24 +38,26 @@ namespace ropufu::sequential::hypotheses
         static constexpr char jstr_typename[] = "type";
         static constexpr char jstr_id[] = "id";
         static constexpr char jstr_relative_mu_cutoff[] = "relative mu cutoff";
+        static constexpr char jstr_asymptotic_init[] = "asymptotic init";
 
     private:
         std::size_t m_id = 0;
         value_type m_relative_mu_cutoff = static_cast<value_type>(0.5); // Relative threshold used to decide in favor of either of the hypotheses.
+        bool m_asymptotic_init = false;
 
     protected:
         bool validate(std::error_code& ec) const noexcept
         {
             if (modules::is_nan(this->m_relative_mu_cutoff) || modules::is_infinite(this->m_relative_mu_cutoff)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Relative cutoff has to be a finite number.", false);
-            if (this->m_relative_mu_cutoff < 0 || this->m_relative_mu_cutoff > 1) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Relative cutoff has to be between zero and one.", false);
+            if (this->m_relative_mu_cutoff <= 0 || this->m_relative_mu_cutoff >= 1) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Relative cutoff has to be strictly between zero and one.", false);
             return true;
         } // validate(...)
 
         void coerce() noexcept
         {
-            if (modules::is_nan(this->m_relative_mu_cutoff) || modules::is_infinite(this->m_relative_mu_cutoff)) this->m_relative_mu_cutoff = 0;
-            if (this->m_relative_mu_cutoff < 0) this->m_relative_mu_cutoff = 0;
-            if (this->m_relative_mu_cutoff > 1) this->m_relative_mu_cutoff = 1;
+            if (modules::is_nan(this->m_relative_mu_cutoff) || modules::is_infinite(this->m_relative_mu_cutoff)) this->m_relative_mu_cutoff = static_cast<value_type>(0.5);
+            if (this->m_relative_mu_cutoff <= 0) this->m_relative_mu_cutoff = static_cast<value_type>(0.5);
+            if (this->m_relative_mu_cutoff >= 1) this->m_relative_mu_cutoff = static_cast<value_type>(0.5);
         } // coerce(...)
 
     public:
@@ -81,15 +83,26 @@ namespace ropufu::sequential::hypotheses
 
             // Parse json entries.
             aftermath::noexcept_json::required(j, type::jstr_id, this->m_id, ec);
-            aftermath::noexcept_json::required(j, type::jstr_relative_mu_cutoff, this->m_relative_mu_cutoff, ec);
+            bool is_asymptotic = j.count(type::jstr_asymptotic_init) != 0;
+            if (is_asymptotic)
+            {
+                aftermath::noexcept_json::optional(j, type::jstr_relative_mu_cutoff, this->m_relative_mu_cutoff, ec);
+                aftermath::noexcept_json::required(j, type::jstr_asymptotic_init, this->m_asymptotic_init, ec);
+            } // if (...)
+            else
+            {
+                aftermath::noexcept_json::required(j, type::jstr_relative_mu_cutoff, this->m_relative_mu_cutoff, ec);
+                aftermath::noexcept_json::optional(j, type::jstr_asymptotic_init, this->m_asymptotic_init, ec);
+            } // else (...)
 
             if (!this->validate(ec)) this->coerce();
         } // generalized_sprt_b_design(...)
 
-        constexpr bool is_threshold_independent() const noexcept { return true; }
+        bool is_threshold_independent() const noexcept { return !this->m_asymptotic_init; }
 
         std::size_t id() const noexcept { return this->m_id; }
         value_type relative_mu_cutoff() const noexcept { return this->m_relative_mu_cutoff; }
+        bool asymptotic_init() const noexcept { return this->m_asymptotic_init; }
 
         std::string to_path_string(std::size_t decimal_places) const noexcept
         {
@@ -114,6 +127,7 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type> constexpr char generalized_sprt_b_design<t_value_type>::jstr_typename[];
     template <typename t_value_type> constexpr char generalized_sprt_b_design<t_value_type>::jstr_id[];
     template <typename t_value_type> constexpr char generalized_sprt_b_design<t_value_type>::jstr_relative_mu_cutoff[];
+    template <typename t_value_type> constexpr char generalized_sprt_b_design<t_value_type>::jstr_asymptotic_init[];
     
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const generalized_sprt_b_design<t_value_type>& x) noexcept
@@ -124,7 +138,8 @@ namespace ropufu::sequential::hypotheses
         j = nlohmann::json{
             {type::jstr_typename, sprt_type_str},
             {type::jstr_id, x.id()},
-            {type::jstr_relative_mu_cutoff, x.relative_mu_cutoff()}
+            {type::jstr_relative_mu_cutoff, x.relative_mu_cutoff()},
+            {type::jstr_asymptotic_init, x.asymptotic_init()}
         };
     } // to_json(...)
 
