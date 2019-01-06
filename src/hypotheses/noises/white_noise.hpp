@@ -8,7 +8,7 @@
 #include <ropufu/on_error.hpp>    // aftermath::detail::on_error
 #include <ropufu/probability.hpp> // aftermath::probability::normal_distribution
 #include <ropufu/random.hpp>      // aftermath::random::default_sampler_normal_t
-#include "../draft/algebra/numbers.hpp"
+#include "../../draft/algebra/numbers.hpp"
 
 #include "../noise_base.hpp"
 

@@ -221,50 +221,54 @@ namespace ropufu::sequential::hypotheses
                 // Match up rules to run.
                 rule_collection_type rules_to_run = this->m_rules.filter(r.init_rules());
 
-                // First, build up the operating characteristics.
                 std::cout << "Model " << model << std::endl;
                 std::cout << "Estimating operating characteristics in " << this->m_monte_carlo.count_simulations() << " Monte Carlo runs..." << std::endl;
-                oc_array_t<void> oc_list {};
-                for (operating_characteristic oc : oc_list)
+
+                // First, build up the standard operating characteristics.
+                if (!config.disable_oc_pass())
                 {
-                    simulation_pair<value_type> mu_pair(oc, model, ec);
-                    if (ec.value() != 0) std::cout << "Constructing simulation pair failed: " + ec.message() + "." << std::endl;
-                    if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
+                    oc_array_t<void> oc_list {};
+                    for (operating_characteristic oc : oc_list)
+                    {
+                        simulation_pair<value_type> mu_pair(oc, model, ec);
+                        if (ec.value() != 0) std::cout << "Constructing simulation pair failed: " + ec.message() + "." << std::endl;
+                        if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
 
-                    bool is_okay = this->try_execute(model, mu_pair, rules_to_run, r.init_rules(), r.threshold_count(), r.threshold_spacing(), false); // Run the simulation, suppress display.
-                    if (!is_okay) std::cout << "Something went wrong in " << __FUNCTION__ << " on line " << __LINE__ << "." << std::endl;
-                    if (!is_okay) { std::cout << "Aborting." << std::endl; return; }
+                        bool is_okay = this->try_execute(model, mu_pair, rules_to_run, r.init_rules(), r.threshold_count(), r.threshold_spacing(), false); // Run the simulation, suppress display.
+                        if (!is_okay) std::cout << "Something went wrong in " << __FUNCTION__ << " on line " << __LINE__ << "." << std::endl;
+                        if (!is_okay) { std::cout << "Aborting." << std::endl; return; }
 
-                    // Collect statistics to be stored later, once all OC simulations are completed.
-                    rules_to_run.record_oc(oc, mu_pair, ec);
-                    if (ec.value() != 0) std::cout << "Reading operating characteristic failed: " + ec.message() + "." << std::endl;
-                    if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
-                } // for (...)
+                        // Collect statistics to be stored later, once all OC simulations are completed.
+                        rules_to_run.record_oc(oc, mu_pair, ec);
+                        if (ec.value() != 0) std::cout << "Reading operating characteristic failed: " + ec.message() + "." << std::endl;
+                        if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
+                    } // for (...)
 
-                // Present the statistics.
-                for (const oc_array_t<moment_statistic_type>& oc_statistic_array : rules_to_run.oc_statistics())
-                {
-                    const moment_statistic_type& fa = oc_statistic_array[operating_characteristic::probability_of_false_alarm];
-                    const moment_statistic_type& ms = oc_statistic_array[operating_characteristic::probability_of_missed_signal];
+                    // Present the statistics.
+                    for (const oc_array_t<moment_statistic_type>& oc_statistic_array : rules_to_run.oc_statistics())
+                    {
+                        const moment_statistic_type& fa = oc_statistic_array[operating_characteristic::probability_of_false_alarm];
+                        const moment_statistic_type& ms = oc_statistic_array[operating_characteristic::probability_of_missed_signal];
 
-                    matrix_t<value_type> pfa = fa.mean();
-                    matrix_t<value_type> pms = ms.mean();
-                    matrix_t<value_type> vfa = fa.variance();
-                    matrix_t<value_type> vms = ms.variance();
-                    //vfa.transform([] (value_type x) { return std::sqrt(x); });
-                    //vms.transform([] (value_type x) { return std::sqrt(x); });
-                    std::string rule_name = "??";
-                    
-                    std::cout << "Rule " << rule_name << ":" << std::endl;
-                    detail::print_corners(pfa, vfa, "    " + std::to_string(operating_characteristic::probability_of_false_alarm) + " = ");
-                    std::cout << std::endl;
-                    detail::print_corners(pms, vms, "    " + std::to_string(operating_characteristic::probability_of_missed_signal) + " = ");
-                    std::cout << std::endl;
-                } // for (...)
+                        matrix_t<value_type> pfa = fa.mean();
+                        matrix_t<value_type> pms = ms.mean();
+                        matrix_t<value_type> vfa = fa.variance();
+                        matrix_t<value_type> vms = ms.variance();
+                        //vfa.transform([] (value_type x) { return std::sqrt(x); });
+                        //vms.transform([] (value_type x) { return std::sqrt(x); });
+                        std::string rule_name = "??";
+                        
+                        std::cout << "Rule " << rule_name << ":" << std::endl;
+                        detail::print_corners(pfa, vfa, "    " + std::to_string(operating_characteristic::probability_of_false_alarm) + " = ");
+                        std::cout << std::endl;
+                        detail::print_corners(pms, vms, "    " + std::to_string(operating_characteristic::probability_of_missed_signal) + " = ");
+                        std::cout << std::endl;
+                    } // for (...)
 
-                rules_to_run.dump_oc(w, model, ec); // Write to .mat file.
-                if (ec.value() != 0) std::cout << "Writing operating characteristics failed: " + ec.message() + "." << std::endl;
-                ec.clear();
+                    rules_to_run.dump_oc(w, model, ec); // Write to .mat file.
+                    if (ec.value() != 0) std::cout << "Writing operating characteristics failed: " + ec.message() + "." << std::endl;
+                    ec.clear();
+                } // if (...)
 
                 // Second, then run the auxiliary simulations.
                 if (!r.simulation_pairs().empty())

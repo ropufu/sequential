@@ -11,6 +11,7 @@
 #include "run.hpp"
 
 #include <fstream>  // std::ifstream, std::ofstream
+#include <iomanip>  // std::setw
 #include <iostream> // std::ostream
 #include <stdexcept>    // std::runtime_error
 #include <string>       // std::string, std::to_string
@@ -46,6 +47,7 @@ namespace ropufu::sequential::hypotheses
 
         // ~~ Json names ~~
         static constexpr char jstr_mat_output_path[] = "mat output";
+        static constexpr char jstr_disable_oc_pass[] = "disable oc pass";
         static constexpr char jstr_count_simulations[] = "simulations";
         static constexpr char jstr_count_threads[] = "threads";
         static constexpr char jstr_count_interpolated_runs[] = "interpolated runs";
@@ -63,6 +65,7 @@ namespace ropufu::sequential::hypotheses
         std::vector<std::string> m_logger = {};
         // ~~ Specific properties ~~
         std::string m_mat_output_path = "./mat/";
+        bool m_disable_oc_pass = false;
         std::size_t m_count_simulations = 10'000;
         std::size_t m_count_threads = 1;
         std::size_t m_count_interpolated_runs = 0;
@@ -95,6 +98,9 @@ namespace ropufu::sequential::hypotheses
         const std::string& mat_output_path() const noexcept { return this->m_mat_output_path; }
         void set_mat_output_path(const std::string& value) noexcept { this->m_mat_output_path = value; this->m_has_changed = true; }
         
+        bool disable_oc_pass() const noexcept { return this->m_disable_oc_pass; }
+        void set_disable_oc_pass(bool value) noexcept { this->m_disable_oc_pass = value; this->m_has_changed = true; }
+
         std::size_t simulation_count() const noexcept { return this->m_count_simulations; }
         void set_simulation_count(std::size_t value) noexcept { this->m_count_simulations = value; this->m_has_changed = true; }
 
@@ -129,6 +135,7 @@ namespace ropufu::sequential::hypotheses
 
                 // Populate default values.
                 std::string mat_output_path = this->m_mat_output_path;
+                bool disable_oc_pass = this->m_disable_oc_pass;
                 std::size_t count_simulations = this->m_count_simulations;
                 std::size_t count_threads = this->m_count_threads;
                 std::size_t count_interpolated_runs = this->m_count_interpolated_runs;
@@ -137,6 +144,7 @@ namespace ropufu::sequential::hypotheses
                 
                 // Parse json entries.
                 aftermath::noexcept_json::optional(j, type::jstr_mat_output_path, mat_output_path, ec);
+                aftermath::noexcept_json::optional(j, type::jstr_disable_oc_pass, disable_oc_pass, ec);
                 aftermath::noexcept_json::optional(j, type::jstr_count_simulations, count_simulations, ec);
                 aftermath::noexcept_json::optional(j, type::jstr_count_threads, count_threads, ec);
                 aftermath::noexcept_json::optional(j, type::jstr_count_interpolated_runs, count_interpolated_runs, ec);
@@ -186,6 +194,7 @@ namespace ropufu::sequential::hypotheses
                 } // for (...)
 
                 this->m_mat_output_path = mat_output_path;
+                this->m_disable_oc_pass = disable_oc_pass;
                 this->m_count_simulations = count_simulations;
                 this->m_count_threads = count_threads;
                 this->m_count_interpolated_runs = count_interpolated_runs;
@@ -218,6 +227,7 @@ namespace ropufu::sequential::hypotheses
             nlohmann::json& j = this->m_json;
 
             j[type::jstr_mat_output_path] = this->m_mat_output_path;
+            j[type::jstr_disable_oc_pass] = this->m_disable_oc_pass;
             j[type::jstr_count_simulations] = this->m_count_simulations;
             j[type::jstr_count_threads] = this->m_count_threads;
             j[type::jstr_count_interpolated_runs] = this->m_count_interpolated_runs;
@@ -246,6 +256,7 @@ namespace ropufu::sequential::hypotheses
 
     // ~~ Json name definitions ~~
     template <typename t_value_type> constexpr char config<t_value_type>::jstr_mat_output_path[];
+    template <typename t_value_type> constexpr char config<t_value_type>::jstr_disable_oc_pass[];
     template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_simulations[];
     template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_threads[];
     template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_interpolated_runs[];

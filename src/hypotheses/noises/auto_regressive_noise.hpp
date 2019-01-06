@@ -6,7 +6,7 @@
 #include <ropufu/json_traits.hpp>
 
 #include <ropufu/on_error.hpp> // aftermath::detail::on_error
-#include "../draft/algebra/numbers.hpp"
+#include "../../draft/algebra/numbers.hpp"
 
 #include "../noise_base.hpp"
 #include "../sliding_array.hpp"
