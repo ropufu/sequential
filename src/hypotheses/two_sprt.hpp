@@ -41,26 +41,25 @@ namespace ropufu::sequential::hypotheses
         t_signal_type, t_noise_type>
     {
         using type = two_sprt<t_derived_type, t_signal_type, t_noise_type>;
-        using base_type = observer<type, t_signal_type, t_noise_type>;
-        friend base_type;
-
-        using signal_type = typename base_type::signal_type;
-        using noise_type = typename base_type::noise_type;
-        using process_type = typename base_type::process_type;
-        using value_type = typename base_type::value_type;
+        using derived_type = t_derived_type;
+        using signal_type = t_signal_type;
+        using noise_type = t_noise_type;
+        using process_type = process<signal_type, noise_type>;
+        using value_type = typename process_type::value_type;
         using model_type = hypotheses::model<value_type>;
-        using likelihood_type = hypotheses::likelihood<t_signal_type, t_noise_type>;
+        using likelihood_type = hypotheses::likelihood<signal_type, noise_type>;
         using matrix_mask_type = aftermath::algebra::matrix_mask<std::size_t>;
         // using matrix_cell_type = typename matrix_mask_type::value_type;
         using matrix_cell_type = aftermath::algebra::sparse_matrix_cell<std::size_t, bool>;
+
+        using base_type = observer<type, signal_type, noise_type>;
+        friend base_type;
 
         template <typename t_data_type>
         using matrix_t = aftermath::algebra::matrix<t_data_type>;
         using moment_statistic_type = moment_statistic<matrix_t<value_type>>;
 
     private:
-        using derived_type = t_derived_type;
-
         // ~~ Fundamental members ~~
         std::size_t m_id = 0;
         likelihood_type m_likelihood = {}; // Reset with each \c toc().
@@ -334,9 +333,14 @@ namespace ropufu::sequential::hypotheses
                     //std::size_t error_relaxed = has_crossed_null ? (is_null_true ? 0 : 1) : (is_null_true ? 1 : 0);
             
                     /* @todo Check that \c run_length is not zero. */
-                    value_type correction = std::exp(proc.unscaled_log_likelihood_between(proc.actual_mu(), this->m_analyzed_mu, run_length - 1) / proc.log_likelihood_scale());
-                    value_type t = run_length / correction;
-                    value_type e = error / correction;
+                    value_type t = static_cast<value_type>(run_length);
+                    value_type e = static_cast<value_type>(error);
+                    if (proc.actual_mu() != this->m_analyzed_mu)
+                    {
+                        value_type correction = std::exp(proc.unscaled_log_likelihood_between(proc.actual_mu(), this->m_analyzed_mu, run_length - 1) / proc.log_likelihood_scale());
+                        t /= correction;
+                        e /= correction;
+                    } // if (...)
                     corrected_run_lengths(i, j) = t;
                     corrected_errors(i, j) = e;
                 } // for(...)
@@ -344,7 +348,7 @@ namespace ropufu::sequential::hypotheses
 
             this->m_run_lengths.observe(corrected_run_lengths);
             this->m_errors.observe(corrected_errors);
-            this->soft_reset(); // Reset time, but keep the statistics.
+            this->soft_reset(); // Reset time, but keep the statistics. Note: also calls toc on <m_likelihood>.
         } // on_toc(...)
 
         const matrix_t<std::size_t>& run_length() const noexcept { return this->m_run_length; }

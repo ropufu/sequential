@@ -2,7 +2,21 @@
 # ~~ LaTeX Auxiliary Files ~~
 *.log
 *.aux
+*.bbl
+*.blg
+*.idx
+*.ind
+*.ilg
+*.glo
+*.gls
+*.glg
+*.lof
+*.lot
+*.toc
 *.out
+*.bak
+*.sav
+*.tmp
 *.synctex
 *.synctex.gz
 

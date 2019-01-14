@@ -2,108 +2,119 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_NOISE_BASE_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_NOISE_BASE_HPP_INCLUDED
 
-#include "timed.hpp"
+#include "type_traits.hpp"
 
 #include <cstddef>     // std::size_t
-#include <type_traits> // std::is_same, std::enable_if_t, std::is_base_of, std::false_type, std::true_type
+#include <type_traits> // ...
 
-namespace ropufu
+namespace ropufu::sequential::hypotheses
 {
-    namespace sequential
+    template <typename t_derived_type, typename t_value_type>
+    struct noise_base;
+    
+    ROPUFU_SEQUENTIAL_HYPOTHESES_TYPE_TRAITS_CRTP(noise, noise_base, , typename core_type::value_type)
+
+    /** @brief Base abstract structure for all noise types.
+     *  @remark The inheriting type must friend the base class \c noise_base<...>.
+     *  @remark The inheriting type must implement the following protected functions:
+     *          on_reset() noexcept -> void
+     *          next_value(t_value_type) noexcept -> t_value_type
+     */
+    template <typename t_derived_type, typename t_value_type>
+    struct noise_base
     {
-        namespace hypotheses
+        using type = noise_base<t_derived_type, t_value_type>;
+        using derived_type = t_derived_type;
+        using core_type = t_derived_type;
+        using value_type = t_value_type;
+
+    private:
+        value_type m_current_value = 0;
+
+        static constexpr void traits_check() noexcept
         {
-            /** @brief Abstract CRTP structure for all noise types.
-             *  @remark The inheriting type must friend the base class \c noise_base<...>.
-             *  @remark The inheriting type must implement the following protected functions:
-             *          void on_reset_override() noexcept
-             *          t_value_type next_value(t_value_type current_value) noexcept
-             */
-            template <typename t_derived_type, typename t_value_type>
-            struct noise_base : public timed<noise_base<t_derived_type, t_value_type>>
-            {
-                using type = noise_base<t_derived_type, t_value_type>;
-                using base_type = timed<type>;
-                friend base_type;
+            // CRTP check.
+            static_assert(std::is_base_of_v<type, derived_type>, "t_derived_type has to be derived from noise_base<t_derived_type>.");
+        } // traits_check(...)
 
-                using timed_type = typename base_type::timed_type;
-                using noise_base_type = t_derived_type; // Type that this CRTP is templated on.
-                using value_type = t_value_type;
+    protected:
+        /** @brief Auxiliary function to be executed right before the \c reset() call. */
+        void on_reset() noexcept
+        {
+            constexpr bool is_overwritten = !std::is_same_v<
+                decltype(&derived_type::on_reset),
+                decltype(&type::on_reset)>;
+            static_assert(is_overwritten, "on_reset() noexcept -> void has not beed overloaded.");
 
-            private:
-                using derived_type = t_derived_type;
+            derived_type* that = static_cast<derived_type*>(this);
+            that->on_reset();
+        } // on_reset(...)
 
-                value_type m_current_value = 0;
+        /** @brief Updates the current value of the noise. */
+        value_type next_value(value_type current_value) noexcept
+        {
+            constexpr bool is_overwritten = !std::is_same_v<
+                decltype(&derived_type::next_value),
+                decltype(&type::next_value)>;
+            static_assert(is_overwritten, "next_value(t_value_type) noexcept -> t_value_type has not beed overloaded.");
 
-            protected:
-                /** @brief Auxiliary function to be executed right before the \c on_reset() call. */
-                void on_reset_override() noexcept
-                {
-                    constexpr bool is_overwritten = !std::is_same<
-                        decltype(&derived_type::on_reset_override),
-                        decltype(&type::on_reset_override)>::value;
-                    static_assert(is_overwritten, "static polymorphic function <on_reset_override> was not overwritten.");
+            derived_type* that = static_cast<derived_type*>(this);
+            return that->next_value(current_value);
+        } // next_value(...)
 
-                    derived_type* that = static_cast<derived_type*>(this);
-                    that->on_reset_override();
-                } // on_reset_override(...)
+    public:
+        noise_base() noexcept { type::traits_check(); }
 
-                /** @brief Updates the current value of the noise. */
-                value_type next_value(value_type current_value) noexcept
-                {
-                    constexpr bool is_overwritten = !std::is_same<
-                        decltype(&derived_type::next_value),
-                        decltype(&type::next_value)>::value;
-                    static_assert(is_overwritten, "static polymorphic function <next_value> was not overwritten.");
+        core_type& as_noise() noexcept { return *static_cast<core_type*>(this); }
+        const core_type& as_noise() const noexcept { return *static_cast<const core_type*>(this); }
 
-                    derived_type* that = static_cast<derived_type*>(this);
-                    return that->next_value(current_value);
-                } // next_value(...)
+        /** Latest observed value. */
+        value_type current_value() const noexcept { return this->m_current_value; }
 
-                /** @brief To be executed right before the \c reset() call. */
-                void on_reset() noexcept
-                {
-                    this->on_reset_override();
-                    this->m_current_value = 0;
-                } // on_reset(...)
+        /** @brief Resets the time to zero. */
+        void reset() noexcept
+        {
+            this->on_reset();
+            this->m_current_value = 0;
+        } // reset(...)
 
-                /** @brief To be executed right after the \c tic() call. */
-                void on_tic() noexcept
-                {
-                    this->m_current_value = this->next_value(this->m_current_value);
-                } // on_tic(...)
+        /** @brief Advances the time index by one unit. */
+        void tic() noexcept
+        {
+            this->m_current_value = this->next_value(this->m_current_value);
+        } // tic(...)
+    }; // struct noise_base
+    
+    template <typename t_value_type>
+    struct noise_base<void, t_value_type>
+    {
+        using type = noise_base<void, t_value_type>;
+        using derived_type = void;
+        using core_type = type;
+        using value_type = t_value_type;
 
-            public:
-                noise_base() noexcept { }
+        noise_base() noexcept { }
 
-                /** Latest observed value. */
-                value_type current_value() const noexcept { return this->m_current_value; }
-            }; // struct noise_base
-            
-            template <typename t_value_type>
-            struct noise_base<void, t_value_type> : public timed<noise_base<void, t_value_type>>
-            {
-                using type = noise_base<void, t_value_type>;
-                using noise_base_type = void;
-                using value_type = t_value_type;
+        core_type& as_noise() noexcept { return *this; }
+        const core_type& as_noise() const noexcept { return *this; }
 
-            private:
-                using base_type = timed<type>;
-                friend timed<type>;
+        constexpr value_type current_value() const noexcept { return 0; }
 
-            protected:
-                void on_reset() noexcept { }
-                void on_tic() noexcept { }
+        /** @brief Resets the time to zero. */
+        void reset() noexcept { }
 
-            public:
-                noise_base() noexcept { }
-                constexpr value_type current_value() const noexcept { return 0; }
-            }; // struct noise_base<...>
+        /** @brief Advances the time index by one unit. */
+        void tic() noexcept { }
+    }; // struct noise_base<...>
 
-            template <typename t_value_type>
-            using no_noise_t = noise_base<void, t_value_type>;
-        } // namespace hypotheses
-    } // namespace sequential
-} // namespace ropufu
+    template <typename t_value_type>
+    using no_noise_t = noise_base<void, t_value_type>;
+
+    namespace detail
+    {
+        template <typename t_value_type>
+        struct is_noise<no_noise_t<t_value_type>> : public std::true_type { };
+    } // namespace detail
+} // namespace ropufu::sequential::hypotheses
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_NOISE_BASE_HPP_INCLUDED

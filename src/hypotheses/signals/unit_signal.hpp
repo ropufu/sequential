@@ -29,11 +29,11 @@ namespace ropufu::sequential::hypotheses
     struct unit_signal : public signal_base<unit_signal<t_value_type>, t_value_type>
     {
         using type = unit_signal<t_value_type>;
-        using base_type = signal_base<type, t_value_type>;
+        using value_type = t_value_type;
+
+        using base_type = signal_base<type, value_type>;
         friend base_type;
 
-        using value_type = typename base_type::value_type;
-        using signal_base_type = typename base_type::signal_base_type;
         static constexpr t_value_type unit = 1;
         static constexpr char typename_string[] = "unit";
 

@@ -9,13 +9,15 @@
 #include "signal_base.hpp"
 #include "noise_base.hpp"
 
+#include "type_traits.hpp"
+
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
 #include <random>   // std::normal_distribution, std::default_random_engine
 #include <stdexcept>    // std::runtime_error
 #include <string>   // std::string
 #include <system_error> // std::error_code, std::errc
-#include <type_traits> // std::enable_if_t
+#include <type_traits> // std::is_same_v, std::is_base_of_v
 #include <vector>   // std::vector
 
 namespace ropufu::sequential::hypotheses
@@ -31,13 +33,12 @@ namespace ropufu::sequential::hypotheses
     struct process : public timed<process<t_signal_type, t_noise_type>>
     {
         using type = process<t_signal_type, t_noise_type>;
-        using base_type = timed<type>;
-        friend base_type;
-
-        using timed_type = typename base_type::timed_type;
         using signal_type = t_signal_type;
         using noise_type = t_noise_type;
         using value_type = typename t_noise_type::value_type;
+
+        using base_type = timed<type>;
+        friend base_type;
 
         static constexpr std::size_t default_history_capacity = 100;
 
@@ -47,9 +48,6 @@ namespace ropufu::sequential::hypotheses
         static constexpr char jstr_actual_mu[] = "actual mu";
 
     private:
-        using signal_base_type = signal_base<typename signal_type::signal_base_type, typename signal_type::value_type>;
-        using noise_base_type = noise_base<typename noise_type::noise_base_type, typename noise_type::value_type>;
-
         // ~~ Signal ~~
         signal_type m_signal = {}; // Signal.
         noise_type m_noise = {};   // Parameters in the AR noise.
@@ -63,13 +61,19 @@ namespace ropufu::sequential::hypotheses
         value_type m_running_sum_rr = 0; // The running sum (signal) x (signal).
         std::vector<value_type> m_running_sum_ry_history = {};
         std::vector<value_type> m_running_sum_rr_history = {};
+
+        static constexpr void traits_check() noexcept
+        {
+            // Concepts check.
+            static_assert(is_signal_v<signal_type>, "t_signal_type has to be a signal.");
+            static_assert(is_noise_v<noise_type>, "t_noise_type has to be a noise.");
+            // Other checks.
+            static_assert(std::is_same_v<
+                typename signal_type::value_type,
+                typename noise_type::value_type>, "t_signal_type and t_noise_type must have the same value_type typedef.");
+            
+        } // traits_check(...)
         
-        static signal_base_type& signal_cast(signal_type& signal) noexcept { return static_cast<signal_base_type&>(signal); }
-        static const signal_base_type& signal_cast(const signal_type& signal) noexcept { return static_cast<const signal_base_type&>(signal); }
-
-        static noise_base_type& noise_cast(noise_type& noise) noexcept { return static_cast<noise_base_type&>(noise); }
-        static const noise_base_type& noise_cast(const noise_type& noise) noexcept { return static_cast<const noise_base_type&>(noise); }
-
     protected:
         void coerce() noexcept
         {
@@ -77,6 +81,18 @@ namespace ropufu::sequential::hypotheses
             this->m_running_sum_ry_history.reserve(type::default_history_capacity);
             this->m_running_sum_rr_history.reserve(type::default_history_capacity);
         } // coerce(...)
+
+        /** @brief To be executed right before the \c reset() call. */
+        void on_reset() noexcept
+        {
+            this->m_history.clear();
+            this->m_running_sum_ry_history.clear();
+            this->m_running_sum_rr_history.clear();
+            this->m_noise.reset();
+
+            this->m_running_sum_ry = 0;
+            this->m_running_sum_rr = 0;
+        } // on_reset(...)
 
         /** @brief To be executed right after the \c tic() call. */
         void on_tic() noexcept
@@ -95,18 +111,6 @@ namespace ropufu::sequential::hypotheses
             this->m_running_sum_ry_history.push_back(this->m_running_sum_ry);
             this->m_running_sum_rr_history.push_back(this->m_running_sum_rr);
         } // on_tic(...)
-
-        /** @brief To be executed right before the \c reset() call. */
-        void on_reset() noexcept
-        {
-            this->m_history.clear();
-            this->m_running_sum_ry_history.clear();
-            this->m_running_sum_rr_history.clear();
-            this->m_noise.reset();
-
-            this->m_running_sum_ry = 0;
-            this->m_running_sum_rr = 0;
-        } // on_reset(...)
 
     public:
         process() noexcept { this->coerce(); }

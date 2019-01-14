@@ -30,11 +30,11 @@ namespace ropufu::sequential::hypotheses
     struct constant_signal : public signal_base<constant_signal<t_value_type>, t_value_type>
     {
         using type = constant_signal<t_value_type>;
-        using base_type = signal_base<type, t_value_type>;
+        using value_type = t_value_type;
+
+        using base_type = signal_base<type, value_type>;
         friend base_type;
         
-        using value_type = typename base_type::value_type;
-        using signal_base_type = typename base_type::signal_base_type;
         static constexpr char typename_string[] = "const";
 
         // ~~ Json names ~~

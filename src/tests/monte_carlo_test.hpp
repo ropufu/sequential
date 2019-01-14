@@ -8,6 +8,8 @@
 #include "../hypotheses/model.hpp"
 #include "../hypotheses/rules.hpp"
 #include "../hypotheses/monte_carlo.hpp"
+#include "../hypotheses_simulator/init_info.hpp"
+#include "../hypotheses_simulator/known_sprts.hpp"
 #include "generator.hpp"
 
 #include <cstdint>
@@ -32,27 +34,40 @@ namespace ropufu
                 template <typename t_process_type>
                 static bool test_with_process(t_process_type& proc) noexcept
                 {
-                    using asprt_type = hypotheses::adaptive_sprt_t<t_process_type>;
-                    using bsprt_type = hypotheses::adaptive_sprt_star_t<t_process_type>;
-                    using csprt_type = hypotheses::adaptive_sprt_star_t<t_process_type>;
-                    using gsprt_type = hypotheses::generalized_sprt_t<t_process_type>;
-                    using hsprt_type = hypotheses::generalized_sprt_star_t<t_process_type>;
+                    using asprt_type = hypotheses::adaptive_sprt_a_t<t_process_type>;
+                    using bsprt_type = hypotheses::adaptive_sprt_b_t<t_process_type>;
+                    using csprt_type = hypotheses::adaptive_sprt_b_t<t_process_type>;
+                    using gsprt_type = hypotheses::generalized_sprt_a_t<t_process_type>;
+                    using hsprt_type = hypotheses::generalized_sprt_b_t<t_process_type>;
                     
-                    using xsprt_type = hypotheses::xsprt_t<t_process_type>;
+                    using xsprt_type = hypotheses::known_sprts_t<t_process_type>;
                     using tested_type = hypotheses::monte_carlo_t<t_process_type>;
+                    using init_type = hypotheses::init_info<value_type>;
                     std::error_code ec {};
 
                     // Create rules.
                     value_type theta = static_cast<value_type>(0.5);
                     
-                    asprt_type x { 0, theta, theta };
-                    bsprt_type y { 1, theta, theta };
-                    csprt_type z { 2, theta, theta };
-                    gsprt_type v { 3 };
-                    hsprt_type w { 4, theta };
+                    asprt_type x { typename asprt_type::design_type{0, theta, theta, ec} };
+                    bsprt_type y { typename bsprt_type::design_type{1, theta, theta, ec} };
+                    csprt_type z { typename csprt_type::design_type{2, theta, theta, ec} };
+                    gsprt_type v { typename gsprt_type::design_type{3, ec} };
+                    hsprt_type w { typename hsprt_type::design_type{4, theta, ec} };
+
+                    std::vector<init_type> init_rules {};
+                    init_rules.emplace_back(0);
+                    init_rules.emplace_back(1);
+                    init_rules.emplace_back(2);
+                    init_rules.emplace_back(3);
+                    init_rules.emplace_back(4);
 
                     // List rules.
-                    std::vector<xsprt_type> rules = { x, y, z, v, w };
+                    xsprt_type rules {};
+                    rules.insert(x.design());
+                    rules.insert(y.design());
+                    rules.insert(z.design());
+                    rules.insert(v.design());
+                    rules.insert(w.design());
 
                     // Output stream.
                     std::ostringstream ss {};
@@ -62,7 +77,8 @@ namespace ropufu
                     mc.run(proc, rules,
                         [&] (std::error_code& ecx) {
                             ss << "Simulation start." << std::endl;
-                            for (auto& r : rules) generator<value_type, 1>::reset_rule(r, proc, ecx);
+                            generator<value_type, 1>::init_rules(rules, init_rules, proc, ecx);
+                            if (ecx.value() != 0) ec = ecx;
                         },
                         [&] () {
                             ss << "Simulation stop." << std::endl;

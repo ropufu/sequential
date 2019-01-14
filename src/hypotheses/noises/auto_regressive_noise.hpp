@@ -48,13 +48,11 @@ namespace ropufu::sequential::hypotheses
     struct auto_regressive_noise<t_value_type, 0> : public white_noise<t_value_type>
     {
         using type = auto_regressive_noise<t_value_type, 0>;
-        using base_type = white_noise<t_value_type>;
+        using value_type = t_value_type;
+        using ar_container_type = std::array<value_type, 0>;
+        using time_window_type = sliding_array<value_type, 0>;
 
-        using timed_type = typename base_type::timed_type;
-        using noise_base_type = typename base_type::noise_base_type;
-        using value_type = typename base_type::value_type;
-        using ar_container_type = std::array<t_value_type, 0>;
-        using time_window_type = sliding_array<t_value_type, 0>;
+        using base_type = white_noise<value_type>;
 
         // ~~ Json names ~~
         static constexpr char jstr_typename[] = "type";
@@ -125,14 +123,12 @@ namespace ropufu::sequential::hypotheses
         public detail::named_auto_regressive_noise<t_ar_size>
     {
         using type = auto_regressive_noise<t_value_type, t_ar_size>;
-        using base_type = noise_base<type, t_value_type>;
-        friend base_type;
+        using value_type = t_value_type;
+        using ar_container_type = std::array<value_type, t_ar_size>;
+        using time_window_type = sliding_array<value_type, t_ar_size>;
 
-        using timed_type = typename base_type::timed_type;
-        using noise_base_type = typename base_type::noise_base_type;
-        using value_type = typename base_type::value_type;
-        using ar_container_type = std::array<t_value_type, t_ar_size>;
-        using time_window_type = sliding_array<t_value_type, t_ar_size>;
+        using base_type = noise_base<type, value_type>;
+        friend base_type;
 
         // ~~ Json names ~~
         static constexpr char jstr_typename[] = "type";
@@ -171,7 +167,7 @@ namespace ropufu::sequential::hypotheses
 
     protected:
         /** @brief Auxiliary function to be executed right before the \c on_reset() call. */
-        void on_reset_override() noexcept
+        void on_reset() noexcept
         {
             this->m_white_noise.reset();
             this->m_history.fill(0);

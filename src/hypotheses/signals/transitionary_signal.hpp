@@ -51,12 +51,12 @@ namespace ropufu::sequential::hypotheses
         public detail::named_transitionary_signal<t_transition_size>
     {
         using type = transitionary_signal<t_value_type, t_transition_size>;
-        using base_type = signal_base<type, t_value_type>;
+        using value_type = t_value_type;
+        using transition_container_type = std::array<value_type, t_transition_size>;
+
+        using base_type = signal_base<type, value_type>;
         friend base_type;
 
-        using value_type = typename base_type::value_type;
-        using signal_base_type = typename base_type::signal_base_type;
-        using transition_container_type = std::array<t_value_type, t_transition_size>;
         static constexpr std::size_t transition_size = t_transition_size;
 
         // ~~ Json names ~~

@@ -63,6 +63,7 @@ namespace ropufu::sequential::hypotheses
         template <typename t_observer_type, typename t_on_start_type, typename t_on_stop_type>
         void run(process_type& proc, t_observer_type& observer, t_on_start_type&& on_start, t_on_stop_type&& on_stop, std::error_code& ec, std::size_t max_length = 1'000'000) noexcept
         {
+            static_assert(is_observer_v<t_observer_type>, "t_observer_type has to be an observer.");
             if (this->m_count_simulations == 0) return;
             if (ec.value() != 0) return;
 

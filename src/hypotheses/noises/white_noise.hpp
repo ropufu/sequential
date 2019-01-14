@@ -51,16 +51,15 @@ namespace ropufu::sequential::hypotheses
     struct white_noise : public noise_base<white_noise<t_value_type>, t_value_type>
     {
         using type = white_noise<t_value_type>;
-        using base_type = noise_base<type, t_value_type>;
+        using value_type = t_value_type;
+        using engine_type = std::mt19937;
+        using noise_distribution_type = ropufu::aftermath::probability::normal_distribution<value_type>; // For aftermath engine.
+        // using noise_distribution_type = std::normal_distribution<value_type>; // For built-in c++ engine.
+        using noise_sampler_type = typename detail::sampler_switch<noise_distribution_type, engine_type>::type;
+
+        using base_type = noise_base<type, value_type>;
         friend base_type;
 
-        using timed_type = typename base_type::timed_type;
-        using noise_base_type = typename base_type::noise_base_type;
-        using value_type = typename base_type::value_type;
-        using engine_type = std::mt19937;
-        using noise_distribution_type = ropufu::aftermath::probability::normal_distribution<t_value_type>; // For aftermath engine.
-        // using noise_distribution_type = std::normal_distribution<t_value_type>; // For built-in c++ engine.
-        using noise_sampler_type = typename detail::sampler_switch<noise_distribution_type, engine_type>::type;
         static constexpr char typename_string[] = "white";
 
         // ~~ Json names ~~
@@ -99,7 +98,7 @@ namespace ropufu::sequential::hypotheses
         } // coerce(...)
 
         /** @brief Auxiliary function to be executed right before the \c on_reset() call. */
-        void on_reset_override() noexcept { }
+        void on_reset() noexcept { }
 
         /** @brief Updates the current value of the noise. */
         value_type next_value(value_type /*current_value*/) noexcept

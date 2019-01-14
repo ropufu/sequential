@@ -138,23 +138,29 @@ namespace ropufu::sequential::hypotheses
     public:
         known_sprts() noexcept { }
 
-        template <typename... t_design_types>
-        known_sprts(const std::vector<std::variant<t_design_types...>>& rule_designs, std::error_code& ec) noexcept
-        {
-            for (const std::variant<t_design_types...>& v : rule_designs)
-            {
-                std::size_t sz = this->size() + 1;
+        // template <typename... t_design_types>
+        // known_sprts(const std::vector<std::variant<t_design_types...>>& rule_designs, std::error_code& ec) noexcept
+        // {
+        //     for (const std::variant<t_design_types...>& v : rule_designs)
+        //     {
+        //         std::size_t sz = this->size() + 1;
 
-                if (const typename type_0::design_type* design_ptr = std::get_if<typename type_0::design_type>(&v)) this->m_rules_0.emplace_back(*design_ptr);
-                if (const typename type_1::design_type* design_ptr = std::get_if<typename type_1::design_type>(&v)) this->m_rules_1.emplace_back(*design_ptr);
-                if (const typename type_2::design_type* design_ptr = std::get_if<typename type_2::design_type>(&v)) this->m_rules_2.emplace_back(*design_ptr);
-                if (const typename type_3::design_type* design_ptr = std::get_if<typename type_3::design_type>(&v)) this->m_rules_3.emplace_back(*design_ptr);
-                if (const typename type_4::design_type* design_ptr = std::get_if<typename type_4::design_type>(&v)) this->m_rules_4.emplace_back(*design_ptr);
+        //         if (const typename type_0::design_type* design_ptr = std::get_if<typename type_0::design_type>(&v)) this->m_rules_0.emplace_back(*design_ptr);
+        //         if (const typename type_1::design_type* design_ptr = std::get_if<typename type_1::design_type>(&v)) this->m_rules_1.emplace_back(*design_ptr);
+        //         if (const typename type_2::design_type* design_ptr = std::get_if<typename type_2::design_type>(&v)) this->m_rules_2.emplace_back(*design_ptr);
+        //         if (const typename type_3::design_type* design_ptr = std::get_if<typename type_3::design_type>(&v)) this->m_rules_3.emplace_back(*design_ptr);
+        //         if (const typename type_4::design_type* design_ptr = std::get_if<typename type_4::design_type>(&v)) this->m_rules_4.emplace_back(*design_ptr);
 
-                if (sz != this->size()) aftermath::detail::on_error(ec, std::errc::invalid_argument, "Rule design not recognized.");
-            } // for (...)
-            this->m_oc_statistics.resize(this->size()); // One default-initialized <oc_array_t> for each rule.
-        } // known_sprts(...)
+        //         if (sz != this->size()) aftermath::detail::on_error(ec, std::errc::invalid_argument, "Rule design not recognized.");
+        //     } // for (...)
+        //     this->m_oc_statistics.resize(this->size()); // One default-initialized <oc_array_t> for each rule.
+        // } // known_sprts(...)
+
+        void insert(const typename type_0::design_type& rule_design) noexcept { this->m_rules_0.emplace_back(rule_design); }
+        void insert(const typename type_1::design_type& rule_design) noexcept { this->m_rules_1.emplace_back(rule_design); }
+        void insert(const typename type_2::design_type& rule_design) noexcept { this->m_rules_2.emplace_back(rule_design); }
+        void insert(const typename type_3::design_type& rule_design) noexcept { this->m_rules_3.emplace_back(rule_design); }
+        void insert(const typename type_4::design_type& rule_design) noexcept { this->m_rules_4.emplace_back(rule_design); }
 
         type filter(const std::vector<init_type>& init_list) const noexcept
         {

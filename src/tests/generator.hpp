@@ -8,6 +8,8 @@
 #include "../hypotheses/noises.hpp"
 #include "../hypotheses/process.hpp"
 #include "../hypotheses/rules.hpp"
+#include "../hypotheses_simulator/init_info.hpp"
+#include "../hypotheses_simulator/known_sprts.hpp"
 
 #include <array>
 #include <cstdint>
@@ -129,8 +131,10 @@ namespace ropufu
                     return process_type(s, n, mu);
                 } // transit_ar(...)
 
-                template <typename t_rule_type, typename t_process_type>
-                static void reset_rule(t_rule_type& rule, t_process_type&& proc, std::error_code& ec)
+                template <typename t_rule_collection_type, typename t_process_type>
+                static void init_rules(t_rule_collection_type& rules,
+                    std::vector<hypotheses::init_info<typename t_process_type::value_type>>& init_rules,
+                    t_process_type& proc, std::error_code& ec)
                 {
                     hypotheses::model<value_type> model {};
                     value_type analyzed_mu = 1;
@@ -138,8 +142,34 @@ namespace ropufu
 
                     std::vector<value_type> null_thresholds = { 1, 2, 3 };
                     std::vector<value_type> alt_thresholds = { 1, 2, 3 };
-                    rule.initialize(model, analyzed_mu, anticipated_run_length, proc.log_likelihood_scale(), null_thresholds, alt_thresholds, ec);
+
+                    for (hypotheses::init_info<typename t_process_type::value_type>& init : init_rules)
+                    {
+                        init.set_anticipated_run_length(anticipated_run_length);
+                        rules.initialize(init,
+                            model,
+                            analyzed_mu,
+                            proc.log_likelihood_scale(), 
+                            null_thresholds, alt_thresholds, ec);
+                    } // for (...)
                 } // reset_rule(...)
+
+                template <typename t_rule_type, typename t_process_type>
+                static void init_rule(t_rule_type& rule, const t_process_type& proc, std::error_code& ec)
+                {
+                    hypotheses::model<value_type> model {};
+                    value_type analyzed_mu = 1;
+                    value_type anticipated_run_length = 1;
+
+                    std::vector<value_type> null_thresholds = { 1, 2, 3 };
+                    std::vector<value_type> alt_thresholds = { 1, 2, 3 };
+
+                    rule.initialize(model,
+                        analyzed_mu,
+                        anticipated_run_length,
+                        proc.log_likelihood_scale(), 
+                        null_thresholds, alt_thresholds, ec);
+                } // init_rule(...)
             }; // struct generator
 
             // ~~ Definitions ~~

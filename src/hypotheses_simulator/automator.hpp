@@ -201,8 +201,13 @@ namespace ropufu::sequential::hypotheses
         automator(const signal_type& signal, const noise_type& noise, const congif_type& config, std::error_code& ec) noexcept
             : m_signal(de_auto_regress_type::adjust_signal(signal, noise, ec)),
             m_noise(de_auto_regress_type::adjust_noise(signal, noise, ec)),
-            m_rules(config.rules(), ec)
+            m_rules()
         {
+            for (const auto& v : config.rules())
+            {
+                std::visit([&] (auto&& rule_design) { this->m_rules.insert(rule_design); }, v);
+            } // for (...)
+
             this->m_mat_output_path = config.mat_output_path();
             this->m_monte_carlo = monte_carlo_type(config.simulation_count());
             this->build_runs(config);
