@@ -43,14 +43,14 @@ std::int32_t main()
     {
         //run_test([] () { return false; });
         // ~~ Moment statistic tests ~~
-        run_test(moment_statistic_test::test_scalar<0>, "<moment_statistic_test(0)> scalar");
-        run_test(moment_statistic_test::test_scalar<1>, "<moment_statistic_test(1)> scalar");
-        run_test(moment_statistic_test::test_scalar<3>, "<moment_statistic_test(3)> scalar");
-        run_test(moment_statistic_test::test_scalar<8>, "<moment_statistic_test(8)> scalar");
-        run_test(moment_statistic_test::test_matrix<0, 4, 5>, "<moment_statistic_test(0)> matrix");
-        run_test(moment_statistic_test::test_matrix<1, 4, 5>, "<moment_statistic_test(1)> matrix");
-        run_test(moment_statistic_test::test_matrix<3, 7, 3>, "<moment_statistic_test(3)> matrix");
-        run_test(moment_statistic_test::test_matrix<8, 2, 2>, "<moment_statistic_test(8)> matrix");
+        run_test(moment_statistic_test::test_scalar<std::size_t, double, 0>, "<moment_statistic_test(0)> scalar");
+        run_test(moment_statistic_test::test_scalar<float, double, 1>, "<moment_statistic_test(1)> scalar");
+        run_test(moment_statistic_test::test_scalar<double, double, 3>, "<moment_statistic_test(3)> scalar");
+        run_test(moment_statistic_test::test_scalar<float, float, 8>, "<moment_statistic_test(8)> scalar");
+        run_test(moment_statistic_test::test_matrix<float, double, 0, 4, 5>, "<moment_statistic_test(0)> matrix");
+        run_test(moment_statistic_test::test_matrix<std::size_t, double, 1, 4, 5>, "<moment_statistic_test(1)> matrix");
+        run_test(moment_statistic_test::test_matrix<float, float, 3, 7, 3>, "<moment_statistic_test(3)> matrix");
+        run_test(moment_statistic_test::test_matrix<double, double, 8, 2, 2>, "<moment_statistic_test(8)> matrix");
         // ~~ Signal tests ~~
         run_test(signal_test::test_constant, "<signal_test> constant");
         run_test(signal_test::test_transitionary<0>, "<signal_test> transitionary(0)");

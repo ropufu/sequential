@@ -20,92 +20,104 @@ namespace ropufu::sequential
         struct moment_statistic_test
         {
             using type = moment_statistic_test;
-            using scalar_type = double;
-            using matrix_type = aftermath::algebra::matrix<scalar_type>;
+            
+            template <typename t_scalar_type>
+            using matrix_t = aftermath::algebra::matrix<t_scalar_type>;
 
-            template <std::size_t t_order>
+            template <typename t_observation_type, typename t_statistic_type, std::size_t t_order>
             static bool test_scalar() noexcept
             {
-                using tested_type = hypotheses::moment_statistic<scalar_type, t_order>;
-                scalar_type zero {};
+                using tested_type = hypotheses::moment_statistic<t_observation_type, t_statistic_type, t_order>;
+                t_statistic_type zero {};
 
-                for (scalar_type anticipated_mean = 0; anticipated_mean < 15; ++anticipated_mean)
+                for (t_statistic_type anticipated_mean = 0; anticipated_mean < 15; ++anticipated_mean)
                 {
                     tested_type stat { zero, anticipated_mean };
 
                     std::size_t n = 100;
-                    std::vector<scalar_type> history {};
-                    scalar_type sum = 0;
+                    std::vector<t_observation_type> history {};
+                    t_statistic_type sum = 0;
                     
                     history.reserve(n);
 
                     for (std::size_t time = 0; time < n; ++time)
                     {
-                        scalar_type x = static_cast<scalar_type>(time + time * time + (time % 15));
+                        t_observation_type x = static_cast<t_observation_type>(time + time * time + (time % 15));
                         stat.observe(x);
-
                         history.push_back(x);
-                        sum += x;
+                        sum += static_cast<t_statistic_type>(x);
                     } // for (...)
 
-                    scalar_type mean = sum / static_cast<scalar_type>(n);
-                    scalar_type variance = 0;
-                    for (const scalar_type& x : history) variance += (x - mean) * (x - mean);
-                    variance /= static_cast<scalar_type>(n - 1);
+                    t_statistic_type mean = sum / static_cast<t_statistic_type>(n);
+                    t_statistic_type variance = 0;
+                    for (const t_observation_type& x : history)
+                    {
+                        t_statistic_type y = static_cast<t_statistic_type>(x);
+                        variance += ((y - mean) * (y - mean));
+                    }
+                    variance /= static_cast<t_statistic_type>(n - 1);
 
-                    scalar_type e1 = abs(stat.mean() - mean);
-                    scalar_type e2 = abs(stat.variance() - variance);
-
-                    if (e1 > 0.001) return false;
-                    if (e2 > 0.01) return false;
+                    t_statistic_type e1 = abs((stat.mean() - mean) / mean);
+                    t_statistic_type e2 = abs((stat.variance() - variance) / variance);
+                    
+                    if (e1 > 0.00001) return false;
+                    if (e2 > 0.0001) return false;
                 } // for (...)
                 return true;
             } // test_scalar(...)
 
-            template <std::size_t t_order, std::size_t t_height, std::size_t t_width>
+            template <typename t_observation_type, typename t_statistic_type, std::size_t t_order, std::size_t t_height, std::size_t t_width>
             static bool test_matrix() noexcept
             {
-                using tested_type = hypotheses::moment_statistic<matrix_type, t_order>;
-                matrix_type zero { t_height, t_width };
+                using tested_type = hypotheses::moment_statistic<matrix_t<t_observation_type>, matrix_t<t_statistic_type>, t_order>;
+                matrix_t<t_statistic_type> zero { t_height, t_width };
 
-                for (scalar_type am = 0; am < 15; ++am)
+                for (t_statistic_type am = 0; am < 15; ++am)
                 {
-                    matrix_type anticipated_mean { t_height, t_width };
+                    matrix_t<t_statistic_type> anticipated_mean { t_height, t_width };
                     anticipated_mean.fill(am);
 
                     tested_type stat { zero, anticipated_mean };
 
                     std::size_t n = 100;
-                    std::vector<matrix_type> history {};
-                    matrix_type sum { t_height, t_width };
+                    std::vector<matrix_t<t_observation_type>> history {};
+                    matrix_t<t_statistic_type> sum { t_height, t_width };
                     
                     history.reserve(n);
 
                     for (std::size_t time = 0; time < n; ++time)
                     {
-                        scalar_type sc = static_cast<scalar_type>(time + time * time + (time % 15));
-                        matrix_type x { t_height, t_width };
+                        t_observation_type sc = static_cast<t_observation_type>(time + time * time + (time % 15));
+                        matrix_t<t_observation_type> x { t_height, t_width };
                         x.fill(sc);
-
                         stat.observe(x);
-
                         history.push_back(x);
-                        sum += x;
+                        
+                        matrix_t<t_statistic_type> y { x };
+                        sum += y;
                     } // for (...)
 
-                    matrix_type mean = sum / static_cast<scalar_type>(n);
-                    matrix_type variance { t_height, t_width };
-                    for (const matrix_type& x : history) variance += (x - mean) * (x - mean);
-                    variance /= static_cast<scalar_type>(n - 1);
+                    matrix_t<t_statistic_type> mean = sum / static_cast<t_statistic_type>(n);
+                    matrix_t<t_statistic_type> variance { t_height, t_width };
+                    for (const matrix_t<t_observation_type>& x : history)
+                    {
+                        matrix_t<t_statistic_type> y = static_cast<matrix_t<t_statistic_type>>(x);
+                        y -= mean;
+                        y *= y;
+                        variance += y;
+                    } // for (...)
+                    variance /= static_cast<t_statistic_type>(n - 1);
 
-                    matrix_type e1 = stat.mean() - mean;
-                    matrix_type e2 = stat.variance() - variance;
+                    matrix_t<t_statistic_type> e1 = stat.mean() - mean;
+                    e1 /= mean;
+                    matrix_t<t_statistic_type> e2 = stat.variance() - variance;
+                    e2 /= variance;
 
-                    for (scalar_type& x : e1) if (x < 0) x = (-x);
-                    for (scalar_type& x : e2) if (x < 0) x = (-x);
+                    for (t_statistic_type& x : e1) if (x < 0) x = (-x);
+                    for (t_statistic_type& x : e2) if (x < 0) x = (-x);
 
-                    for (scalar_type& x : e1) if (x > 0.001) return false;
-                    for (scalar_type& x : e2) if (x > 0.01) return false;
+                    for (t_statistic_type& x : e1) if (x > 0.00001) return false;
+                    for (t_statistic_type& x : e2) if (x > 0.0001) return false;
                 } // for (...)
                 return true;
             } // test_scalar(...)

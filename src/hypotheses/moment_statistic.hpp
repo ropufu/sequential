@@ -50,12 +50,12 @@ namespace ropufu::sequential::hypotheses
      *  @todo Allow for different types for observations vs. statistics,
      *        e.g., observations could be std::size_t, but statistics---double.
      */
-    template <typename t_observation_type, std::size_t t_order = 3>
+    template <typename t_observation_type, typename t_statistic_type = t_observation_type, std::size_t t_order = 3>
     struct moment_statistic
     {
-        using type = moment_statistic<t_observation_type, t_order>;
+        using type = moment_statistic<t_observation_type, t_statistic_type, t_order>;
         using observation_type = t_observation_type;
-        using statistic_type = t_observation_type;
+        using statistic_type = t_statistic_type;
         using scalar_type = detail::vector_to_scalar_t<statistic_type>;
 
         /** Number of bins. */
@@ -96,7 +96,7 @@ namespace ropufu::sequential::hypotheses
 
         void observe(const observation_type& value) noexcept
         {
-            statistic_type x = value; // @todo Conversion from observation_type to statistic_type for matrices.
+            statistic_type x = static_cast<statistic_type>(value);
             x -= this->m_shift; // x now holds the offset value.
 
             this->m_local_shifted_sums[this->m_bin_index] += x;
@@ -116,10 +116,10 @@ namespace ropufu::sequential::hypotheses
 
             // S = sum(x - shift) = n (mean - shift).
             // mean = shift + (S / n) = shift + sum(S_local / n).
-            statistic_type mean = this->m_shift;
+            statistic_type mean { this->m_shift };
             for (std::size_t j = 0; j < type::bredth; ++j)
             {
-                statistic_type s = this->m_local_shifted_sums[j];
+                statistic_type s { this->m_local_shifted_sums[j] };
                 s /= n;
                 mean += s;
             } // for (...)
@@ -139,15 +139,15 @@ namespace ropufu::sequential::hypotheses
             // (n - 1) var = Q - S^2 / n.
             // var = Q / (n - 1) - [S / (n - 1)] [S / n]
             //     = sum(Q_local / (n - 1)) - [sum(S_local / (n - 1))] [sum(S_local / n)].
-            statistic_type variance = this->m_zero;
-            statistic_type variance_sa = this->m_zero;
-            statistic_type variance_sb = this->m_zero;
+            statistic_type variance { this->m_zero };
+            statistic_type variance_sa { this->m_zero };
+            statistic_type variance_sb { this->m_zero };
 
             for (std::size_t j = 0; j < type::bredth; ++j)
             {
-                statistic_type q = this->m_local_shifted_squares[j];
-                statistic_type sa = this->m_local_shifted_sums[j];
-                statistic_type sb = this->m_local_shifted_sums[j];
+                statistic_type q { this->m_local_shifted_squares[j] };
+                statistic_type sa { this->m_local_shifted_sums[j] };
+                statistic_type sb { this->m_local_shifted_sums[j] };
 
                 q /= n_less_one;
                 sa /= n_less_one;
