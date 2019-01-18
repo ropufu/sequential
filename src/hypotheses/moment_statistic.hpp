@@ -2,105 +2,168 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_MOMENT_STATISTIC_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_MOMENT_STATISTIC_HPP_INCLUDED
 
-#include <cstddef>
+#include <ropufu/type_traits.hpp> // aftermath::type_traits::is_iterable_v
 
-namespace ropufu
+#include <array>   // std::array
+#include <cstddef> // std::size_t
+#include <type_traits>  // ...
+
+namespace ropufu::sequential::hypotheses
 {
-    namespace sequential
+    namespace detail
     {
-        namespace hypotheses
+        template <typename t_type, typename = void>
+        struct vector_to_scalar
         {
-            /** Not the most accurate but fast statistic builder suitable for some purposes. */
-            template <typename t_matrix_type>
-            struct moment_statistic
+            using scalar_type = t_type;
+        }; // struct vector_to_scalar
+
+        template <typename t_type>
+        struct vector_to_scalar<t_type, std::void_t<typename t_type::value_type>>
+        {
+            using scalar_type = typename t_type::value_type;
+        }; // struct vector_to_scalar<...>
+
+        template <typename t_type>
+        using vector_to_scalar_t = typename vector_to_scalar<t_type>::scalar_type;
+
+        template <typename t_value_type, bool t_iterable_flag = aftermath::type_traits::is_iterable_v<t_value_type>>
+        struct positive_part
+        {
+            static void make(t_value_type& scalar) { if (scalar < 0) scalar = 0; }
+        }; // struct positive_part
+
+        template <typename t_value_type>
+        inline void make_non_negative(t_value_type& value) { positive_part<t_value_type>::make(value); }
+
+        template <typename t_value_type>
+        struct positive_part<t_value_type, true>
+        {
+            static void make(t_value_type& vector)
             {
-                using type = moment_statistic<t_matrix_type>;
-                using matrix_type = t_matrix_type;
-                using value_type = typename t_matrix_type::value_type;
+                for (auto& scalar : vector) make_non_negative(scalar);
+            } // make(...)
+        }; // struct positive_part
+    } // namespace detail
+    
+    /** @brief A fast statistic builder to keep track of means and variances.
+     *  @todo Allow for different types for observations vs. statistics,
+     *        e.g., observations could be std::size_t, but statistics---double.
+     */
+    template <typename t_observation_type, std::size_t t_order = 3>
+    struct moment_statistic
+    {
+        using type = moment_statistic<t_observation_type, t_order>;
+        using observation_type = t_observation_type;
+        using statistic_type = t_observation_type;
+        using scalar_type = detail::vector_to_scalar_t<statistic_type>;
 
-            private:
-                std::size_t m_count = 0;
-                matrix_type m_zero = {};
-                matrix_type m_sum = {};
-                //matrix_type m_sum_of_squares;
-                matrix_type m_shift = {}; // Shift to use in the sum of squares, m.
-                matrix_type m_sum_of_shifted_squares = {}; // sum(x - m)^2 = (n - 1) var + n (mean - m)^2
+        /** Number of bins. */
+        static constexpr std::size_t bredth = t_order + 1;
 
-            public:
-                moment_statistic() noexcept { }
+        template <typename t_type>
+        using bins_t = std::array<t_type, type::bredth>;
 
-                explicit moment_statistic(const matrix_type& zero, const matrix_type& anticipated_mean) noexcept
-                    : m_zero(zero), m_sum(zero), m_shift(anticipated_mean), m_sum_of_shifted_squares(zero)
-                {
-                } // moment_statistic(...)
+    private:
+        std::size_t m_count = 0; // Total count of observations.
+        statistic_type m_zero = {}; // Auxiliary "zero" structure.
+        statistic_type m_shift = {}; // Shift to offset every observation.
+        std::size_t m_bin_index = 0; // Pointer to the next bin to be filled.
+        bins_t<statistic_type> m_local_shifted_sums = {}; // sum(x - shift) = n (mean - shift).
+        bins_t<statistic_type> m_local_shifted_squares = {}; // sum(x - shift)^2 = (n - 1) var + sum(x - shift) / n.
 
-                void clear() noexcept
-                {
-                    this->m_count = 0;
-                    this->m_sum = this->m_zero;
-                    this->m_sum_of_shifted_squares = this->m_zero;
-                }
+        /** Indicates if all bins have the same counts. */
+        bool is_balanced() const noexcept { return this->m_bin_index == 0; }
 
-                void observe(const matrix_type& value) noexcept
-                {
-                    matrix_type x = value;
-                    x -= this->m_shift;
-                    x *= x;
+    public:
+        moment_statistic() noexcept { }
 
-                    this->m_sum += value;
-                    this->m_sum_of_shifted_squares += x;
-                    this->m_count++;
-                }
+        explicit moment_statistic(const statistic_type& zero, const statistic_type& anticipated_mean) noexcept
+            : m_zero(zero), m_shift(anticipated_mean)
+        {
+            this->m_local_shifted_sums.fill(zero);
+            this->m_local_shifted_squares.fill(zero);
+        } // moment_statistic(...)
 
-                std::size_t count() const noexcept { return this->m_count; }
-                const matrix_type& sum() const noexcept { return this->m_sum; }
-                
-                matrix_type sum_of_squares() const noexcept
-                {
-                    // sum(x)^2 = sum(x - m)^2 + 2 m sum(x) - n m^2.
-                    matrix_type sum_of_squares = this->m_sum_of_shifted_squares;
+        void clear() noexcept
+        {
+            this->m_count = 0;
 
-                    matrix_type x = this->m_shift;
-                    x *= this->m_sum;
-                    x.transform([&](value_type& e) { e *= 2; });
-                    sum_of_squares += x;
+            this->m_bin_index = 0;
+            this->m_local_shifted_sums.fill(this->m_zero);
+            this->m_local_shifted_squares.fill(this->m_zero);
+        } // clear(...)
 
-                    matrix_type y = this->m_shift;
-                    y *= y;
-                    y.transform([&](value_type& e) { e *= this->m_count; });
-                    sum_of_squares -= y;
+        void observe(const observation_type& value) noexcept
+        {
+            statistic_type x = value; // @todo Conversion from observation_type to statistic_type for matrices.
+            x -= this->m_shift; // x now holds the offset value.
 
-                    return sum_of_squares;
-                }
+            this->m_local_shifted_sums[this->m_bin_index] += x;
 
-                matrix_type mean() const noexcept
-                {
-                    matrix_type x = this->m_sum;
-                    x.transform([&](value_type& e) { e /= this->m_count; });
-                    return x;
-                }
+            x *= x; // x now holds the offset value squared.
+            this->m_local_shifted_squares[this->m_bin_index] += x;
 
-                matrix_type variance() const noexcept
-                {
-                    if (this->m_count == 0) return this->m_zero;
-                    // (n - 1) var = sum(x - m)^2 - n (mean - m)^2
-                    matrix_type variance = this->m_sum_of_shifted_squares;
+            ++this->m_count;
+            this->m_bin_index = (this->m_bin_index + 1) % (type::bredth);
+        } // observe(...)
 
-                    matrix_type x = this->m_sum;
-                    x.transform([&](value_type& e) { e /= this->m_count; });
-                    x -= this->m_shift;
-                    x *= x;
-                    x.transform([&](value_type& e) { e *= this->m_count; });
+        std::size_t count() const noexcept { return this->m_count; }
 
-                    variance -= x;
-                    variance.transform([&](value_type& e) { e /= (this->m_count - 1); });
+        statistic_type mean() const noexcept
+        {
+            scalar_type n = static_cast<scalar_type>(this->m_count);
 
-                    variance.transform([&](value_type& e) { if (e < 0) e = 0; });
-                    return variance;
-                }
-            };
-        }
-    }
-}
+            // S = sum(x - shift) = n (mean - shift).
+            // mean = shift + (S / n) = shift + sum(S_local / n).
+            statistic_type mean = this->m_shift;
+            for (std::size_t j = 0; j < type::bredth; ++j)
+            {
+                statistic_type s = this->m_local_shifted_sums[j];
+                s /= n;
+                mean += s;
+            } // for (...)
+            return mean;
+        } // mean(...)
+
+        statistic_type variance() const noexcept
+        {
+            if (this->m_count == 0) return this->m_zero;
+
+            scalar_type n = static_cast<scalar_type>(this->m_count);
+            scalar_type n_less_one = static_cast<scalar_type>(this->m_count - 1);
+
+            // Q = sum(x - shift)^2.
+            // S = sum(x - shift).
+            // (n - 1) var = Q - n (mean - shift)^2.
+            // (n - 1) var = Q - S^2 / n.
+            // var = Q / (n - 1) - [S / (n - 1)] [S / n]
+            //     = sum(Q_local / (n - 1)) - [sum(S_local / (n - 1))] [sum(S_local / n)].
+            statistic_type variance = this->m_zero;
+            statistic_type variance_sa = this->m_zero;
+            statistic_type variance_sb = this->m_zero;
+
+            for (std::size_t j = 0; j < type::bredth; ++j)
+            {
+                statistic_type q = this->m_local_shifted_squares[j];
+                statistic_type sa = this->m_local_shifted_sums[j];
+                statistic_type sb = this->m_local_shifted_sums[j];
+
+                q /= n_less_one;
+                sa /= n_less_one;
+                sb /= n;
+
+                variance += q;
+                variance_sa += sa;
+                variance_sb += sb;
+            } // for (...)
+
+            variance_sa *= variance_sb;
+            variance -= variance_sa;
+            detail::make_non_negative(variance);
+            return variance;
+        } // variance(...)
+    }; // struct moment_statistic
+} // namespace ropufu::sequential::hypotheses
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_MOMENT_STATISTIC_HPP_INCLUDED

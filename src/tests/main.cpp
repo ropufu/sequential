@@ -4,6 +4,7 @@
 #include "process_test.hpp"
 #include "rule_test.hpp"
 #include "monte_carlo_test.hpp"
+#include "moment_statistic_test.hpp"
 
 #include <chrono>    // std::chrono::steady_clock, std::chrono::duration_cast
 #include <cstddef>   // std::size_t
@@ -17,6 +18,7 @@ using noise_test = ropufu::sequential::hypotheses_test::noise_test;
 using process_test = ropufu::sequential::hypotheses_test::process_test;
 using rule_test = ropufu::sequential::hypotheses_test::rule_test;
 using monte_carlo_test = ropufu::sequential::hypotheses_test::monte_carlo_test;
+using moment_statistic_test = ropufu::sequential::hypotheses_test::moment_statistic_test;
 
 template <typename t_test_type>
 bool run_test(t_test_type test, std::string&& name)
@@ -33,15 +35,24 @@ bool run_test(t_test_type test, std::string&& name)
         << elapsed_seconds << "s." << std::endl;
 
     return result;
-}
+} // run_test(...)
 
 std::int32_t main()
 {
     try
     {
-        //run_test([]() { return false; });
+        //run_test([] () { return false; });
+        // ~~ Moment statistic tests ~~
+        run_test(moment_statistic_test::test_scalar<0>, "<moment_statistic_test(0)> scalar");
+        run_test(moment_statistic_test::test_scalar<1>, "<moment_statistic_test(1)> scalar");
+        run_test(moment_statistic_test::test_scalar<3>, "<moment_statistic_test(3)> scalar");
+        run_test(moment_statistic_test::test_scalar<8>, "<moment_statistic_test(8)> scalar");
+        run_test(moment_statistic_test::test_matrix<0, 4, 5>, "<moment_statistic_test(0)> matrix");
+        run_test(moment_statistic_test::test_matrix<1, 4, 5>, "<moment_statistic_test(1)> matrix");
+        run_test(moment_statistic_test::test_matrix<3, 7, 3>, "<moment_statistic_test(3)> matrix");
+        run_test(moment_statistic_test::test_matrix<8, 2, 2>, "<moment_statistic_test(8)> matrix");
         // ~~ Signal tests ~~
-        run_test(signal_test::test_constant,         "<signal_test> constant");
+        run_test(signal_test::test_constant, "<signal_test> constant");
         run_test(signal_test::test_transitionary<0>, "<signal_test> transitionary(0)");
         run_test(signal_test::test_transitionary<2>, "<signal_test> transitionary(2)");
         run_test(signal_test::test_transitionary<5>, "<signal_test> transitionary(5)");
@@ -80,4 +91,4 @@ std::int32_t main()
     } // catch (...)
 
     return 0;
-}
+} // main(...)
