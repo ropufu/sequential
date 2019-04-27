@@ -1,4 +1,6 @@
 
+.vscode/ipch
+
 # ~~ macOS.gitignore ~~
 # General
 .DS_Store
