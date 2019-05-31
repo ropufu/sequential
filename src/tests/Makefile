@@ -5,7 +5,7 @@ CC = g++-8
 
 CFLAGS = -std=c++17 -Wall
 
-PATHINC = -I./../../../aftermath/src -I./../../../opensource -I./..
+PATHINC = -I./../../../aftermath/src -I./../../../../include -I./..
 
 PATHLIB =
 

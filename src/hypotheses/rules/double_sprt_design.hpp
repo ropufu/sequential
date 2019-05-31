@@ -39,11 +39,13 @@ namespace ropufu::sequential::hypotheses
         static constexpr char jstr_id[] = "id";
         static constexpr char jstr_relative_mu_intermediate[] = "relative mu intermediate";
         static constexpr char jstr_asymptotic_init[] = "asymptotic init";
+        static constexpr char jstr_huffman_correction[] = "huffman";
 
     private:
         std::size_t m_id = 0;
         value_type m_relative_mu_intermediate = static_cast<value_type>(0.5); // Relative threshold used to decide in favor of either of the hypotheses.
         bool m_asymptotic_init = false;
+        bool m_huffman_correction = false;
 
     protected:
         bool validate(std::error_code& ec) const noexcept
@@ -83,6 +85,7 @@ namespace ropufu::sequential::hypotheses
 
             // Parse json entries.
             aftermath::noexcept_json::required(j, type::jstr_id, this->m_id, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_huffman_correction, this->m_huffman_correction, ec);
             bool is_asymptotic = j.count(type::jstr_asymptotic_init) != 0;
             if (is_asymptotic)
             {
@@ -103,11 +106,16 @@ namespace ropufu::sequential::hypotheses
         std::size_t id() const noexcept { return this->m_id; }
         value_type relative_mu_intermediate() const noexcept { return this->m_relative_mu_intermediate; }
         bool asymptotic_init() const noexcept { return this->m_asymptotic_init; }
+        bool huffman_correction() const noexcept { return this->m_huffman_correction; }
 
         std::string to_path_string(std::size_t decimal_places) const noexcept
         {
             std::string result = type::typename_string;
-            if (this->m_asymptotic_init) result += " asymp";
+            if (this->m_asymptotic_init)
+            {
+                result += " asymp";
+                if (this->m_huffman_correction) result += " huffman";
+            } // if (...)
             else
             {
                 result += " intermediate ";
@@ -132,6 +140,7 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type> constexpr char double_sprt_design<t_value_type>::jstr_id[];
     template <typename t_value_type> constexpr char double_sprt_design<t_value_type>::jstr_relative_mu_intermediate[];
     template <typename t_value_type> constexpr char double_sprt_design<t_value_type>::jstr_asymptotic_init[];
+    template <typename t_value_type> constexpr char double_sprt_design<t_value_type>::jstr_huffman_correction[];
     
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const double_sprt_design<t_value_type>& x) noexcept
@@ -143,7 +152,8 @@ namespace ropufu::sequential::hypotheses
             {type::jstr_typename, sprt_type_str},
             {type::jstr_id, x.id()},
             {type::jstr_relative_mu_intermediate, x.relative_mu_intermediate()},
-            {type::jstr_asymptotic_init, x.asymptotic_init()}
+            {type::jstr_asymptotic_init, x.asymptotic_init()},
+            {type::jstr_huffman_correction, x.huffman_correction()}
         };
     } // to_json(...)
 

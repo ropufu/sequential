@@ -8,7 +8,7 @@
                 "/usr/local/include",
                 "/usr/include",
                 "${workspaceRoot}",
-                "${workspaceRoot}/../opensource",
+                "${workspaceRoot}/../../include",
                 "${workspaceRoot}/../aftermath/src"
             ],
             "defines": [],
@@ -20,7 +20,7 @@
                     "/usr/local/include",
                     "/usr/include",
                     "${workspaceRoot}",
-                    "${workspaceRoot}/../opensource",
+                    "${workspaceRoot}/../../include",
                     "${workspaceRoot}/../aftermath/src"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
@@ -37,7 +37,7 @@
                 "/usr/include",
                 "/usr/local/include",
                 "${workspaceRoot}",
-                "${workspaceRoot}/../opensource",
+                "${workspaceRoot}/../../include",
                 "${workspaceRoot}/../aftermath/src"
             ],
             "defines": [],
@@ -47,7 +47,7 @@
                     "/usr/include",
                     "/usr/local/include",
                     "${workspaceRoot}",
-                    "${workspaceRoot}/../opensource",
+                    "${workspaceRoot}/../../include",
                     "${workspaceRoot}/../aftermath/src"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
@@ -60,7 +60,7 @@
                 "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.16.27023/include",
                 "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17763.0.0/ucrt",
                 "${workspaceRoot}",
-                "${workspaceRoot}/../opensource",
+                "${workspaceRoot}/../../include",
                 "${workspaceRoot}/../aftermath/src"
             ],
             "defines": [
@@ -73,7 +73,7 @@
                     "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.16.27023/include",
                     "C:/Program Files (x86)/Windows Kits/10/Include/10.0.17763.0/ucrt",
                     "${workspaceRoot}",
-                    "${workspaceRoot}/../opensource",
+                    "${workspaceRoot}/../../include",
                     "${workspaceRoot}/../aftermath/src"
                 ],
                 "limitSymbolsToIncludedHeaders": true,

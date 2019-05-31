@@ -3,6 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_DOUBLE_SPRT_HPP_INCLUDED
 
 #include <ropufu/algebra/matrix.hpp>
+#include <ropufu/probability/normal_distribution.hpp>
 #include <ropufu/on_error.hpp>
 
 #include "../model.hpp"
@@ -81,9 +82,29 @@ namespace ropufu::sequential::hypotheses
                 value_type alt_mu = this->likelihood().model().smallest_mu_under_alt();
                 value_type mu_diff = alt_mu - null_mu;
 
-                for (std::size_t i = 0; i < m; ++i)
-                    for (std::size_t j = 0; j < n; ++j)
-                        this->m_mu_intermediate(i, j) = null_mu + mu_diff / (1 + std::sqrt(unscaled_null_thresholds[i] / unscaled_alt_thresholds[j]));
+                if (this->m_design.huffman_correction())
+                {
+                    std::error_code ec {};
+                    aftermath::probability::normal_distribution<value_type> standard_normal {};
+                    for (std::size_t i = 0; i < m; ++i)
+                    {
+                        for (std::size_t j = 0; j < n; ++j)
+                        {
+                            value_type x = 1 + std::sqrt(unscaled_null_thresholds[i] / unscaled_alt_thresholds[j]);
+                            value_type r = standard_normal.quantile(1 / x, ec);
+                            value_type delta_mu_star = mu_diff / x;
+                            value_type mu_tilde = null_mu + delta_mu_star + r * delta_mu_star / std::sqrt(2 * unscaled_null_thresholds[i]);
+                            if (mu_tilde > alt_mu) mu_tilde = alt_mu;
+                            this->m_mu_intermediate(i, j) = mu_tilde;
+                        } // for (...)
+                    } // for (...)
+                } // if (...)
+                else
+                {
+                    for (std::size_t i = 0; i < m; ++i)
+                        for (std::size_t j = 0; j < n; ++j)
+                            this->m_mu_intermediate(i, j) = null_mu + mu_diff / (1 + std::sqrt(unscaled_null_thresholds[i] / unscaled_alt_thresholds[j]));
+                } // else (...)
             } // else (...)
 
             this->on_reset_override();
