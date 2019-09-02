@@ -1,18 +1,16 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_DOUBLE_SPRT_DESIGN_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_DOUBLE_SPRT_DESIGN_HPP_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_RULES_DOUBLE_SPRT_DESIGN_HPP_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_RULES_DOUBLE_SPRT_DESIGN_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include <ropufu/json_traits.hpp>
+#include <ropufu/noexcept_json.hpp>
+#include <ropufu/number_traits.hpp>
 
-#include <ropufu/on_error.hpp>
-#include "../../draft/algebra/numbers.hpp"
-
-#include "../core.hpp"
+#include "../format.hpp"
 
 #include <cstddef>   // std::size_t
 #include <iostream>  // std::ostream
-#include <stdexcept> // std::runtime_error
+#include <stdexcept> // std::runtime_error, std::logc_error
 #include <string>    // std::string
 #include <system_error> // std::error_code, std::errc
 
@@ -47,29 +45,34 @@ namespace ropufu::sequential::hypotheses
         bool m_asymptotic_init = false;
         bool m_huffman_correction = false;
 
-    protected:
-        bool validate(std::error_code& ec) const noexcept
+        static bool is_valid(value_type relative_mu_intermediate, std::string& message) noexcept
         {
-            if (modules::is_nan(this->m_relative_mu_intermediate) || modules::is_infinite(this->m_relative_mu_intermediate)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Relative cutoff has to be a finite number.", false);
-            if (this->m_relative_mu_intermediate <= 0 || this->m_relative_mu_intermediate >= 1) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Relative cutoff has to be strictly between zero and one.", false);
+            if (!aftermath::is_finite(relative_mu_intermediate))
+            {
+                message = "Relative intermediate mu must be finite.";
+                return false;
+            } // if (...)
+            if (relative_mu_intermediate <= 0 || relative_mu_intermediate >= 1)
+            {
+                message = "Relative intermediate mu must be positive and less than one.";
+                return false;
+            } // if (...)
             return true;
         } // validate(...)
 
-        void coerce() noexcept
+        void validate() const
         {
-            if (modules::is_nan(this->m_relative_mu_intermediate) || modules::is_infinite(this->m_relative_mu_intermediate)) this->m_relative_mu_intermediate = static_cast<value_type>(0.5);
-            if (this->m_relative_mu_intermediate <= 0) this->m_relative_mu_intermediate = static_cast<value_type>(0.5);
-            if (this->m_relative_mu_intermediate >= 1) this->m_relative_mu_intermediate = static_cast<value_type>(0.5);
-        } // coerce(...)
+            std::string message {};
+            if (!type::is_valid(this->m_relative_mu_intermediate, message))
+                throw std::logic_error(message);
+        } // validate(...)
 
     public:
         double_sprt_design() noexcept { }
 
-        double_sprt_design(std::size_t id, value_type relative_mu_intermediate, std::error_code& ec) noexcept
-            : m_id(id),
-            m_relative_mu_intermediate(relative_mu_intermediate)
+        explicit double_sprt_design(std::size_t id) noexcept
+            : m_id(id)
         {
-            if (!this->validate(ec)) this->coerce();
         } // double_sprt_design(...)
         
         double_sprt_design(const nlohmann::json& j, std::error_code& ec) noexcept
@@ -79,42 +82,70 @@ namespace ropufu::sequential::hypotheses
             aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
             if (typename_str != type::typename_string)
             {
-                aftermath::detail::on_error(ec, std::errc::invalid_argument, "SPRT type mismatch.");
+                ec = std::make_error_code(std::errc::bad_message); // SPRT type mismatch.
                 return;
             } // if (...)
 
             // Parse json entries.
-            aftermath::noexcept_json::required(j, type::jstr_id, this->m_id, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_huffman_correction, this->m_huffman_correction, ec);
-            bool is_asymptotic = j.count(type::jstr_asymptotic_init) != 0;
+            std::size_t id = this->m_id;
+            value_type relative_mu_intermediate = this->m_relative_mu_intermediate;
+            bool is_asymptotic = this->m_asymptotic_init;
+            bool is_huffman = this->m_huffman_correction;
+            aftermath::noexcept_json::required(j, type::jstr_id, id, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_asymptotic_init, is_asymptotic, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_huffman_correction, is_huffman, ec);
             if (is_asymptotic)
             {
-                aftermath::noexcept_json::optional(j, type::jstr_relative_mu_intermediate, this->m_relative_mu_intermediate, ec);
-                aftermath::noexcept_json::required(j, type::jstr_asymptotic_init, this->m_asymptotic_init, ec);
+                aftermath::noexcept_json::optional(j, type::jstr_relative_mu_intermediate, relative_mu_intermediate, ec);
             } // if (...)
             else
             {
-                aftermath::noexcept_json::required(j, type::jstr_relative_mu_intermediate, this->m_relative_mu_intermediate, ec);
-                aftermath::noexcept_json::optional(j, type::jstr_asymptotic_init, this->m_asymptotic_init, ec);
+                aftermath::noexcept_json::required(j, type::jstr_relative_mu_intermediate, relative_mu_intermediate, ec);
             } // else (...)
+            if (ec.value() != 0) return;
 
-            if (!this->validate(ec)) this->coerce();
+            // Validate entries.
+            std::string message {};
+            if (!type::is_valid(relative_mu_intermediate, message))
+            {
+                ec = std::make_error_code(std::errc::bad_message);
+                return;
+            } // if (...)
+            
+            // Populate values.
+            this->m_id = id;
+            this->m_relative_mu_intermediate = relative_mu_intermediate;
+            this->m_asymptotic_init = is_asymptotic;
+            this->m_huffman_correction = is_huffman;
         } // double_sprt_design(...)
 
-        bool is_threshold_independent() const noexcept { return !this->m_asymptotic_init; }
+        bool is_threshold_independent() const noexcept { return !(this->m_asymptotic_init || this->m_huffman_correction); }
 
         std::size_t id() const noexcept { return this->m_id; }
+        void set_id(std::size_t value) noexcept { this->m_id = value; }
+
         value_type relative_mu_intermediate() const noexcept { return this->m_relative_mu_intermediate; }
+        void set_relative_mu_intermediate(value_type value)
+        {
+            this->m_asymptotic_init = false;
+            this->m_huffman_correction = false;
+            this->m_relative_mu_intermediate = value;
+            this->validate();
+        } // set_relative_init(...)
+
         bool asymptotic_init() const noexcept { return this->m_asymptotic_init; }
+        void set_asymptotic_init(bool value) noexcept { this->m_asymptotic_init = value; }
+
         bool huffman_correction() const noexcept { return this->m_huffman_correction; }
+        void set_huffman_correction(bool value) noexcept { this->m_huffman_correction = value; }
 
         std::string to_path_string(std::size_t decimal_places) const noexcept
         {
             std::string result = type::typename_string;
             if (this->m_asymptotic_init)
             {
-                result += " asymp";
                 if (this->m_huffman_correction) result += " huffman";
+                else result += " asymp";
             } // if (...)
             else
             {
@@ -123,6 +154,20 @@ namespace ropufu::sequential::hypotheses
             } // else (...)
             return result;
         } // to_path_string(...)
+
+        bool operator ==(const type& other) const noexcept
+        {
+            return
+                this->m_id == other.m_id &&
+                this->m_relative_mu_intermediate == other.m_relative_mu_intermediate &&
+                this->m_asymptotic_init == other.m_asymptotic_init &&
+                this->m_huffman_correction == other.m_huffman_correction;
+        } // operator ==(...)
+
+        bool operator !=(const type& other) const noexcept
+        {
+            return !this->operator ==(other);
+        } // operator !=(...)
 
         /** Output to a stream. */
         friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
@@ -163,8 +208,8 @@ namespace ropufu::sequential::hypotheses
         using type = double_sprt_design<t_value_type>;
         std::error_code ec {};
         x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing failed: " + j.dump());
+        if (ec.value() != 0) throw std::runtime_error("Parsing <double_sprt_design> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_DOUBLE_SPRT_DESIGN_HPP_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_RULES_DOUBLE_SPRT_DESIGN_HPP_INCLUDED

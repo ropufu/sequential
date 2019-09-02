@@ -1,15 +1,12 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include <ropufu/json_traits.hpp>
+#include <ropufu/noexcept_json.hpp>
+#include <ropufu/number_traits.hpp>
 
-#include <ropufu/on_error.hpp> // aftermath::detail::on_error
-#include "../../draft/algebra/numbers.hpp"
-
-#include "../noise_base.hpp"
-#include "../sliding_array.hpp"
+#include "../../draft/ropufu/sliding_array.hpp"
 #include "white_noise.hpp"
 
 #include <array>    // std::array
@@ -39,146 +36,156 @@ namespace ropufu::sequential::hypotheses
         struct named_auto_regressive_noise<0, t_digits...> : public auto_regressive_noise_chars<t_digits...> { };
     } // namespace detail
 
-    /** Represents a descriptor for auto-regressive (AR) process. */
-    template <typename t_value_type, std::size_t t_ar_size = 0>
+    /** Auto-regressive (AR) process over white Gaussian noise. */
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
     struct auto_regressive_noise;
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
+    void to_json(nlohmann::json& j, const auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>& x) noexcept;
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
+    void from_json(const nlohmann::json& j, auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>& x);
     
-    /** Trivial case of AR process: white noise. */
-    template <typename t_value_type>
-    struct auto_regressive_noise<t_value_type, 0> : public white_noise<t_value_type>
+    /** Auto-regressive (AR) process over white Gaussian noise. */
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
+    struct auto_regressive_noise
+        : public detail::named_auto_regressive_noise<t_ar_size>
     {
-        using type = auto_regressive_noise<t_value_type, 0>;
+        using type = auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>;
+        using engine_type = t_engine_type;
         using value_type = t_value_type;
-        using ar_container_type = std::array<value_type, 0>;
-        using time_window_type = sliding_array<value_type, 0>;
 
-        using base_type = white_noise<value_type>;
+        using white_noise_type = white_noise<engine_type, value_type>;
+        using probability_type = typename white_noise_type::probability_type;
+        using expectation_type = typename white_noise_type::expectation_type;
+        using distribution_type = typename white_noise_type::distribution_type;
+
+        using ar_container_type = std::array<value_type, t_ar_size>;
+        using time_window_type = aftermath::sliding_array<value_type, t_ar_size + 1>;
+
+        static constexpr std::size_t ar_size = t_ar_size;
 
         // ~~ Json names ~~
         static constexpr char jstr_typename[] = "type";
-        static constexpr char jstr_noise_sigma[] = "noise sigma";
+        static constexpr char jstr_white[] = "white noise";
         static constexpr char jstr_ar_parameters[] = "AR parameters";
 
     private:
-        // ~~ Structural members ~~
+        white_noise_type m_white = {}; // White noise.
         ar_container_type m_ar_parameters = {}; // AR parameters.
+        time_window_type m_history = {}; // Brief history of AR noise used to generate observations.
+        value_type m_current_value = 0; // Latest observed value.
+
+        static bool is_valid(const ar_container_type& ar_parameters, std::string& message) noexcept
+        {
+            value_type sum_squared = 0;
+            for (const value_type& x : ar_parameters)
+            {
+                if (!aftermath::is_finite(x))
+                {
+                    message = "AR parameters must be finite.";
+                    return false;
+                } // if (...)
+                sum_squared += (x * x);
+            } // for (...)
+            if (!aftermath::is_finite(sum_squared) || sum_squared >= 1)
+            {
+                message = "AR parameters must lie inside a unit sphere.";
+                return false;
+            } // if (...)
+            return true;
+        } // validate(...)
+
+        void validate() const
+        {
+            std::string message {};
+            if (!type::is_valid(this->m_ar_parameters, message))
+                throw std::logic_error(message);
+        } // validate(...)
 
     public:
-        auto_regressive_noise() noexcept : base_type() { }
+        /** Zero AR noise. */
+        auto_regressive_noise() noexcept { }
 
-        auto_regressive_noise(value_type noise_sigma, std::error_code& ec) noexcept
-            : base_type(noise_sigma, ec)
+        /** White Gaussian noise with standard deviation \p sigma. */
+        explicit auto_regressive_noise(const white_noise_type& white) noexcept
+            : m_white(white)
         {
         } // auto_regressive_noise(...)
 
-        /** AR with parameters specified by \p parameters. */
-        auto_regressive_noise(value_type noise_sigma, const ar_container_type& /*ar_parameters*/, std::error_code& ec) noexcept
-            : base_type(noise_sigma, ec)/*, m_ar_parameters(ar_parameters)*/
+        /** @brief General case of an AR process.
+         *  @exception std::logic_error \p ar_parameters must lie inside a unit sphere.
+         */
+        auto_regressive_noise(const white_noise_type& white, const ar_container_type& ar_parameters)
+            : m_white(white), m_ar_parameters(ar_parameters)
         {
+            this->validate();
         } // auto_regressive_noise(...)
         
         auto_regressive_noise(const nlohmann::json& j, std::error_code& ec) noexcept
-            : base_type()
         {
             // Ensure correct type.
             std::string typename_str {};
             aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
             if (typename_str != type::typename_string)
             {
-                aftermath::detail::on_error(ec, std::errc::invalid_argument, "Noise type mismatch.");
+                ec = std::make_error_code(std::errc::bad_message); // Noise type mismatch.
                 return;
             } // if (...)
 
             // Parse json entries.
-            value_type noise_sigma {};
-            aftermath::noexcept_json::optional(j, type::jstr_noise_sigma, noise_sigma, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_ar_parameters, this->m_ar_parameters, ec);
-            this->set_noise_level(noise_sigma, ec);
+            white_noise_type white = this->m_white;
+            ar_container_type ar_parameters = this->m_ar_parameters;
+            aftermath::noexcept_json::optional(j, type::jstr_white, white, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_ar_parameters, ar_parameters, ec);
+            if (ec.value() != 0) return;
 
-            if (!this->validate(ec)) this->coerce();
+            // Validate entries.
+            std::string message {};
+            if (!type::is_valid(ar_parameters, message))
+            {
+                ec = std::make_error_code(std::errc::bad_message);
+                return;
+            } // if (...)
+            
+            // Populate values.
+            this->m_white = white;
+            this->m_ar_parameters = ar_parameters;
         } // auto_regressive_noise(...)
 
-        /** AR parameter size. */
-        constexpr std::size_t ar_size() const noexcept { return 0; }
+        /** @brief White noise driving the AR. */
+        const white_noise_type& white() const noexcept { return this->m_white; }
+        /** @brief White noise driving the AR. */
+        void set_white(const white_noise_type& value) noexcept { this->m_white = value; }
 
-        /** AR parameters. */
+        /** @brief AR parameters. */
         const ar_container_type& ar_parameters() const noexcept { return this->m_ar_parameters; }
-        /** AR parameters. */
-        constexpr value_type ar_parameter(std::size_t /*time_lag_index*/) const noexcept { return 0; }
-        /** AR parameters. */
-        constexpr void set_ar_parameter(std::size_t /*time_lag_index*/, value_type /*value*/, std::error_code& /*ec*/) noexcept { }
-
-        /** Output to a stream. */
-        friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
+        /** @brief AR parameters . */
+        value_type ar_parameters(std::size_t time_lag_index) const { return this->m_ar_parameters.at(time_lag_index); }
+        /** @brief AR parameters.
+         *  @exception std::logic_error \p value must lie inside a unit sphere.
+         */
+        void set_ar_parameters(const ar_container_type& value)
         {
-            nlohmann::json j = self;
-            return os << j;
-        } // operator <<(...)
-    }; // struct auto_regressive_noise<...>
+            this->m_ar_parameters = value;
+            this->validate();
+        } // set_ar_parameters(...)
 
-    /** Represents a descriptor for auto-regressive (AR) process. */
-    template <typename t_value_type, std::size_t t_ar_size>
-    struct auto_regressive_noise
-        : public noise_base<auto_regressive_noise<t_value_type, t_ar_size>, t_value_type>,
-        public detail::named_auto_regressive_noise<t_ar_size>
-    {
-        using type = auto_regressive_noise<t_value_type, t_ar_size>;
-        using value_type = t_value_type;
-        using ar_container_type = std::array<value_type, t_ar_size>;
-        using time_window_type = sliding_array<value_type, t_ar_size>;
-
-        using base_type = noise_base<type, value_type>;
-        friend base_type;
-
-        // ~~ Json names ~~
-        static constexpr char jstr_typename[] = "type";
-        static constexpr char jstr_noise_sigma[] = "noise sigma";
-        static constexpr char jstr_ar_parameters[] = "AR parameters";
-
-    private:
-        // ~~ Structural members ~~
-        white_noise<value_type> m_white_noise = {}; // White noise.
-        ar_container_type m_ar_parameters = {}; // AR parameters.
-        time_window_type m_history = {}; // Brief history of AR noise used to generate observations.
-
-    protected:
-        bool validate(std::error_code& ec) const noexcept
+        /** Resets the timer on the noise. */
+        void reset() noexcept
         {
-            value_type sum_squared = 0;
-            for (const value_type& x : this->m_ar_parameters)
-            {
-                if (modules::is_nan(x) || modules::is_infinite(x)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "AR parameters have to be finite numbers.", false);
-                sum_squared += (x * x);
-            } // for (...)
-            if (sum_squared >= 1) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "AR parameters have to lie inside a unit sphere.", false);
-            return true;
-        } // validate(...)
-
-        void coerce() noexcept
-        {
-            value_type sum_squared = 0;
-            for (value_type& x : this->m_ar_parameters)
-            {
-                if (modules::is_nan(x) || modules::is_infinite(x)) x = 0;
-                sum_squared += (x * x);
-            } // for (...)
-            if (sum_squared >= 1) this->m_ar_parameters.fill(0);
-        } // coerce(...)
-
-    protected:
-        /** @brief Auxiliary function to be executed right before the \c on_reset() call. */
-        void on_reset() noexcept
-        {
-            this->m_white_noise.reset();
+            this->m_white.reset();
             this->m_history.fill(0);
+            this->m_current_value = 0;
         } // on_reset(...)
 
+        /** Latest observed value. */
+        value_type current_value() const noexcept { return this->m_current_value; }
+
         /** @brief Updates the current value of the noise. */
-        value_type next_value(value_type /*current_value*/) noexcept
+        void tic(engine_type& uniform_engine) noexcept
         {
-            this->m_white_noise.tic();
+            this->m_white.tic(uniform_engine);
             // ~~ Observations ~~
-            value_type w = this->m_white_noise.current_value(); // White noise.
+            value_type w = this->m_white.current_value(); // White noise.
             //               
             // ------|------|---...---|------|------> time 
             //     now-p        ... now-1   now            
@@ -186,72 +193,23 @@ namespace ropufu::sequential::hypotheses
             //       p     p-1        0      -    AR param 
             // 
             value_type v = w;
-            for (std::size_t i = 0; i < t_ar_size; ++i) v += this->m_ar_parameters[i] * this->m_history[t_ar_size - i];
+            for (std::size_t i = 0; i < type::ar_size; ++i) v += this->m_ar_parameters[i] * this->m_history[type::ar_size - i];
 
             this->m_history.push_back(v); // Keep track of recent AR noise.
-            return v;
-        } // next_value(...)
+            this->m_current_value = v;
+        } // tic(...)
 
-    public:
-        /** No AR. */
-        auto_regressive_noise() noexcept : base_type() { }
-
-        /** No AR. */
-        auto_regressive_noise(value_type noise_sigma, std::error_code& ec) noexcept
-            : base_type(), m_white_noise(noise_sigma, ec)
+        bool operator ==(const type& other) const noexcept
         {
-        } // auto_regressive_noise(...)
+            return
+                this->m_white == other.m_white &&
+                this->m_ar_parameters == other.m_ar_parameters;
+        } // operator ==(...)
 
-        /** AR with parameters specified by \p parameters. */
-        auto_regressive_noise(value_type noise_sigma, const ar_container_type& ar_parameters, std::error_code& ec) noexcept
-            : base_type(), m_white_noise(noise_sigma, ec), m_ar_parameters(ar_parameters)
+        bool operator !=(const type& other) const noexcept
         {
-            if (!this->validate(ec)) this->coerce();
-        } // auto_regressive_noise(...)
-        
-        auto_regressive_noise(const nlohmann::json& j, std::error_code& ec) noexcept
-            : base_type()
-        {
-            // Ensure correct type.
-            std::string typename_str {};
-            aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
-            if (typename_str != type::typename_string)
-            {
-                aftermath::detail::on_error(ec, std::errc::invalid_argument, "Noise type mismatch.");
-                return;
-            } // if (...)
-
-            // Parse json entries.
-            value_type noise_sigma {};
-            aftermath::noexcept_json::optional(j, type::jstr_noise_sigma, noise_sigma, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_ar_parameters, this->m_ar_parameters, ec);
-            this->m_white_noise.set_noise_level(noise_sigma, ec);
-
-            if (!this->validate(ec)) this->coerce();
-        } // auto_regressive_noise(...)
-
-        /** Standard deviation of noise. */
-        value_type noise_sigma() const noexcept { return this->m_white_noise.noise_sigma(); }
-
-        /** Variance of noise. */
-        value_type noise_variance() const noexcept { return this->m_white_noise.noise_variance(); }
-        
-        /** Standard deviation of noise. */
-        void set_noise_level(value_type value, std::error_code& ec) noexcept { this->m_white_noise.set_noise_level(value, ec); }
-
-        /** AR parameter size. */
-        constexpr std::size_t ar_size() const noexcept { return t_ar_size; }
-
-        /** AR parameters. */
-        const ar_container_type& ar_parameters() const noexcept { return this->m_ar_parameters; }
-        /** AR parameters. */
-        value_type ar_parameter(std::size_t time_lag_index) const noexcept { return this->m_ar_parameters[time_lag_index]; }
-        /** AR parameters. */
-        void set_ar_parameter(std::size_t time_lag_index, value_type value, std::error_code& ec) noexcept
-        {
-            this->m_ar_parameters[time_lag_index] = value;
-            if (!this->validate(ec)) this->coerce();
-        } // set_ar_parameter(...)
+            return !this->operator ==(other);
+        } // operator !=(...)
 
         /** Output to a stream. */
         friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
@@ -262,31 +220,31 @@ namespace ropufu::sequential::hypotheses
     }; // struct auto_regressive_noise
 
     // ~~ Json name definitions ~~
-    template <typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_value_type, t_ar_size>::jstr_typename[];
-    template <typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_value_type, t_ar_size>::jstr_noise_sigma[];
-    template <typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_value_type, t_ar_size>::jstr_ar_parameters[];
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>::jstr_typename[];
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>::jstr_white[];
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>::jstr_ar_parameters[];
 
-    template <typename t_value_type, std::size_t t_ar_size>
-    void to_json(nlohmann::json& j, const auto_regressive_noise<t_value_type, t_ar_size>& x) noexcept
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
+    void to_json(nlohmann::json& j, const auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>& x) noexcept
     {
-        using type = auto_regressive_noise<t_value_type, t_ar_size>;
+        using type = auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>;
         std::string typename_str = type::typename_string;
 
         j = nlohmann::json{
             {type::jstr_typename, typename_str},
-            {type::jstr_noise_sigma, x.noise_sigma()},
+            {type::jstr_white, x.white()},
             {type::jstr_ar_parameters, x.ar_parameters()}
         };
     } // to_json(...)
 
-    template <typename t_value_type, std::size_t t_ar_size>
-    void from_json(const nlohmann::json& j, auto_regressive_noise<t_value_type, t_ar_size>& x)
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
+    void from_json(const nlohmann::json& j, auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>& x)
     {
-        using type = auto_regressive_noise<t_value_type, t_ar_size>;
+        using type = auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>;
         std::error_code ec {};
         x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing failed: " + j.dump());
+        if (ec.value() != 0) throw std::runtime_error("Parsing <auto_regressive_noise> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED

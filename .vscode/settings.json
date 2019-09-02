@@ -74,6 +74,10 @@
         "codecvt": "cpp",
         "locale": "cpp",
         "xlocbuf": "cpp",
-        "xlocmes": "cpp"
+        "xlocmes": "cpp",
+        "atomic": "cpp",
+        "csignal": "cpp",
+        "mutex": "cpp",
+        "thread": "cpp"
     }
 }

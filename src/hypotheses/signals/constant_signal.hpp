@@ -1,19 +1,15 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_CONSTANT_SIGNAL_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_CONSTANT_SIGNAL_HPP_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_CONSTANT_SIGNAL_HPP_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_CONSTANT_SIGNAL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include <ropufu/json_traits.hpp>
+#include <ropufu/noexcept_json.hpp>
+#include <ropufu/number_traits.hpp>
 
-#include <ropufu/on_error.hpp> // aftermath::detail::on_error
-#include "../../draft/algebra/numbers.hpp"
-
-#include "../signal_base.hpp"
-
-#include <cstddef>  // std::size_t
-#include <iostream> // std::ostream
-#include <stdexcept>    // std::runtime_error
-#include <string>   // std::string
+#include <cstddef>   // std::size_t
+#include <iostream>  // std::ostream
+#include <stdexcept> // std::runtime_error
+#include <string>    // std::string
 #include <system_error> // std::error_code, std::errc
 
 namespace ropufu::sequential::hypotheses
@@ -27,14 +23,11 @@ namespace ropufu::sequential::hypotheses
 
     /** Represents a constant signal. */
     template <typename t_value_type>
-    struct constant_signal : public signal_base<constant_signal<t_value_type>, t_value_type>
+    struct constant_signal
     {
         using type = constant_signal<t_value_type>;
         using value_type = t_value_type;
 
-        using base_type = signal_base<type, value_type>;
-        friend base_type;
-        
         static constexpr char typename_string[] = "const";
 
         // ~~ Json names ~~
@@ -42,29 +35,36 @@ namespace ropufu::sequential::hypotheses
         static constexpr char jstr_level[] = "level";
 
     private:
-        value_type m_level = 1;
+        value_type m_level = 0;
 
-    protected:
-        bool validate(std::error_code& ec) const noexcept
+        static bool is_valid(value_type level, std::string& message) noexcept
         {
-            if (modules::is_nan(this->m_level) || modules::is_infinite(this->m_level)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
+            if (!aftermath::is_finite(level))
+            {
+                message = "Signal level must be finite.";
+                return false;
+            } // if (...)
             return true;
         } // validate(...)
 
-        void coerce() noexcept
+        void validate() const
         {
-            if (modules::is_nan(this->m_level) || modules::is_infinite(this->m_level)) this->m_level = 0;
-        } // coerce(...)
+            std::string message {};
+            if (!type::is_valid(this->m_level, message))
+                throw std::logic_error(message);
+        } // validate(...)
 
     public:
-        /** Constant signal. */
+        /** Zero signal. */
         constant_signal() noexcept { }
 
-        /** Constant signal. */
-        constant_signal(value_type level, std::error_code& ec) noexcept
+        /** @brief Constant signal.
+         *  @exception std::logic_error \p level is not finite.
+         */
+        explicit constant_signal(value_type level)
             : m_level(level)
         {
-            if (!this->validate(ec)) this->coerce();
+            this->validate();
         } // constant_signal(...)
 
         constant_signal(const nlohmann::json& j, std::error_code& ec) noexcept
@@ -74,27 +74,57 @@ namespace ropufu::sequential::hypotheses
             aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
             if (typename_str != type::typename_string)
             {
-                aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal type mismatch.");
+                ec = std::make_error_code(std::errc::bad_message); // Signal type mismatch.
                 return;
             } // if (...)
 
             // Parse json entries.
-            aftermath::noexcept_json::required(j, type::jstr_level, this->m_level, ec);
+            value_type level = this->m_level;
+            aftermath::noexcept_json::required(j, type::jstr_level, level, ec);
+            if (ec.value() != 0) return;
+
+            // Validate entries.
+            std::string message {};
+            if (!type::is_valid(level, message))
+            {
+                ec = std::make_error_code(std::errc::bad_message);
+                return;
+            } // if (...)
             
-            if (!this->validate(ec)) this->coerce();
+            // Populate values.
+            this->m_level = level;
         } // constant_signal(...)
 
-        /** Signal level. */
+        /** @brief Signal level. */
         value_type level() const noexcept { return this->m_level; }
-        /** Signal level. */
-        void set_level(value_type value, std::error_code& ec) noexcept
-        { 
+        /** @brief Signal level.
+         *  @exception std::logic_error \p value is not finite.
+         */
+        void set_level(value_type value) noexcept
+        {
             this->m_level = value;
-            if (!this->validate(ec)) this->coerce();
-        } // set_level(...)
+            this->validate();
+        } // set_stationary_level(...)
 
         /** @brief Signal value at an arbitrary time. */
-        value_type at(std::size_t /*time_index*/) const noexcept { return this->level(); }
+        value_type at(std::size_t /*time_index*/) const noexcept { return this->m_level; }
+
+        /** @brief Signal value at an arbitrary time. */
+        value_type operator ()(std::size_t /*time_index*/) const noexcept { return this->m_level; }
+        
+        /** @brief Signal value at an arbitrary time. */
+        value_type operator [](std::size_t /*time_index*/) const noexcept { return this->m_level; }
+
+        bool operator ==(const type& other) const noexcept
+        {
+            return
+                this->m_level == other.m_level;
+        } // operator ==(...)
+
+        bool operator !=(const type& other) const noexcept
+        {
+            return !this->operator ==(other);
+        } // operator !=(...)
 
         /** Output to a stream. */
         friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
@@ -128,8 +158,8 @@ namespace ropufu::sequential::hypotheses
         using type = constant_signal<t_value_type>;
         std::error_code ec {};
         x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing failed: " + j.dump());
+        if (ec.value() != 0) throw std::runtime_error("Parsing <constant_signal> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_CONSTANT_SIGNAL_HPP_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_CONSTANT_SIGNAL_HPP_INCLUDED

@@ -2,35 +2,31 @@
 #ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_MONTE_CARLO_HPP_INCLUDED
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_MONTE_CARLO_HPP_INCLUDED
 
+#include "model.hpp"
+#include "likelihood.hpp"
+#include "simple_process.hpp"
+#include "change_of_measure.hpp"
 #include "observer.hpp"
-#include "process.hpp"
-#include "rules.hpp"
 
-#include <ropufu/on_error.hpp> // aftermath::detail::on_error
-
-#include <cstddef> // std::size_t, std::nullptr_t
-#include <type_traits>  // std::enable_if_t, std::is_base_of
-#include <vector>  // std::vector
+#include <cstddef>     // std::size_t
+#include <type_traits> // std::is_convertible_v
+#include <vector>      // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
     /** Structure responsible for simulations. */
-    template <typename t_signal_type, typename t_noise_type>
-    struct monte_carlo;
-
-    template <typename t_process_type>
-    using monte_carlo_t = monte_carlo<typename t_process_type::signal_type, typename t_process_type::noise_type>;
-
-    /** Structure responsible for simulations. */
-    template <typename t_signal_type, typename t_noise_type>
+    template <typename t_engine_type, typename t_value_type>
     struct monte_carlo
     {
-        using type = monte_carlo<t_signal_type, t_noise_type>;
+        using type = monte_carlo<t_engine_type, t_value_type>;
+        using engine_type = t_engine_type;
+        using value_type = t_value_type;
 
-        using signal_type = t_signal_type;
-        using noise_type = t_noise_type;
-        using process_type = process<t_signal_type, t_noise_type>;
-        using value_type = typename process_type::value_type;
+        using likelihood_type = likelihood<value_type>;
+        using model_type = model<t_value_type>;
+        using process_type = simple_process<engine_type, value_type>;
+        using observer_type = observer<engine_type, value_type>;
+        using change_of_measure_type = change_of_measure<value_type>;
 
     private:
         std::size_t m_count_simulations = 0;
@@ -38,7 +34,7 @@ namespace ropufu::sequential::hypotheses
     public:
         monte_carlo() noexcept { }
 
-        monte_carlo(std::size_t count_simulations) noexcept
+        explicit monte_carlo(std::size_t count_simulations) noexcept
             : m_count_simulations(count_simulations)
         {
             
@@ -55,53 +51,42 @@ namespace ropufu::sequential::hypotheses
          *      -- Calls \c tic() on \p proc.
          *      -- Calls \c tic(proc) on each of \p rules.
          *  - Calls \c toc(proc) on each of \p rules.
-         *  - Calls \c reset() on \p proc.
          *  - Calls \p on_stop().
          *  @param on_start Callback that will initialize the \p rules.
          *  @param on_stop Callback that will collect the information from the \p rules.
          */
-        template <typename t_observer_type, typename t_on_start_type, typename t_on_stop_type>
-        void run(process_type& proc, t_observer_type& observer, t_on_start_type&& on_start, t_on_stop_type&& on_stop, std::error_code& ec, std::size_t max_length = 1'000'000) noexcept
+        template <typename t_observer_collection_type>
+        void run(engine_type& engine, process_type& proc, const model_type& model, const change_of_measure_type& signal_strength,
+            t_observer_collection_type& observer_pointers, std::size_t max_length = 1'000'000)
         {
-            static_assert(is_observer_v<t_observer_type>, "t_observer_type has to be an observer.");
+            static_assert(
+                std::is_convertible_v<decltype(**observer_pointers.begin()), observer_type&>,
+                "Elements of the collection must be dereferencable to observer references.");
             if (this->m_count_simulations == 0) return;
-            if (ec.value() != 0) return;
+            likelihood_type likelihood {model};
 
-            // ~~ Clean up ~~
-            proc.reset(); // Make sure the process starts from scratch.
-            observer.reset(); // Make sure the observer doesn't have any lingering data.
-
-            // ~~ Start ~~
-            on_start(ec);
-            if (ec.value() != 0) return; // Check for quiet errors.
+            // ~~ Set up ~~
+            proc.set_signal_strength(signal_strength.simulated());
+			// ~~ Clean up ~~
+            for (auto& o : observer_pointers) o->clean_up();
 
             for (std::size_t i = 0; i < this->m_count_simulations; ++i)
             {
-                bool is_listening = observer.is_listening();
+                proc.reset();
+                for (auto& o : observer_pointers) o->reset();
 
-                std::size_t t = 0;
+                bool is_listening = observer_type::any_listening(observer_pointers);
                 while (is_listening)
                 {
-                    proc.tic();
-                    observer.tic(proc, ec);
+                    proc.tic(engine);
+                    likelihood.tic(proc);
+                    for (auto& o : observer_pointers) o->tic(proc, likelihood);
 
-                    is_listening = observer.is_listening();
-                    if (ec.value() != 0) return; // Check for quiet errors.
-                    
-                    ++t; // Advance time index.
-                    if (t == max_length)
-                    {
-                        aftermath::detail::on_error(ec, std::errc::function_not_supported, "Maximum run length exceeded.");
-                        return;
-                    } // if (...)
+                    is_listening = observer_type::any_listening(observer_pointers);
+                    if (proc.time() == max_length) throw std::length_error("Maximum run length exceeded.");
                 } // while (...)
-                observer.toc(proc, ec); // Finalize another experiment run.
-                proc.reset();
-                if (ec.value() != 0) return;
+                for (auto& o : observer_pointers) o->toc(proc, likelihood, signal_strength); // Finalize another experiment run.
             } // for (...)
-
-            // ~~ Stop ~~
-            on_stop();
         } // run(...)
     }; // struct monte_carlo
 } // namespace ropufu::sequential::hypotheses

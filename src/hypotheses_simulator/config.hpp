@@ -1,269 +1,174 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_CONFIG_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_CONFIG_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_CONFIG_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_CONFIG_INCLUDED
 
 #include <nlohmann/json.hpp>
+#include <ropufu/noexcept_json.hpp>
 
 #include "../hypotheses/signals.hpp"
 #include "../hypotheses/noises.hpp"
+#include "../hypotheses/simple_process.hpp"
 #include "../hypotheses/rules.hpp"
 
+#include "homedir.hpp"
 #include "run.hpp"
 
-#include <fstream>  // std::ifstream, std::ofstream
-#include <iomanip>  // std::setw
-#include <iostream> // std::ostream
+#include <cstddef>      // std::size_t
+#include <iostream>     // std::ostream
+#include <filesystem>   // std::filesystem::path
 #include <stdexcept>    // std::runtime_error
-#include <string>       // std::string, std::to_string
-#include <system_error> // std::error_code, std::make_error_code, std::errc
-#include <utility>  // std::pair
-#include <variant>  // std::variant, std::visit
-#include <vector>   // std::vector
+#include <string>       // std::string
+#include <system_error> // std::error_code, std::errc
+#include <variant>      // std::variant
+#include <vector>       // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
     /** @brief Class for reading and writing configurtation setting. */
-    template <typename t_value_type>
+    template <typename t_engine_type, typename t_value_type>
     struct config
     {
-        using type = config<t_value_type>;
+        using type = config<t_engine_type, t_value_type>;
+        using engine_type = t_engine_type;
         using value_type = t_value_type;
 
-        using signal_variant_type = std::variant<
-            unit_signal<t_value_type>,
-            constant_signal<t_value_type>,
-            transitionary_signal<t_value_type, 1>
-            /*transitionary_signal<t_value_type, 2>*/>;
-        using noise_variant_type = std::variant<
-            white_noise<t_value_type>,
-            auto_regressive_noise<t_value_type, 1>
-            /*auto_regressive_noise<t_value_type, 2>*/>;
-        using design_variant_type = std::variant<
-            adaptive_sprt_a_design<t_value_type>,
-            adaptive_sprt_b_design<t_value_type>,
-            double_sprt_design<t_value_type>,
-            generalized_sprt_a_design<t_value_type>,
-            generalized_sprt_b_design<t_value_type>>;
+        using signal_type = hypotheses::constant_signal<value_type>;
+        using noise_type = hypotheses::white_noise<engine_type, value_type>;
+        using process_type = hypotheses::simple_process<engine_type, value_type>;
+
+        using design_variant_type = hypotheses::rule_design_variant<value_type>;
+        using run_type = hypotheses::run<value_type>;
 
         // ~~ Json names ~~
         static constexpr char jstr_mat_output_path[] = "mat output";
-        static constexpr char jstr_disable_oc_pass[] = "disable oc pass";
         static constexpr char jstr_count_simulations[] = "simulations";
         static constexpr char jstr_count_threads[] = "threads";
-        static constexpr char jstr_count_interpolated_runs[] = "interpolated runs";
         static constexpr char jstr_signal[] = "signal";
         static constexpr char jstr_noise[] = "noise";
-        static constexpr char jstr_rules[] = "rules";
+        static constexpr char jstr_disable_oc_pass[] = "disable oc pass";
+        static constexpr char jstr_rule_designs[] = "rules";
         static constexpr char jstr_runs[] = "runs";
 
     private:
-        // ~~ General configuration ~~
-        bool m_is_good = false;
-        bool m_has_changed = false;
-        std::string m_filename = ""; // Where the configuration was loaded from.
-        nlohmann::json m_json = {}; // Raw configuration json.
-        std::vector<std::string> m_logger = {};
-        // ~~ Specific properties ~~
-        std::string m_mat_output_path = "./mat/";
+        std::filesystem::path m_mat_output_path = "./mat/";
         bool m_disable_oc_pass = false;
-        std::size_t m_count_simulations = 10'000;
+        std::size_t m_count_simulations = 1'000;
         std::size_t m_count_threads = 1;
-        std::size_t m_count_interpolated_runs = 0;
-        signal_variant_type m_signal = {};
-        noise_variant_type m_noise = {};
-        std::vector<design_variant_type> m_rules = {};
-        std::vector<run<value_type>> m_runs = {};
+        signal_type m_signal = {};
+        noise_type m_noise = {};
+        std::vector<design_variant_type> m_rule_designs = {};
+        std::vector<run_type> m_runs = {};
 
     public:
-        // Always try to read the default configuration on construction.
-        explicit config(const std::string& filename) noexcept { this->read(filename); }
-        
-        // Always try to save the configuration on exit.
-        ~config() noexcept { this->write(); }
-
-        /** @brief Output configuration parameters. */
-        friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
+        config(const nlohmann::json& j, std::error_code& ec) noexcept
         {
-            os << self.m_json;
-            return os;
-        } // operator <<(...)
+            // Populate default values.
+            std::string mat_output_path = this->m_mat_output_path.string();
+            std::size_t count_simulations = this->m_count_simulations;
+            std::size_t count_threads = this->m_count_threads;
+            signal_type signal = this->m_signal;
+            noise_type noise = this->m_noise;
+            bool disable_oc_pass = this->m_disable_oc_pass;
+            std::vector<design_variant_type> rule_designs = this->m_rule_designs;
+            std::vector<run_type> runs = this->m_runs;
+            
+            // Parse json entries.
+            aftermath::noexcept_json::optional(j, type::jstr_mat_output_path, mat_output_path, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_count_simulations, count_simulations, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_count_threads, count_threads, ec);
+            aftermath::noexcept_json::required(j, type::jstr_signal, signal, ec);
+            aftermath::noexcept_json::required(j, type::jstr_noise, noise, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_disable_oc_pass, disable_oc_pass, ec);
+            aftermath::noexcept_json::required(j, type::jstr_rule_designs, rule_designs, ec);
+            aftermath::noexcept_json::required(j, type::jstr_runs, runs, ec);
+            if (ec.value() != 0) return;
 
-        bool good() const noexcept { return this->m_is_good; }
+            // Populate values.
+            this->m_mat_output_path = detail::format_homedir_path(mat_output_path);
+            this->m_count_simulations = count_simulations;
+            this->m_count_threads = count_threads;
+            this->m_signal = signal;
+            this->m_noise = noise;
+            this->m_disable_oc_pass = disable_oc_pass;
+            this->m_rule_designs = rule_designs;
+            this->m_runs = runs;
+        } // config(...)
 
-        const std::vector<std::string>& log() const noexcept { return this->m_logger; }
-        void clear_log() noexcept { this->m_logger.clear(); }
+        const std::filesystem::path& mat_output_path() const noexcept { return this->m_mat_output_path; }
+        //void set_mat_output_path(const std::string& value) noexcept { this->m_mat_output_path = value; this->m_has_changed = true; }
 
-        const std::string& filename() const noexcept { return this->m_filename; }
+        std::size_t count_simulations() const noexcept { return this->m_count_simulations; }
+        //void set_simulation_count(std::size_t value) noexcept { this->m_count_simulations = value; this->m_has_changed = true; }
 
-        const std::string& mat_output_path() const noexcept { return this->m_mat_output_path; }
-        void set_mat_output_path(const std::string& value) noexcept { this->m_mat_output_path = value; this->m_has_changed = true; }
+        std::size_t count_threads() const noexcept { return this->m_count_threads; }
+        //void set_threads(std::size_t value) noexcept { this->m_count_threads = value; this->m_has_changed = true; }
+
+        const signal_type& signal() const noexcept { return this->m_signal; }
+
+        const noise_type& noise() const noexcept { return this->m_noise; }
         
         bool disable_oc_pass() const noexcept { return this->m_disable_oc_pass; }
-        void set_disable_oc_pass(bool value) noexcept { this->m_disable_oc_pass = value; this->m_has_changed = true; }
+        //void set_disable_oc_pass(bool value) noexcept { this->m_disable_oc_pass = value; this->m_has_changed = true; }
 
-        std::size_t simulation_count() const noexcept { return this->m_count_simulations; }
-        void set_simulation_count(std::size_t value) noexcept { this->m_count_simulations = value; this->m_has_changed = true; }
+        const std::vector<design_variant_type>& rule_designs() const noexcept { return this->m_rule_designs; }
 
-        std::size_t threads() const noexcept { return this->m_count_threads; }
-        void set_threads(std::size_t value) noexcept { this->m_count_threads = value; this->m_has_changed = true; }
-
-        std::size_t interpolated_runs() const noexcept { return this->m_count_interpolated_runs; }
-        void set_interpolated_runs(std::size_t value) noexcept { this->m_count_interpolated_runs = value; this->m_has_changed = true; }
-
-        const signal_variant_type& signal() const noexcept { return this->m_signal; }
-
-        const noise_variant_type& noise() const noexcept { return this->m_noise; }
-
-        const std::vector<design_variant_type>& rules() const noexcept { return this->m_rules; }
-
-        const std::vector<run<value_type>>& runs() const noexcept { return this->m_runs; }
-
-        /** Read the configuration from a file. */
-        bool read(const std::string& filename) noexcept
+        const design_variant_type& rule_design_by_id(std::size_t id) const
         {
-            std::ifstream i(filename); // Try to open the file for reading.
-            if (!i.good()) return false; // Stop on failure.
+            for (const design_variant_type& v : this->m_rule_designs) if (v.id() == id) return v;
+            throw std::runtime_error("Rule design with id " + std::to_string(id) + " not found.");
+        } // rule_design_by_id(...)
 
-            try
-            {
-                this->m_filename = filename; // Remember the filename.
-
-                i >> this->m_json;
-                this->m_is_good = false;
-                const nlohmann::json& j = this->m_json;
-                std::error_code ec {};
-
-                // Populate default values.
-                std::string mat_output_path = this->m_mat_output_path;
-                bool disable_oc_pass = this->m_disable_oc_pass;
-                std::size_t count_simulations = this->m_count_simulations;
-                std::size_t count_threads = this->m_count_threads;
-                std::size_t count_interpolated_runs = this->m_count_interpolated_runs;
-                std::vector<design_variant_type> rules = this->m_rules;
-                std::vector<run<value_type>> runs = this->m_runs;
-                
-                // Parse json entries.
-                aftermath::noexcept_json::optional(j, type::jstr_mat_output_path, mat_output_path, ec);
-                aftermath::noexcept_json::optional(j, type::jstr_disable_oc_pass, disable_oc_pass, ec);
-                aftermath::noexcept_json::optional(j, type::jstr_count_simulations, count_simulations, ec);
-                aftermath::noexcept_json::optional(j, type::jstr_count_threads, count_threads, ec);
-                aftermath::noexcept_json::optional(j, type::jstr_count_interpolated_runs, count_interpolated_runs, ec);
-                aftermath::noexcept_json::required(j, type::jstr_runs, runs, ec);
-
-                signal_variant_type signal = this->m_signal;
-                noise_variant_type noise = this->m_noise;
-                
-                if (j.count(type::jstr_signal) == 0) { this->m_logger.push_back("Signal descriptor missing."); return false; }
-                if (j.count(type::jstr_noise) == 0) { this->m_logger.push_back("Noise descriptor missing."); return false; }
-                if (j.count(type::jstr_rules) == 0) { this->m_logger.push_back("Rules descriptor missing."); return false; }
-
-                const nlohmann::json& signal_json = j[type::jstr_signal];
-                const nlohmann::json& noise_json = j[type::jstr_noise];
-                const nlohmann::json& rules_json = j[type::jstr_rules];
-
-                // Reconstruct the object.
-                if (ec.value() != 0)
-                {
-                    this->m_logger.push_back(ec.message());
-                    return false;
-                } // if (...)
-
-                // Signal discriminator.
-                if (!hypotheses::try_discriminate_signal(signal_json, signal))
-                {
-                    this->m_logger.push_back(std::string("Signal not recognized: ") + signal_json.dump() + std::string("."));
-                    return false;
-                } // if (...)
-                // Noise discriminator.
-                if (!hypotheses::try_discriminate_noise(noise_json, noise))
-                {
-                    this->m_logger.push_back(std::string("Noise not recognized: ") + noise_json.dump() + std::string("."));
-                    return false;
-                } // if (...)
-                
-                if (!rules_json.is_array()) { this->m_logger.push_back("Rules descriptor must be an array."); return false; }
-                for (const nlohmann::json& r_json : rules_json)
-                {
-                    design_variant_type rule {};
-                    if (!hypotheses::try_discriminate_rule(r_json, rule))
-                    {
-                        this->m_logger.push_back(std::string("Rule not recognized: ") + r_json.dump() + std::string("."));
-                        return false;
-                    } // if (...)
-                    rules.push_back(rule);
-                } // for (...)
-
-                this->m_mat_output_path = mat_output_path;
-                this->m_disable_oc_pass = disable_oc_pass;
-                this->m_count_simulations = count_simulations;
-                this->m_count_threads = count_threads;
-                this->m_count_interpolated_runs = count_interpolated_runs;
-                this->m_signal = signal;
-                this->m_noise = noise;
-                this->m_rules = rules;
-                this->m_runs = runs;
-
-                this->m_is_good = true;
-                return true;
-            } // try
-            catch (...)
-            {
-                this->m_is_good = false;
-                this->m_json = {};
-                return false;
-            } // catch (...)
-        } // read(...)
-        
-        /** Write the configuration to a file. */
-        bool write() noexcept { return this->write(this->m_filename); }
-
-        /** Write the configuration to a file. */
-        bool write(const std::string& filename) noexcept
+        bool has_rule_design(std::size_t id) const noexcept
         {
-            if (!this->m_has_changed) return true;
+            for (const design_variant_type& v : this->m_rule_designs) if (v.id() == id) return true;
+            return false;
+        } // has_rule_design(...)
 
-            std::ofstream o(filename); // Try to open the file for writing.
-            if (!o.good()) return false; // Stop on failure.
-            nlohmann::json& j = this->m_json;
+        const std::vector<run_type>& runs() const noexcept { return this->m_runs; }
 
-            j[type::jstr_mat_output_path] = this->m_mat_output_path;
-            j[type::jstr_disable_oc_pass] = this->m_disable_oc_pass;
-            j[type::jstr_count_simulations] = this->m_count_simulations;
-            j[type::jstr_count_threads] = this->m_count_threads;
-            j[type::jstr_count_interpolated_runs] = this->m_count_interpolated_runs;
-            std::visit([&] (auto&& arg) { j[type::jstr_signal] = arg; }, this->m_signal);
-            std::visit([&] (auto&& arg) { j[type::jstr_noise] = arg; }, this->m_noise);
-            nlohmann::json rules_json = nlohmann::json::array();
-            for (const design_variant_type& rule : this->m_rules)
-            {
-                std::visit([&] (auto&& arg) { nlohmann::json k = arg; rules_json.push_back(k); }, rule);
-            } // for (...)
-            j[type::jstr_rules] = rules_json;
-            j[type::jstr_runs] = this->m_runs;
-
-            try
-            {
-                o << std::setw(4) << this->m_json << std::endl;
-                this->m_has_changed = false;
-                return true;
-            } // try
-            catch (...)
-            {
-                return false;
-            } // catch (...)
-        } // write(...)
+        /** Output to a stream. */
+        friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
+        {
+            nlohmann::json j = self;
+            return os << j;
+        } // operator <<(...)
     }; // struct config
 
     // ~~ Json name definitions ~~
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_mat_output_path[];
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_disable_oc_pass[];
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_simulations[];
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_threads[];
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_count_interpolated_runs[];
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_signal[];
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_noise[];
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_rules[];
-    template <typename t_value_type> constexpr char config<t_value_type>::jstr_runs[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_mat_output_path[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_count_simulations[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_count_threads[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_signal[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_noise[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_disable_oc_pass[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_rule_designs[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_runs[];
+    
+    template <typename t_engine_type, typename t_value_type>
+    void to_json(nlohmann::json& j, const config<t_engine_type, t_value_type>& x) noexcept
+    {
+        using type = config<t_engine_type, t_value_type>;
+
+        j = nlohmann::json{
+            {type::jstr_mat_output_path, x.mat_output_path()},
+            {type::jstr_count_simulations, x.count_simulations()},
+            {type::jstr_count_threads, x.count_threads()},
+            {type::jstr_signal, x.signal()},
+            {type::jstr_noise, x.noise()},
+            {type::jstr_disable_oc_pass, x.disable_oc_pass()},
+            {type::jstr_rule_designs, x.rule_designs()},
+            {type::jstr_runs, x.runs()}
+        };
+    } // to_json(...)
+
+    template <typename t_engine_type, typename t_value_type>
+    void from_json(const nlohmann::json& j, config<t_engine_type, t_value_type>& x)
+    {
+        using type = config<t_engine_type, t_value_type>;
+        std::error_code ec {};
+        x = type(j, ec);
+        if (ec.value() != 0) throw std::runtime_error("Parsing <config> failed: " + j.dump());
+    } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_CONFIG_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_CONFIG_INCLUDED

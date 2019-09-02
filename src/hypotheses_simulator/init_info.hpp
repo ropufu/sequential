@@ -1,21 +1,23 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_INIT_INFO_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_INIT_INFO_HPP_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_INIT_INFO_HPP_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_INIT_INFO_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
+#include <ropufu/noexcept_json.hpp>
+#include <ropufu/number_traits.hpp>
 
-#include <ropufu/algebra.hpp>      // aftermath::algebra::range
-#include "../draft/algebra/interpolator.hpp"
-#include "../draft/algebra/numbers.hpp"
+#include <ropufu/algebra/range.hpp>
 
-#include "../hypotheses/core.hpp"
-#include "hypothesis_pair.hpp"
+#include "../hypotheses/format.hpp"
+#include "../hypotheses/hypothesis_pair.hpp"
+#include "spacing.hpp"
 
-#include <cstddef>  // std::size_t
-#include <iostream> // std::ostream
-#include <string>   // std::string
+#include <cstddef>   // std::size_t
+#include <iostream>  // std::ostream
+#include <stdexcept> // std::runtime_error
+#include <string>    // std::string
 #include <system_error> // std::error_code
-#include <vector>   // std::vector
+#include <vector>    // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
@@ -42,7 +44,24 @@ namespace ropufu::sequential::hypotheses
     private:
         std::size_t m_rule_id = 0;
         hypothesis_pair<range_type> m_threshold_range = {};
-        value_type m_anticipated_run_length = {};
+        value_type m_anticipated_run_length = 0;
+
+        static bool is_valid(value_type anticipated_run_length, std::string& message) noexcept
+        {
+            if (!aftermath::is_finite(anticipated_run_length) || anticipated_run_length < 0)
+            {
+                message = "Anticipated run length must be positive or zero.";
+                return false;
+            } // if (...)
+            return true;
+        } // validate(...)
+
+        void validate() const
+        {
+            std::string message {};
+            if (!type::is_valid(this->m_anticipated_run_length, message))
+                throw std::logic_error(message);
+        } // validate(...)
 
     public:
         init_info() noexcept { }
@@ -52,9 +71,26 @@ namespace ropufu::sequential::hypotheses
         init_info(const nlohmann::json& j, std::error_code& ec) noexcept
         {
             // Parse json entries.
-            aftermath::noexcept_json::required(j, type::jstr_rule_id, this->m_rule_id, ec);
-            aftermath::noexcept_json::required(j, type::jstr_threshold_range, this->m_threshold_range, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_anticipated_run_length, this->m_anticipated_run_length, ec);
+            std::size_t rule_id = this->m_rule_id;
+            hypothesis_pair<range_type> threshold_range = this->m_threshold_range;
+            value_type anticipated_run_length = this->m_anticipated_run_length;
+            aftermath::noexcept_json::required(j, type::jstr_rule_id, rule_id, ec);
+            aftermath::noexcept_json::required(j, type::jstr_threshold_range, threshold_range, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_anticipated_run_length, anticipated_run_length, ec);
+            if (ec.value() != 0) return;
+
+            // Validate entries.
+            std::string message {};
+            if (!type::is_valid(anticipated_run_length, message))
+            {
+                ec = std::make_error_code(std::errc::bad_message);
+                return;
+            } // if (...)
+            
+            // Populate values.
+            this->m_rule_id = rule_id;
+            this->m_threshold_range = threshold_range;
+            this->m_anticipated_run_length = anticipated_run_length;
         } // init_info(...)
         
         std::size_t rule_id() const noexcept { return this->m_rule_id; }
@@ -66,15 +102,53 @@ namespace ropufu::sequential::hypotheses
             this->m_threshold_range = hypothesis_pair<range_type>(null_range, alt_range);
         } // set_threshold_range(...)
 
-        void make_thresholds(const hypothesis_pair<std::size_t>& count, aftermath::algebra::spacing transform, std::vector<value_type>& null_thresholds, std::vector<value_type>& alt_thresholds) const noexcept
+        void make_thresholds(
+            const hypothesis_pair<std::size_t>& count, spacing threshold_spacing,
+            std::vector<value_type>& null_thresholds, std::vector<value_type>& alt_thresholds) const
         {
-            this->m_threshold_range.null().explode(null_thresholds, count.null(), transform);
-            this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), transform);
+            aftermath::algebra::linear_spacing<value_type> lin {};
+            aftermath::algebra::logarithmic_spacing<value_type> log {};
+            aftermath::algebra::exponential_spacing<value_type> exp {};
+
+            switch (threshold_spacing)
+            {
+                case spacing::linear:
+                    this->m_threshold_range.null().explode(null_thresholds, count.null(), lin);
+                    this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), lin);
+                    break;
+                case spacing::logarithmic:
+                    this->m_threshold_range.null().explode(null_thresholds, count.null(), log);
+                    this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), log);
+                    break;
+                case spacing::exponential:
+                    this->m_threshold_range.null().explode(null_thresholds, count.null(), exp);
+                    this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), exp);
+                    break;
+                default:
+                    throw std::invalid_argument("Spacing not recognized.");
+            } // switch (...)
         } // make_thresholds(...)
 
         value_type anticipated_run_length() const noexcept { return this->m_anticipated_run_length; }
 
-        void set_anticipated_run_length(value_type value) noexcept { this->m_anticipated_run_length = value; }
+        void set_anticipated_run_length(value_type value)
+        {
+            this->m_anticipated_run_length = value;
+            this->validate();
+        } // set_anticipated_run_length(...)
+
+        bool operator ==(const type& other) const noexcept
+        {
+            return
+                this->m_rule_id == other.m_rule_id &&
+                this->m_threshold_range == other.m_threshold_range &&
+                this->m_anticipated_run_length == other.m_anticipated_run_length;
+        } // operator ==(...)
+
+        bool operator !=(const type& other) const noexcept
+        {
+            return !this->operator ==(other);
+        } // operator !=(...)
 
         /** @brief Output to a stream. */
         friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
@@ -107,50 +181,8 @@ namespace ropufu::sequential::hypotheses
         using type = init_info<t_value_type>;
         std::error_code ec {};
         x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing failed: " + j.dump());
+        if (ec.value() != 0) throw std::runtime_error("Parsing <init_info> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
 
-namespace ropufu::modules
-{
-    template <typename t_value_type, typename t_position_type>
-    struct interpolator<sequential::hypotheses::init_info<t_value_type>, t_position_type>
-    {
-        using type = interpolator<sequential::hypotheses::init_info<t_value_type>, t_position_type>;
-        using value_type = sequential::hypotheses::init_info<t_value_type>;
-        using position_type = t_position_type;
-        using clipper_type = clipper<t_position_type>;
-
-        static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position, std::error_code& ec) noexcept
-        {
-            value_type bad {};
-            std::size_t rule_id = left.rule_id();
-            if (left.rule_id() != right.rule_id())
-            {
-                return aftermath::detail::on_error(ec, std::errc::function_not_supported, "Rule id's have to match.", bad);
-            } // if (...)
-
-            position_type p = relative_position; // Make a copy of <relative_position>.
-
-            if (!clipper_type::was_finite(p, 0) || !clipper_type::was_between(p, 0, 1))
-                return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Relative position out of range.", bad);
-
-            position_type q = 1 - p;
-
-            aftermath::algebra::range<t_value_type> null_thresholds(
-                (q) * left.threshold_range().null().from() + (p) * right.threshold_range().null().from(),
-                (q) * left.threshold_range().null().to() + (p) * right.threshold_range().null().to());
-            aftermath::algebra::range<t_value_type> alt_thresholds(
-                (q) * left.threshold_range().alt().from() + (p) * right.threshold_range().alt().from(),
-                (q) * left.threshold_range().alt().to() + (p) * right.threshold_range().alt().to());
-            t_value_type anticipated_run_length = (q) * left.anticipated_run_length() + (p) * right.anticipated_run_length();
-
-            value_type x(rule_id);
-            x.set_threshold_range(null_thresholds, alt_thresholds);
-            x.set_anticipated_run_length(anticipated_run_length);
-            return x;
-        } // interpolate(...)
-    }; // struct interpolator<...>
-} // namespace ropufu::modules
-
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_INIT_INFO_HPP_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_INIT_INFO_HPP_INCLUDED

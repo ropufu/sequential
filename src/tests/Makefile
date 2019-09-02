@@ -1,7 +1,7 @@
 
 PNAME = tests.out
 
-CC = g++-8
+CC = g++-9
 
 CFLAGS = -std=c++17 -Wall
 
@@ -9,7 +9,7 @@ PATHINC = -I./../../../aftermath/src -I./../../../../include -I./..
 
 PATHLIB =
 
-LDFLAGS = -lstdc++fs
+LDFLAGS = 
 
 .VPATH: .
 

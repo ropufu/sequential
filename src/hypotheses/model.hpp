@@ -3,13 +3,10 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_MODEL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include <ropufu/json_traits.hpp>
+#include <ropufu/noexcept_json.hpp>
+#include <ropufu/number_traits.hpp>
 
-#include <ropufu/on_error.hpp> // aftermath::detail::on_error
-#include "../draft/algebra/interpolator.hpp"
-#include "../draft/algebra/numbers.hpp"
-
-#include "core.hpp"
+#include "format.hpp"
 
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
@@ -38,41 +35,71 @@ namespace ropufu::sequential::hypotheses
         static constexpr char jstr_smallest_alt_mu[] = "smallest alt mu";
 
     private:
-        value_type m_null_mu = 0; // Signal "strength" under the null hypothesis.
-        value_type m_smallest_alt_mu = 1; // Minimal signal "strength" under the alternative hypothesis.
+        value_type m_null_mu = 0; // Signal strength under the null hypothesis.
+        value_type m_smallest_alt_mu = 1; // Minimal signal strength under the alternative hypothesis.
 
-    protected:
-        bool validate(std::error_code& ec) const noexcept
+        static bool is_valid(value_type null_mu, value_type smallest_alt_mu, std::string& message) noexcept
         {
-            if (modules::is_nan(this->m_null_mu) || modules::is_infinite(this->m_null_mu)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Null mu has to be a finite number.", false);
-            if (modules::is_nan(this->m_smallest_alt_mu) || modules::is_infinite(this->m_smallest_alt_mu)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Smallest alternative mu has to be a finite number.", false);
-            if (this->m_null_mu >= this->m_smallest_alt_mu) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Smallest alternative has to be greater than null mu.", false);
+            if (!aftermath::is_finite(null_mu))
+            {
+                message = "Null mu must be finite.";
+                return false;
+            } // if (...)
+            if (!aftermath::is_finite(smallest_alt_mu))
+            {
+                message = "Smallest alternative mu must be finite.";
+                return false;
+            } // if (...)
+            if (null_mu >= smallest_alt_mu)
+            {
+                message = "Smallest alternative mu must be greater than null mu.";
+                return false;
+            } // if (...)
             return true;
         } // validate(...)
 
-        void coerce() noexcept
+        void validate() const
         {
-            if (modules::is_nan(this->m_null_mu) || modules::is_infinite(this->m_null_mu)) this->m_null_mu = 0;
-            if (modules::is_nan(this->m_smallest_alt_mu) || modules::is_infinite(this->m_smallest_alt_mu)) this->m_smallest_alt_mu = 0;
-            if (this->m_null_mu >= this->m_smallest_alt_mu) this->m_smallest_alt_mu = this->m_null_mu + 1;
-        } // coerce(...)
+            std::string message {};
+            if (!type::is_valid(this->m_null_mu, this->m_smallest_alt_mu, message))
+                throw std::logic_error(message);
+        } // validate(...)
 
     public:
+        /** @brief Hypothesis test of "mu = 0" vs "mu > 1". */
         model() noexcept { }
 
-        model(value_type null_mu, value_type smallest_alt_mu, std::error_code& ec) noexcept
+        /** @brief Hypothesis test of "mu = \p null_mu" vs "mu > \p m_smallest_alt_mu".
+         *  @exception std::logic_error \p null_mu is not finite.
+         *  @exception std::logic_error \p smallest_alt_mu is not finite.
+         *  @exception std::logic_error \p null_mu is not smaller than \p smallest_alt_mu.
+         */
+        model(value_type null_mu, value_type smallest_alt_mu)
             : m_null_mu(null_mu), m_smallest_alt_mu(smallest_alt_mu)
         {
-            if (!this->validate(ec)) this->coerce();
+            this->validate();
         } // model(...)
         
         model(const nlohmann::json& j, std::error_code& ec) noexcept
         {
             // Parse json entries.
-            aftermath::noexcept_json::optional(j, type::jstr_null_mu, this->m_null_mu, ec);
-            aftermath::noexcept_json::required(j, type::jstr_smallest_alt_mu, this->m_smallest_alt_mu, ec);
+            value_type null_mu = this->m_null_mu;
+            value_type smallest_alt_mu = this->m_smallest_alt_mu;
+            aftermath::noexcept_json::optional(j, type::jstr_null_mu, null_mu, ec);
+            aftermath::noexcept_json::required(j, type::jstr_smallest_alt_mu, smallest_alt_mu, ec);
+            if (ec.value() != 0) return;
             
-            if (!this->validate(ec)) this->coerce();
+            // Validate entries.
+            std::string message {};
+            if (!type::is_valid(null_mu, smallest_alt_mu, message))
+            {
+                ec = std::make_error_code(std::errc::bad_message);
+                return;
+            } // if (...)
+            
+            // Populate values.
+            this->m_null_mu = null_mu;
+            this->m_smallest_alt_mu = smallest_alt_mu;
         } // model(...)
 
         /** @brief Linear combination of \c mu_under_null and \c mu_under_alt with weights (1 - \p p) and (\p p). */
@@ -90,11 +117,16 @@ namespace ropufu::sequential::hypotheses
         /** @brief Determines if the provided signal "strength" falls into the alternative category. */
         bool is_alt(value_type theta) const noexcept { return theta >= this->m_smallest_alt_mu; }
 
-        void set_hypotheses(value_type null_mu, value_type smallest_alt_mu, std::error_code& ec) noexcept
+        /** @brief Resets the hypotheses.
+         *  @exception std::logic_error \p null_mu is not finite.
+         *  @exception std::logic_error \p smallest_alt_mu is not finite.
+         *  @exception std::logic_error \p null_mu is not smaller than \p smallest_alt_mu.
+         */
+        void set_hypotheses(value_type null_mu, value_type smallest_alt_mu)
         {
             this->m_null_mu = null_mu;
             this->m_smallest_alt_mu = smallest_alt_mu;
-            if (!this->validate(ec)) this->coerce();
+            this->validate();
         } // set_hypotheses(...)
 
         std::string to_path_string(std::size_t decimal_places = 3) const noexcept
@@ -105,6 +137,18 @@ namespace ropufu::sequential::hypotheses
             result += detail::to_str(this->m_smallest_alt_mu, decimal_places);
             return result;
         } // to_path_string(...)
+
+        bool operator ==(const type& other) const noexcept
+        {
+            return
+                this->m_null_mu == other.m_null_mu &&
+                this->m_smallest_alt_mu == other.m_smallest_alt_mu;
+        } // operator ==(...)
+
+        bool operator !=(const type& other) const noexcept
+        {
+            return !this->operator ==(other);
+        } // operator !=(...)
 
         /** @brief Output to a stream. */
         friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
@@ -135,37 +179,8 @@ namespace ropufu::sequential::hypotheses
         using type = model<t_value_type>;
         std::error_code ec {};
         x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing failed: " + j.dump());
+        if (ec.value() != 0) throw std::runtime_error("Parsing <model> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu
-
-namespace ropufu::modules
-{
-    template <typename t_value_type, typename t_position_type>
-    struct interpolator<sequential::hypotheses::model<t_value_type>, t_position_type>
-    {
-        using type = interpolator<sequential::hypotheses::model<t_value_type>, t_position_type>;
-        using value_type = sequential::hypotheses::model<t_value_type>;
-        using position_type = t_position_type;
-        using clipper_type = clipper<t_position_type>;
-
-        static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position, std::error_code& ec) noexcept
-        {
-            value_type bad {};
-
-            position_type p = relative_position; // Make a copy of <relative_position>.
-            if (!clipper_type::was_finite(p, 0) || !clipper_type::was_between(p, 0, 1))
-            {
-                return aftermath::detail::on_error(ec, std::errc::argument_out_of_domain, "Relative position out of range.", bad);
-            } // if (...)
-            
-            position_type q = 1 - p;
-
-            return value_type(
-                (q) * left.mu_under_null() + (p) * right.mu_under_null(),
-                (q) * left.smallest_mu_under_alt() + (p) * right.smallest_mu_under_alt(), ec);
-        } // interpolate(...)
-    }; // struct interpolator<...>
-} // namespace ropufu::modules
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_MODEL_HPP_INCLUDED

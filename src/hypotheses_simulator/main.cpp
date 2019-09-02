@@ -1,67 +1,95 @@
 
+#include <nlohmann/json.hpp>
+
 #include "config.hpp"
 #include "automator.hpp"
 
 #include <chrono>   // std::chrono::steady_clock, std::chrono::duration_cast
 #include <cstddef>  // std::size_t
-#include <cstdint>  // std::int32_t
+#include <filesystem> // std::filesystem::path, std::filesystem::remove
+#include <fstream>  // std::ifstream, std::ofstream
+#include <iomanip>  // std::setw
+#include <ios>        // std::ios_base::failure
 #include <iostream> // std::cout, std::endl
-#include <string>   // std::string, std::to_string
+#include <random>   // std::mt19937
 #include <system_error> // std::error_code
-#include <variant>  // std::visit
 
-// #include <conio.h> // _getch
-
-using config_type = ropufu::sequential::hypotheses::config<double>;
-template <typename t_signal_type, typename t_noise_type>
-using automator_t = ropufu::sequential::hypotheses::automator<t_signal_type, t_noise_type>;
-
-static std::error_code s_error {};
-static config_type s_config { "./simulator.config" };
-
-struct sprt_visitor
+bool try_read_json(const std::filesystem::path& path, nlohmann::json& j)
 {
-    template <typename t_signal_type, typename t_noise_type>
-    void operator ()(const t_signal_type& signal, const t_noise_type& noise) noexcept
+    try
     {
-        std::cout << "Signal / Noise:" << std::endl;
-        std::cout << '\t' << signal << std::endl;
-        std::cout << '\t' << noise << std::endl;
+        std::ifstream filestream {path}; // Try to open the file for reading.
+        if (filestream.fail()) return false; // Stop on failure.
+        filestream >> j;
+        return true;
+    } // try
+    catch (const std::ios_base::failure& /*e*/)
+    {
+        return false;
+    } // catch(...)
+} // try_read_json(...)
 
-        automator_t<t_signal_type, t_noise_type> aut(signal, noise, ::s_config, ::s_error);
-        aut.execute(::s_config);
-    } // operator ()(...)
-}; // struct sprt_visitor
-
-std::int32_t main()
+bool try_write_json(const std::filesystem::path& path, const nlohmann::json& j)
 {
-    std::chrono::steady_clock::time_point start{};
-    std::chrono::steady_clock::time_point end{};
+    try
+    {
+        std::ofstream filestream {path}; // Try to open the file for writing.
+        if (filestream.fail()) return false; // Stop on failure.
+        filestream << std::setw(4) << j << std::endl;
+        return true;
+    } // try
+    catch (const std::ios_base::failure& /*e*/)
+    {
+        return false;
+    } // catch(...)
+} // try_write_json(...)
 
-    if (!::s_config.good())
+int main()
+{
+    using engine_type = std::mt19937;
+    using value_type = double;
+    using config_type = ropufu::sequential::hypotheses::config<engine_type, value_type>;
+    using automator_type = ropufu::sequential::hypotheses::automator<engine_type, value_type>;
+
+    const std::filesystem::path config_path = "./config.json";
+
+    std::chrono::steady_clock::time_point start {};
+    std::chrono::steady_clock::time_point end {};
+
+    nlohmann::json config_json {};
+    bool is_okay = ::try_read_json(config_path, config_json);
+    if (!is_okay)
     {
         std::cout << "Failed to read config file." << std::endl;
-        for (const std::string& message : ::s_config.log()) std::cout << '\t' << "-- " << message << std::endl;
         return 1729;
     } // if (...)
 
-    std::cout << "Initialization completed." << std::endl;
-    //std::cout << "Rules:" << std::endl;
-    //for (const auto& x : ::s_config.rules()) std::cout << '\t' << x << std::endl;
-    // std::cout << "Runs:" << std::endl;
-    // for (const auto& x : ::s_config.runs()) std::cout << '\t' << x << std::endl;
+    std::error_code ec {};
+    config_type config {config_json, ec};
+    if (ec.value() != 0)
+    {
+        std::cout << "Config file could not be parsed." << std::endl;
+        return 87539319;
+    } // if (...)
 
-    // std::cout << std::endl;
+    std::cout << "Initialization completed." << std::endl;
+    std::cout << "-- " << config.rule_designs().size() << " rules." << std::endl;
+    std::cout << "-- " << config.runs().size() << " runs." << std::endl;
+
     start = std::chrono::steady_clock::now();
-    std::visit(sprt_visitor{}, ::s_config.signal(), ::s_config.noise());
+
+    engine_type engine {};
+    int time_seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count());
+    std::seed_seq sequence { 1, 1, 2, 3, 5, 8, 1729, time_seed };
+    engine.seed(sequence);
+
+    automator_type automator {config, config_path};
+    automator.execute(engine);
+
     end = std::chrono::steady_clock::now();
 
-    if (::s_error.value() != 0) std::cout << "~~ Errors encountered. ~~" << std::endl;
-    else std::cout << "~~ Simulation completed successfully. ~~" << std::endl;
-    
     double elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / static_cast<double>(1'000);
     std::cout << "Total elapsed time: " << elapsed_seconds << "s." << std::endl;
     
-    // _getch();
     return 0;
 } // main(...)

@@ -1,22 +1,18 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_TRANSITIONARY_SIGNAL_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_TRANSITIONARY_SIGNAL_HPP_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_TRANSITIONARY_SIGNAL_HPP_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_TRANSITIONARY_SIGNAL_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include <ropufu/json_traits.hpp>
+#include <ropufu/noexcept_json.hpp>
+#include <ropufu/number_traits.hpp>
 
-#include <ropufu/on_error.hpp> // aftermath::detail::on_error
-#include "../../draft/algebra/numbers.hpp"
-
-#include "../signal_base.hpp"
-
-#include <array>    // std::array
-#include <cstddef>  // std::size_t
-#include <iostream> // std::ostream
-#include <stdexcept>    // std::runtime_error
-#include <string>   // std::string
+#include <array>     // std::array
+#include <cstddef>   // std::size_t
+#include <iostream>  // std::ostream
+#include <stdexcept> // std::runtime_error, std::logic_error
+#include <string>    // std::string
 #include <system_error> // std::error_code, std::errc
-#include <vector>   // std::vector
+#include <vector>    // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
@@ -47,15 +43,11 @@ namespace ropufu::sequential::hypotheses
     /** Represents a transitionary signal. */
     template <typename t_value_type, std::size_t t_transition_size>
     struct transitionary_signal
-        : public signal_base<transitionary_signal<t_value_type, t_transition_size>, t_value_type>,
-        public detail::named_transitionary_signal<t_transition_size>
+        : public detail::named_transitionary_signal<t_transition_size>
     {
         using type = transitionary_signal<t_value_type, t_transition_size>;
         using value_type = t_value_type;
         using transition_container_type = std::array<value_type, t_transition_size>;
-
-        using base_type = signal_base<type, value_type>;
-        friend base_type;
 
         static constexpr std::size_t transition_size = t_transition_size;
 
@@ -65,38 +57,56 @@ namespace ropufu::sequential::hypotheses
         static constexpr char jstr_stationary_level[] = "stationary level";
 
     private:
-        value_type m_stationary_level = 1;
+        value_type m_stationary_level = 0;
         transition_container_type m_transition = {};
 
-    protected:
-        bool validate(std::error_code& ec) const noexcept
+        static bool is_valid(value_type stationary_level, const transition_container_type& transition, std::string& message) noexcept
         {
-            if (modules::is_nan(this->m_stationary_level) || modules::is_infinite(this->m_stationary_level)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
-            for (const value_type& x : this->m_transition)
+            if (!aftermath::is_finite(stationary_level))
             {
-                if (modules::is_nan(x) || modules::is_infinite(x)) return aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal level has to be a finite number.", false);
+                message = "Signal level must be finite.";
+                return false;
+            } // if (...)
+            for (const value_type& x : transition)
+            {
+                if (!aftermath::is_finite(x))
+                {
+                    message = "Signal level must be finite.";
+                    return false;
+                } // if (...)
             } // for (...)
             return true;
         } // validate(...)
 
-        void coerce() noexcept
+        void validate() const
         {
-            if (modules::is_nan(this->m_stationary_level) || modules::is_infinite(this->m_stationary_level)) this->m_stationary_level = 0;
-            for (value_type& x : this->m_transition)
-            {
-                if (modules::is_nan(x) || modules::is_infinite(x)) x = 0;
-            } // for (...)
-        } // coerce(...)
+            std::string message {};
+            if (!type::is_valid(this->m_stationary_level, this->m_transition, message))
+                throw std::logic_error(message);
+        } // validate(...)
 
     public:
-        /** Constant signal when no AR noise is present. */
+        /** Zero signal. */
         transitionary_signal() noexcept { }
 
-        /** Constant signal when no AR noise is present. */
-        transitionary_signal(value_type stationary_level, const transition_container_type& transition, std::error_code& ec) noexcept
+        /** @brief Constant signal that starts at the stationary level.
+         *  @exception std::logic_error \p stationary_level is not finite.
+         */
+        explicit transitionary_signal(value_type stationary_level)
+            : m_stationary_level(stationary_level)
+        {
+            this->m_transition.fill(stationary_level);
+            this->validate();
+        } // transitionary_signal(...)
+
+        /** @brief Transitionary signal.
+         *  @exception std::logic_error \p stationary_level is not finite.
+         *  @exception std::logic_error \p transition is not finite.
+         */
+        transitionary_signal(value_type stationary_level, const transition_container_type& transition)
             : m_stationary_level(stationary_level), m_transition(transition)
         {
-            if (!this->validate(ec)) this->coerce();
+            this->validate();
         } // transitionary_signal(...)
         
         transitionary_signal(const nlohmann::json& j, std::error_code& ec) noexcept
@@ -106,44 +116,82 @@ namespace ropufu::sequential::hypotheses
             aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
             if (typename_str != type::typename_string)
             {
-                aftermath::detail::on_error(ec, std::errc::invalid_argument, "Signal type mismatch.");
+                ec = std::make_error_code(std::errc::bad_message); // Signal type mismatch.
                 return;
             } // if (...)
 
             // Parse json entries.
-            aftermath::noexcept_json::required(j, type::jstr_stationary_level, this->m_stationary_level, ec);
-            aftermath::noexcept_json::required(j, type::jstr_transition, this->m_transition, ec);
+            value_type stationary_level = this->m_stationary_level;
+            transition_container_type transition = this->m_transition;
+            aftermath::noexcept_json::required(j, type::jstr_stationary_level, stationary_level, ec);
+            aftermath::noexcept_json::required(j, type::jstr_transition, transition, ec);
+            if (ec.value() != 0) return;
+
+            // Validate entries.
+            std::string message {};
+            if (!type::is_valid(stationary_level, transition, message))
+            {
+                ec = std::make_error_code(std::errc::bad_message);
+                return;
+            } // if (...)
             
-            if (!this->validate(ec)) this->coerce();
+            // Populate values.
+            this->m_stationary_level = stationary_level;
+            this->m_transition = transition;
         } // transitionary_signal(...)
 
-        /** Signal level when in transition mode. */
-        const transition_container_type& transition() const noexcept { return this->m_transition; }
-
-        /** Signal level when in stationary mode. */
+        /** @brief Signal level when in stationary mode. */
         value_type stationary_level() const noexcept { return this->m_stationary_level; }
-        /** Signal level when in stationary mode. */
-        void set_stationary_level(value_type value, std::error_code& ec) noexcept
+        /** @brief Signal level when in stationary mode.
+         *  @exception std::logic_error \p value is not finite.
+         */
+        void set_stationary_level(value_type value) noexcept
         {
             this->m_stationary_level = value;
-            if (!this->validate(ec)) this->coerce();
+            this->validate();
         } // set_stationary_level(...)
 
-        /** Signal level when in transition mode. */
-        value_type transitionary_level(std::size_t time_index) const noexcept { return this->m_transition[time_index]; }
-        /** Signal level when in transition mode. */
-        void set_transitionary_level(std::size_t time_index, value_type value, std::error_code& ec) noexcept
+        /** @brief Signal level when in transition mode. */
+        const transition_container_type& transition() const noexcept { return this->m_transition; }
+        /** @brief Signal level when in transition mode. */
+        value_type transition(std::size_t time_index) const { return this->m_transition.at(time_index); }
+        /** @brief Signal level when in transition mode.
+         *  @exception std::logic_error \p value is not finite.
+         */
+        void set_transition(std::size_t time_index, value_type value) noexcept
         {
-            this->m_transition[time_index] = value;
-            if (!this->validate(ec)) this->coerce();
-        } // set_transitionary_level(...)
+            this->m_transition.at(time_index) = value;
+            this->validate();
+        } // set_transition(...)
 
         /** @brief Signal value at an arbitrary time. */
-        value_type at(std::size_t time_index) const noexcept
+        value_type at([[maybe_unused]] std::size_t time_index) const noexcept
         {
-            if (time_index < transition_size) return this->transitionary_level(time_index);
-            return this->stationary_level();
+            if constexpr (type::transition_size == 0) return this->m_stationary_level;
+            else
+            {
+                if (time_index < type::transition_size) return this->m_transition[time_index];
+                return this->m_stationary_level;
+            } // if constexpr (...)
         } // at(...)
+
+        /** @brief Signal value at an arbitrary time. */
+        constexpr value_type operator ()(std::size_t time_index) const noexcept { return this->at(time_index); }
+        
+        /** @brief Signal value at an arbitrary time. */
+        constexpr value_type operator [](std::size_t time_index) const noexcept { return this->at(time_index); }
+
+        bool operator ==(const type& other) const noexcept
+        {
+            return
+                this->m_stationary_level == other.m_stationary_level &&
+                this->m_transition == other.m_transition;
+        } // operator ==(...)
+
+        bool operator !=(const type& other) const noexcept
+        {
+            return !this->operator ==(other);
+        } // operator !=(...)
 
         /** Output to a stream. */
         friend std::ostream& operator <<(std::ostream& os, const type& self) noexcept
@@ -177,8 +225,8 @@ namespace ropufu::sequential::hypotheses
         using type = transitionary_signal<t_value_type, t_transition_size>;
         std::error_code ec {};
         x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing failed: " + j.dump());
+        if (ec.value() != 0) throw std::runtime_error("Parsing <transitionary_signal> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_TRANSITIONARY_SIGNAL_HPP_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_TRANSITIONARY_SIGNAL_HPP_INCLUDED

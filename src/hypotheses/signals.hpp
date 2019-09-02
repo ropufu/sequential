@@ -3,12 +3,10 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
-#include <ropufu/json_traits.hpp>
+#include <ropufu/noexcept_json.hpp>
 
-#include "signal_base.hpp"
 #include "signals/constant_signal.hpp"
 #include "signals/transitionary_signal.hpp"
-#include "signals/unit_signal.hpp"
 
 #include <system_error> // std::error_code, std::errc
 #include <variant> // std::variant

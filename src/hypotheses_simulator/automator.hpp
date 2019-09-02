@@ -1,257 +1,185 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_AUTOMATOR_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_AUTOMATOR_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_AUTOMATOR_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_AUTOMATOR_INCLUDED
 
-#include <ropufu/algebra.hpp> // aftermath::algebra::matrix, aftermath::algebra::range
-#include "../draft/algebra/interpolator.hpp"
-#include "../draft/algebra/numbers.hpp"
+#include <ropufu/number_traits.hpp>
+#include <ropufu/algebra/matrix.hpp>
+#include <ropufu/algebra/range.hpp>
 
-#include "../hypotheses/de_auto_regress.hpp"
+#include "../draft/probability/moment_statistic.hpp"
+
 #include "../hypotheses/signals.hpp"
 #include "../hypotheses/noises.hpp"
-#include "../hypotheses/process.hpp"
+#include "../hypotheses/simple_process.hpp"
+#include "../hypotheses/operating_characteristic.hpp"
 #include "../hypotheses/model.hpp"
+#include "../hypotheses/change_of_measure.hpp"
+#include "../hypotheses/observer.hpp"
 #include "../hypotheses/rules.hpp"
 #include "../hypotheses/monte_carlo.hpp"
 
-#include "../hypotheses/moment_statistic.hpp"
-
 #include "config.hpp"
+#include "sprt_factory.hpp"
+
 #include "init_info.hpp"
-#include "known_sprts.hpp"
 #include "run.hpp"
-#include "simulation_pair.hpp"
 #include "writer.hpp"
+#include "matrix_printer.hpp"
 
 #include <chrono>   // std::chrono::steady_clock, std::chrono::duration_cast
-#include <cmath>    // std::sqrt
 #include <cstddef>  // std::size_t
-#include <iomanip>  // std::setw
-#include <ios>      // std::left, std::right
+#include <filesystem>   // std::filesystem::path
 #include <iostream> // std::cout, std::endl
 #include <map>      // std::map
 #include <stdexcept>    // std::runtime_error
 #include <string>       // std::string, std::to_string
 #include <system_error> // std::error_code, std::make_error_code, std::errc
-#include <utility>  // std::pair
+#include <utility>  // std::swap
 #include <vector>   // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
-    namespace detail
-    {
-        /** @brief Prints the corner values of simulation matrices.
-         *  @param emat Matrix of expected values (sample means).
-         *  @param emat Matrix of variances (sample variances).
-         */
-        template <typename t_data_type>
-        void print_corners(
-            const aftermath::algebra::matrix<t_data_type>& emat,
-            const aftermath::algebra::matrix<t_data_type>& vmat,
-            std::string&& prefix, std::size_t fixed_width = 15) noexcept
-        {
-            if (emat.size() == 0 || vmat.size() == 0)
-            {
-                std::cout << prefix << "empty" << std::endl;
-                return;
-            } // if (...)
-            if (emat.height() != vmat.height() || emat.width() != vmat.width())
-            {
-                std::cout << prefix << "size mismatch" << std::endl;
-                return;
-            } // if (...)
-
-            std::string blank(prefix.size(), ' ');
-            std::size_t m = emat.height() - 1; // Cannot cause underflow because <emat> is not empty.
-            std::size_t n = emat.width() - 1; // Cannot cause underflow because <emat> is not empty.
-
-            //   a --- b      x --- y
-            //   | ... |  pm  | ... |
-            //   c --- d      z --- w
-            t_data_type a = emat(0, n); t_data_type x = std::sqrt(vmat(0, n));
-            t_data_type b = emat(m, n); t_data_type y = std::sqrt(vmat(m, n));
-            t_data_type c = emat(0, 0); t_data_type z = std::sqrt(vmat(0, 0));
-            t_data_type d = emat(m, 0); t_data_type w = std::sqrt(vmat(m, 0));
-
-            std::cout << blank  << std::setw(fixed_width) << std::left << a << " --- " << std::setw(fixed_width) << std::right << b
-                << "        "   << std::setw(fixed_width) << std::left << x << " --- " << std::setw(fixed_width) << std::right << y << std::endl;
-            std::cout << prefix << std::setw(fixed_width) << std::left << " |" << " ... " << std::setw(fixed_width) << std::right << "| "
-                << "   pm   "   << std::setw(fixed_width) << std::left << " |" << " ... " << std::setw(fixed_width) << std::right << "| " << std::endl;
-            std::cout << blank  << std::setw(fixed_width) << std::left << c << " --- " << std::setw(fixed_width) << std::right << d
-                << "        "   << std::setw(fixed_width) << std::left << z << " --- " << std::setw(fixed_width) << std::right << w << std::endl;
-        } // print_corners(...)
-    } // namespace detail
-
     /** @brief Class for reading and writing configurtation setting. */
-    template <typename t_signal_type, typename t_noise_type>
+    template <typename t_engine_type, typename t_value_type>
     struct automator
     {
-        using type = automator<t_signal_type, t_noise_type>;
-        using de_auto_regress_type = hypotheses::detail::de_auto_regress<t_signal_type, t_noise_type>;
+        using type = automator<t_engine_type, t_value_type>;
+        using engine_type = t_engine_type;
+        using value_type = t_value_type;
 
-        using signal_type = t_signal_type;
-        using noise_type = t_noise_type;
-        using adjusted_signal_type = typename de_auto_regress_type::adjusted_signal_type;
-        using adjusted_noise_type = typename de_auto_regress_type::adjusted_noise_type;
-        using process_type = hypotheses::process<adjusted_signal_type, adjusted_noise_type>; // Adjusted process.
-        using value_type = typename process_type::value_type;
+        using signal_type = hypotheses::constant_signal<value_type>;
+        using noise_type = hypotheses::white_noise<engine_type, value_type>;
+        using process_type = hypotheses::simple_process<engine_type, value_type>;
         using model_type = hypotheses::model<value_type>;
-        using rule_collection_type = hypotheses::known_sprts<adjusted_signal_type, adjusted_noise_type>;
-        using monte_carlo_type = hypotheses::monte_carlo<adjusted_signal_type, adjusted_noise_type>;
+        using change_of_measure_type = hypotheses::change_of_measure<value_type>;
+        using monte_carlo_type = hypotheses::monte_carlo<engine_type, value_type>;
+
+        using design_variant_type = hypotheses::rule_design_variant<value_type>;
+        
+        using observer_type = hypotheses::observer<engine_type, value_type>;
 
         template <typename t_data_type>
         using matrix_t = aftermath::algebra::matrix<t_data_type>;
-        using moment_statistic_type = hypotheses::moment_statistic<matrix_t<value_type>>;
-
-        using congif_type = config<value_type>;
+        using moment_statistic_type = aftermath::probability::moment_statistic<matrix_t<value_type>>;
+        using oc_statistic_type = hypotheses::oc_array_t<moment_statistic_type>;
+        
+        using init_info_type = hypotheses::init_info<value_type>;
+        using run_type = run<value_type>;
+        using congif_type = config<engine_type, value_type>;
+        using writer_type = writer<engine_type, value_type>;
+        using sprt_factory_type = sprt_factory<engine_type, value_type>;
+        using observer_ptr_type = typename sprt_factory_type::observer_ptr_type;
 
     private:
-        adjusted_signal_type m_signal = {}; // Signal.
-        adjusted_noise_type m_noise = {}; // Noise.
-        rule_collection_type m_rules = {}; // Potential rules to run.
-        std::string m_mat_output_path = {}; // Where to dump the statistic mat files.
+        congif_type m_config = {};
+        std::filesystem::path m_config_path = {};
         monte_carlo_type m_monte_carlo = {}; // Monte carlo.
-        std::vector<run<value_type>> m_runs = {}; // MC simulations to perform.
 
-        void build_runs(const congif_type& config) noexcept
+        void execute(engine_type& engine, const run_type& r, const change_of_measure_type& mu_pair, std::vector<observer_ptr_type>& observer_pointers, bool is_verbal) noexcept
         {
-            std::vector<run<value_type>> keyframe_runs = config.runs(); // Copy runs from config.
-            std::size_t count_in_between = config.interpolated_runs();
-            this->m_runs = run<value_type>::interpolate(keyframe_runs, count_in_between);
-        } // build_runs(...)
-
-        bool try_execute(const model_type& model, const simulation_pair<value_type>& mu_pair,
-            rule_collection_type& rules_to_run,
-            const std::vector<init_info<value_type>>& rules_init,
-            const hypothesis_pair<std::size_t>& threshold_count, aftermath::algebra::spacing threshold_spacing,
-            bool is_verbal) noexcept
-        {
-            std::size_t k = rules_to_run.size();
-            if (k != rules_init.size())
+            if (is_verbal)
             {
-                std::cout << "Rule init mismatch." << std::endl;
-                return false;
-            }
-            if (k == 0) return true;
+                std::cout << "Simulation start." << std::endl;
+                std::cout << "-- Analyzed / simulated mu: " <<
+                    mu_pair.analyzed() << " / " << mu_pair.simulated() << std::endl;
+            } // if (...)
 
-            if (is_verbal) std::cout
-                << "Analyzed mu: " << mu_pair.analyzed_mu() << ", "
-                << "simulated mu: " << mu_pair.simulated_mu() << std::endl;
+            std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+            process_type process {this->m_config.signal(), this->m_config.noise(), mu_pair.simulated()};
+            this->m_monte_carlo.run(engine, process, r.model(), mu_pair, observer_pointers);
+            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-            process_type proc(this->m_signal, this->m_noise, mu_pair.simulated_mu()); // Set up the process.
+            if (is_verbal)
+            {
+                for (observer_ptr_type& o : observer_pointers)
+                {
+                    // Report.
+                    std::string rule_name = o->to_path_string(2);
 
-            std::chrono::steady_clock::time_point start {};
-            std::chrono::steady_clock::time_point end {};
+                    // ESS.
+                    value_type ess_a = o->run_lengths().mean().front();
+                    value_type ess_b = o->run_lengths().mean().back();
+                    if (ess_b < ess_a) std::swap(ess_a, ess_b);
 
-            std::error_code ec {};
-            this->m_monte_carlo.run(proc, rules_to_run,
-                [&] (std::error_code& ecx) {
-                    if (is_verbal) std::cout << "Simulation start." << std::endl;
-                    start = std::chrono::steady_clock::now();
+                    // Errors.
+                    value_type err_a = o->decision_errors().mean().front();
+                    value_type err_b = o->decision_errors().mean().back();
+                    if (err_b < err_a) std::swap(err_a, err_b);
 
-                    for (const init_info<value_type>& init : rules_init)
-                    {
-                        if (is_verbal) 
-                            std::cout << "Initializing rule #" << init.rule_id() << " with " << init << "." << std::endl;
+                    std::cout << "-- Rule " << rule_name
+                        << " ESS = " << ess_a << "--" << ess_b << ","
+                        << " P(error) = " << err_a << "--" << err_b << "." << std::endl;
+                } // for (...)
 
-                        std::vector<value_type> null_thresholds {};
-                        std::vector<value_type> alt_thresholds {};
-                        init.make_thresholds(threshold_count, threshold_spacing, null_thresholds, alt_thresholds);
-                        rules_to_run.initialize(init,
-                            model,
-                            mu_pair.analyzed_mu(),
-                            proc.log_likelihood_scale(), 
-                            null_thresholds, alt_thresholds, ecx);
-                        if (ecx.value() != 0) std::cout << "Initializing rule #" << init.rule_id() << "failed: " << ecx.message() << "." << std::endl;
-                    } // for (...)
-                },
-                [&] () {
-                    end = std::chrono::steady_clock::now();
-                    rules_to_run.report([&] (std::size_t rule_id, const moment_statistic_type& run_lengths, const moment_statistic_type& errors)
-                        {
-                            // Report.
-                            value_type temp {};
-
-                            // ESS.
-                            value_type ess_a = run_lengths.mean().front();
-                            value_type ess_b = run_lengths.mean().back();
-                            if (ess_b < ess_a) { temp = ess_b; ess_b = ess_a; ess_a = temp; }
-
-                            // Errors.
-                            value_type err_a = errors.mean().front();
-                            value_type err_b = errors.mean().back();
-                            if (err_b < err_a) { temp = err_b; err_b = err_a; err_a = temp; }
-
-                            if (is_verbal) std::cout << "Rule #" << rule_id
-                                << " ESS = " << ess_a << "--" << ess_b << ","
-                                << " P(error) = " << err_a << "--" << err_b << "." << std::endl;
-                        });
-
-                    if (is_verbal) std::cout << "Simulation end." << std::endl;
-                    value_type elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / static_cast<value_type>(1'000);
-
-                    if (is_verbal) std::cout << "Elapsed time: " << elapsed_seconds << "s." << std::endl;
-                }, ec); // run(...)
-            return (ec.value() == 0);
-        } // try_execute(...)
+                double elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / static_cast<double>(1'000);
+                std::cout << "Simulation end." << std::endl;
+                std::cout << "Elapsed time: " << elapsed_seconds << "s." << std::endl;
+            } // if (...)
+        } // execute(...)
 
     public:
-        automator() noexcept { }
-
-        automator(const signal_type& signal, const noise_type& noise, const congif_type& config, std::error_code& ec) noexcept
-            : m_signal(de_auto_regress_type::adjust_signal(signal, noise, ec)),
-            m_noise(de_auto_regress_type::adjust_noise(signal, noise, ec)),
-            m_rules()
+        explicit automator(const congif_type& config, const std::filesystem::path& config_path) noexcept
+            : m_config(config), m_config_path(config_path), m_monte_carlo(config.count_simulations())
         {
-            for (const auto& v : config.rules())
-            {
-                std::visit([&] (auto&& rule_design) { this->m_rules.insert(rule_design); }, v);
-            } // for (...)
-
-            this->m_mat_output_path = config.mat_output_path();
-            this->m_monte_carlo = monte_carlo_type(config.simulation_count());
-            this->build_runs(config);
         } // automator(...)
 
-        void execute(const congif_type& config) noexcept
+        void execute(engine_type& engine) noexcept
         {
-            for (const run<value_type>& r : this->m_runs)
+            using matrix_printer_type = matrix_printer<value_type>;
+            process_type proc {this->m_config.signal(), this->m_config.noise()};
+
+            for (const run_type& r : this->m_config.runs())
             {
-                std::error_code ec {};
-                const model_type& model = r.model(); // Get the model.
-                writer<value_type> w { this->m_mat_output_path, config, model, ec }; // Create .mat file writer.
-                if (ec.value() != 0) std::cout << "Creating writer failed: " + ec.message() + "." << std::endl;
-                if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
+                sprt_factory_type factory {proc};
 
-                // Match up rules to run.
-                rule_collection_type rules_to_run = this->m_rules.filter(r.init_rules());
+                // Set up rules.
+                for (const init_info_type& init : r.inits())
+                {
+                    if (!this->m_config.has_rule_design(init.rule_id())) continue;
 
-                std::cout << "Model " << model << std::endl;
+                    factory.initialize_visitor(init, r.model(), r.threshold_spacing(), r.threshold_count());
+                    const design_variant_type& v = this->m_config.rule_design_by_id(init.rule_id());
+                    std::visit(factory, static_cast<const typename design_variant_type::base_type&>(v));
+                } // for (...)
+
+                // Now that the rules have been set up, treat them as observers.
+                std::vector<observer_ptr_type> observer_pointers = factory.observer_pointers();
+
+                // Statistics for standard operating characteristics.
+                std::vector<oc_statistic_type> oc_statistics = {};
+                oc_statistics.resize(observer_pointers.size()); // One default-initialized oc_array_t<moment_statistic_type> for each rule.
+
+                writer_type w {this->m_config.mat_output_path(), this->m_config_path, r.model()};
+                if (!w.good()) std::cout << "Creating writer failed. No filesystem output will be produced." << std::endl;
+
+                std::cout << "Model " << r.model() << std::endl;
                 std::cout << "Estimating operating characteristics in " << this->m_monte_carlo.count_simulations() << " Monte Carlo runs..." << std::endl;
 
                 // First, build up the standard operating characteristics.
-                if (!config.disable_oc_pass())
+                if (!this->m_config.disable_oc_pass())
                 {
                     oc_array_t<void> oc_list {};
                     for (operating_characteristic oc : oc_list)
                     {
-                        simulation_pair<value_type> mu_pair(oc, model, ec);
-                        if (ec.value() != 0) std::cout << "Constructing simulation pair failed: " + ec.message() + "." << std::endl;
-                        if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
-
-                        bool is_okay = this->try_execute(model, mu_pair, rules_to_run, r.init_rules(), r.threshold_count(), r.threshold_spacing(), false); // Run the simulation, suppress display.
-                        if (!is_okay) std::cout << "Something went wrong in " << __FUNCTION__ << " on line " << __LINE__ << "." << std::endl;
-                        if (!is_okay) { std::cout << "Aborting." << std::endl; return; }
+                        // Determine change of measure.
+                        change_of_measure_type mu_pair = change_of_measure_type::from_oc(oc, r.model());
+                        // Run simulations.
+                        this->execute(engine, r, mu_pair, observer_pointers, false); // Run the simulation, suppress display.
 
                         // Collect statistics to be stored later, once all OC simulations are completed.
-                        rules_to_run.record_oc(oc, mu_pair, ec);
-                        if (ec.value() != 0) std::cout << "Reading operating characteristic failed: " + ec.message() + "." << std::endl;
-                        if (ec.value() != 0) { std::cout << "Aborting." << std::endl; return; }
+                        
+                        for (std::size_t k = 0; k < observer_pointers.size(); ++k)
+                        {
+                            const observer_ptr_type& o = observer_pointers[k];
+                            oc_statistic_type& s = oc_statistics[k];
+                            s[oc] = o->read_oc(oc);
+                        } // for (...)
                     } // for (...)
 
                     // Present the statistics.
-                    for (const oc_array_t<moment_statistic_type>& oc_statistic_array : rules_to_run.oc_statistics())
+                    for (std::size_t k = 0; k < oc_statistics.size(); ++k)
                     {
+                        const oc_array_t<moment_statistic_type>& oc_statistic_array = oc_statistics[k];
                         const moment_statistic_type& fa = oc_statistic_array[operating_characteristic::probability_of_false_alarm];
                         const moment_statistic_type& ms = oc_statistic_array[operating_characteristic::probability_of_missed_signal];
 
@@ -261,34 +189,36 @@ namespace ropufu::sequential::hypotheses
                         matrix_t<value_type> vms = ms.variance();
                         //vfa.transform([] (value_type x) { return std::sqrt(x); });
                         //vms.transform([] (value_type x) { return std::sqrt(x); });
-                        std::string rule_name = "??";
+                        std::string rule_name = observer_pointers[k]->to_path_string(2);
                         
                         std::cout << "Rule " << rule_name << ":" << std::endl;
-                        detail::print_corners(pfa, vfa, "    " + std::to_string(operating_characteristic::probability_of_false_alarm) + " = ");
+                        matrix_printer_type::print_corners(std::cout, pfa, vfa, "    " + std::to_string(operating_characteristic::probability_of_false_alarm) + " = ");
                         std::cout << std::endl;
-                        detail::print_corners(pms, vms, "    " + std::to_string(operating_characteristic::probability_of_missed_signal) + " = ");
+                        matrix_printer_type::print_corners(std::cout, pms, vms, "    " + std::to_string(operating_characteristic::probability_of_missed_signal) + " = ");
                         std::cout << std::endl;
                     } // for (...)
 
-                    rules_to_run.dump_oc(w, model, ec); // Write to .mat file.
-                    if (ec.value() != 0) std::cout << "Writing operating characteristics failed: " + ec.message() + "." << std::endl;
-                    ec.clear();
+                    // Store the statistics to filesystem.
+                    for (std::size_t k = 0; k < oc_statistics.size(); ++k)
+                    {
+                        const oc_array_t<moment_statistic_type>& oc_statistic_array = oc_statistics[k];
+                        w.write_mat(this->m_config.count_simulations(), observer_pointers[k], oc_statistic_array);
+                    } // for (...)
                 } // if (...)
 
                 // Second, then run the auxiliary simulations.
-                if (!r.simulation_pairs().empty())
+                if (!r.signal_strengths().empty())
                 {
                     std::cout << "Estimating other characteristics..." << std::endl;
-                    for (const simulation_pair<value_type>& mu_pair : r.simulation_pairs())
+                    for (const change_of_measure_type& mu_pair : r.signal_strengths())
                     {
-                        bool is_okay = this->try_execute(model, mu_pair, rules_to_run, r.init_rules(), r.threshold_count(), r.threshold_spacing(), true); // Run the simulation, allow display.
-                        if (!is_okay) std::cout << "Something went wrong in " << __FUNCTION__ << " on line " << __LINE__ << "." << std::endl;
-                        if (!is_okay) { std::cout << "Aborting." << std::endl; return; }
-
+                        // Run simulations.
+                        this->execute(engine, r, mu_pair, observer_pointers, true); // Run the simulation, allow display.
                         // Store the statistics right away.
-                        rules_to_run.dump(w, model, mu_pair, ec); // Write to .mat file.
-                        if (ec.value() != 0) std::cout << "Writing operating characteristics failed: " + ec.message() + "." << std::endl;
-                        ec.clear();
+                        for (std::size_t k = 0; k < observer_pointers.size(); ++k)
+                        {
+                            w.write_mat(this->m_config.count_simulations(), observer_pointers[k], mu_pair);
+                        } // for (...)
                     } // for (...)
                 } // if (...)
             } // for (...)
@@ -296,4 +226,4 @@ namespace ropufu::sequential::hypotheses
     }; // automator
 } // namespace ropufu::sequential::hypotheses
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_AUTOMATOR_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_AUTOMATOR_INCLUDED
