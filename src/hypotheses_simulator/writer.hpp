@@ -1,6 +1,6 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_WRITER_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_WRITER_HPP_INCLUDED
+#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_WRITER_HPP_INCLUDED
+#define ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_WRITER_HPP_INCLUDED
 
 #include <ropufu/algebra/matrix.hpp>
 #include <ropufu/format/mat4_ostream.hpp>
@@ -198,4 +198,4 @@ namespace ropufu::sequential::hypotheses
     }; // struct writer
 } // namespace ropufu::sequential::hypotheses
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_WRITER_HPP_INCLUDED
+#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_WRITER_HPP_INCLUDED

@@ -33,6 +33,7 @@ namespace ropufu::sequential::hypotheses
 
         using asprt_simple_type = hypotheses::adaptive_sprt<engine_type, value_type, hypotheses::adaptive_sprt_flavor::simple>;
         using asprt_general_type = hypotheses::adaptive_sprt<engine_type, value_type, hypotheses::adaptive_sprt_flavor::general>;
+        using asprt_unconstrained_type = hypotheses::adaptive_sprt<engine_type, value_type, hypotheses::adaptive_sprt_flavor::unconstrained>;
         using gsprt_cutoff_type = hypotheses::generalized_sprt<engine_type, value_type, hypotheses::generalized_sprt_flavor::cutoff>;
         using gsprt_general_type = hypotheses::generalized_sprt<engine_type, value_type, hypotheses::generalized_sprt_flavor::general>;
         using dsprt_type = hypotheses::double_sprt<engine_type, value_type>;
@@ -40,6 +41,7 @@ namespace ropufu::sequential::hypotheses
     private:
         std::vector<asprt_simple_type> m_asprt_simple_rules = {};
         std::vector<asprt_general_type> m_asprt_general_rules = {};
+        std::vector<asprt_unconstrained_type> m_asprt_unconstrained_rules = {};
         std::vector<gsprt_cutoff_type> m_gsprt_cutoff_rules = {};
         std::vector<gsprt_general_type> m_gsprt_general_rules = {};
         std::vector<dsprt_type> m_dsprt_rules = {};
@@ -67,7 +69,7 @@ namespace ropufu::sequential::hypotheses
         std::size_t size() const noexcept
         {
             return 
-                this->m_asprt_simple_rules.size() + this->m_asprt_general_rules.size() +
+                this->m_asprt_simple_rules.size() + this->m_asprt_general_rules.size() + this->m_asprt_unconstrained_rules.size() +
                 this->m_gsprt_cutoff_rules.size() + this->m_gsprt_general_rules.size() +
                 this->m_dsprt_rules.size();
         } // size(...)
@@ -80,6 +82,7 @@ namespace ropufu::sequential::hypotheses
             // Adaptive SPRT.
             for (asprt_simple_type& x : this->m_asprt_simple_rules) result.push_back(&x);
             for (asprt_general_type& x : this->m_asprt_general_rules) result.push_back(&x);
+            for (asprt_unconstrained_type& x : this->m_asprt_unconstrained_rules) result.push_back(&x);
             // Generalized SPRT.
             for (gsprt_cutoff_type& x : this->m_gsprt_cutoff_rules) result.push_back(&x);
             for (gsprt_general_type& x : this->m_gsprt_general_rules) result.push_back(&x);
@@ -113,6 +116,7 @@ namespace ropufu::sequential::hypotheses
                         this->m_log_likelihood_scale,
                         null_thresholds,
                         alt_thresholds);
+					break;
                 }
                 case adaptive_sprt_flavor::general:
                 {
@@ -123,6 +127,18 @@ namespace ropufu::sequential::hypotheses
                         this->m_log_likelihood_scale,
                         null_thresholds,
                         alt_thresholds);
+					break;
+                }
+                case adaptive_sprt_flavor::unconstrained:
+                {
+                    asprt_unconstrained_type& rule_unconstrained = this->m_asprt_unconstrained_rules.emplace_back(design);
+                    rule_unconstrained.initialize(
+                        this->m_model,
+                        this->m_init.anticipated_run_length(),
+                        this->m_log_likelihood_scale,
+                        null_thresholds,
+                        alt_thresholds);
+					break;
                 }
                 default:
                     throw std::runtime_error("Adaptive SPRT flavor not recognized.");
@@ -146,6 +162,7 @@ namespace ropufu::sequential::hypotheses
                         this->m_log_likelihood_scale,
                         null_thresholds,
                         alt_thresholds);
+					break;
                 }
                 case generalized_sprt_flavor::general:
                 {
@@ -156,6 +173,7 @@ namespace ropufu::sequential::hypotheses
                         this->m_log_likelihood_scale,
                         null_thresholds,
                         alt_thresholds);
+					break;
                 }
                 default:
                     throw std::runtime_error("Generalized SPRT flavor not recognized.");

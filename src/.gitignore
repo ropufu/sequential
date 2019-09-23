@@ -1,4 +1,7 @@
 
+# ~~ Simulation results ~~
+*.mat
+
 # ~~ C++.gitignore ~~
 # Prerequisites
 *.d

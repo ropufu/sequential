@@ -73,8 +73,14 @@ int main()
     } // if (...)
 
     std::cout << "Initialization completed." << std::endl;
-    std::cout << "-- " << config.rule_designs().size() << " rules." << std::endl;
-    std::cout << "-- " << config.runs().size() << " runs." << std::endl;
+    std::cout << "-- " << config.count_simulations() << " simulations." << std::endl;
+    if (config.do_limiting_distribution())
+        std::cout << "-- " << config.runs().size() << " limiting distributions." << std::endl;
+    else
+    {
+        std::cout << "-- " << config.rule_designs().size() << " rules." << std::endl;
+        std::cout << "-- " << config.runs().size() << " runs." << std::endl;
+    } // else (...)
 
     start = std::chrono::steady_clock::now();
 

@@ -1,10 +1,20 @@
 {
-    "shared mat output": "~/Dropbox/hypotheses_simulator/mat/",
-    "simulations": 10,
+    "mat output": "~/Dropbox/hypotheses_simulator/mat_all/",
+    "simulations": 500000,
     "signal": { "type": "const", "level": 1.0 },
     "noise": { "type": "gaussian", "sigma": 1.0 },
     "disable oc pass": false,
+    "disable gray pass": false,
+    "limiting distribution only": false,
+    "limiting observations": 5000,
+    "limiting cutoff time": 100000,
     "rules": [
+        {
+            "id": 1,
+            "type": "generalized sprt",
+            "flavor": "cutoff",
+            "asymptotic init": true
+        },
         {
             "id": 2,
             "type": "adaptive sprt",
@@ -12,28 +22,29 @@
             "asymptotic init": true
         },
         {
-            "id": 4,
-            "type": "generalized sprt",
-            "flavor": "cutoff",
+            "id": 12,
+            "type": "adaptive sprt",
+            "flavor": "unconstrained",
             "asymptotic init": true
         },
         {
-            "id": 5,
-            "type": "double sprt",
-            "asymptotic init": true,
-            "huffman": false
+            "id": 23,
+            "type": "adaptive sprt",
+            "flavor": "unconstrained",
+            "asymptotic init": false,
+            "relative mu null init": 0.0,
+            "relative mu alt init": 1.0
         },
         {
-            "id": 6,
+            "id": 50,
             "type": "double sprt",
-            "asymptotic init": true,
-            "huffman": false
+            "asymptotic init": true
         }
     ],
     "runs": [
         {
             "model": { "smallest alt mu": 0.5 },
-            "threshold count": { "null": 256, "alt": 128 },
+            "threshold count": { "null": 128, "alt": 64 },
             "threshold spacing": "log",
             "signal strengths": [
                 [0.05, 0.05],
@@ -46,13 +57,16 @@
                 [0.40, 0.40],
                 [0.45, 0.45]],
             "inits": [
-                { "id": 5, "threshold range": { "null": [1.4, 8.0], "alt": [2.5, 11.2] }, "anticipated run length": 70.0 },
-                { "id": 6, "threshold range": { "null": [1.4, 8.0], "alt": [2.5, 11.2] }, "anticipated run length": 70.0 }
+                { "id": 1, "threshold range": { "null": [1.9, 9.1], "alt": [3.5, 14.9] }, "anticipated run length": 50.0 },
+                { "id": 2, "threshold range": { "null": [1.4, 8.0], "alt": [2.0, 12.5] }, "anticipated run length": 50.0 },
+                { "id": 12, "threshold range": { "null": [0.8, 8.5], "alt": [1.8, 12.1] }, "anticipated run length": 70.0 },
+                { "id": 23, "threshold range": { "null": [0.8, 8.4], "alt": [1.6, 12.0] }, "anticipated run length": 70.0 },
+                { "id": 50, "threshold range": { "null": [1.4, 8.4], "alt": [2.5, 13.0] }, "anticipated run length": 70.0 }
             ]
         },
         {
             "model": { "smallest alt mu": 1.0 },
-            "threshold count": { "null": 256, "alt": 128 },
+            "threshold count": { "null": 128, "alt": 64 },
             "threshold spacing": "log",
             "signal strengths": [
                 [0.10, 0.10],
@@ -65,13 +79,16 @@
                 [0.80, 0.80],
                 [0.90, 0.90]],
             "inits": [
-                { "id": 5, "threshold range": { "null": [1.4, 7.7], "alt": [2.4, 11.0] }, "anticipated run length": 30.0 },
-                { "id": 6, "threshold range": { "null": [1.4, 7.7], "alt": [2.4, 11.0] }, "anticipated run length": 30.0 }
+                { "id": 1, "threshold range": { "null": [1.8, 8.9], "alt": [3.2, 14.3] }, "anticipated run length": 15.0 },
+                { "id": 2, "threshold range": { "null": [0.9, 7.9], "alt": [1.9, 12.5] }, "anticipated run length": 15.0 },
+                { "id": 12, "threshold range": { "null": [0.6, 8.2], "alt": [1.8, 12.9] }, "anticipated run length": 30.0 },
+                { "id": 23, "threshold range": { "null": [0.6, 8.1], "alt": [1.5, 12.8] }, "anticipated run length": 30.0 },
+                { "id": 50, "threshold range": { "null": [1.4, 8.1], "alt": [2.4, 12.8] }, "anticipated run length": 30.0 }
             ]
         },
         {
             "model": { "smallest alt mu": 1.5 },
-            "threshold count": { "null": 256, "alt": 128 },
+            "threshold count": { "null": 128, "alt": 64 },
             "threshold spacing": "log",
             "signal strengths": [
                 [0.10, 0.10],
@@ -89,8 +106,11 @@
                 [1.30, 1.30],
                 [1.40, 1.40]],
             "inits": [
-                { "id": 5, "threshold range": { "null": [1.2, 7.5], "alt": [2.2, 10.7] }, "anticipated run length": 15.0 },
-                { "id": 6, "threshold range": { "null": [1.2, 7.5], "alt": [2.2, 10.7] }, "anticipated run length": 15.0 }
+                { "id": 1, "threshold range": { "null": [1.4, 8.6], "alt": [2.9, 13.8] }, "anticipated run length": 10.0 },
+                { "id": 2, "threshold range": { "null": [0.8, 7.7], "alt": [1.8, 12.5] }, "anticipated run length": 10.0 },
+                { "id": 12, "threshold range": { "null": [0.5, 8.0], "alt": [1.8, 12.8] }, "anticipated run length": 15.0 },
+                { "id": 23, "threshold range": { "null": [0.5, 7.9], "alt": [1.4, 12.7]  }, "anticipated run length": 15.0 },
+                { "id": 50, "threshold range": { "null": [1.2, 7.9], "alt": [2.2, 12.6] }, "anticipated run length": 15.0 }
             ]
         }
     ]

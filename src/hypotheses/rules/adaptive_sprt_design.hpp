@@ -160,6 +160,8 @@ namespace ropufu::sequential::hypotheses
         std::string to_path_string(std::size_t decimal_places) const noexcept
         {
             std::string result = type::typename_string;
+            result += " ";
+            result += std::to_string(this->m_flavor);
             if (this->m_asymptotic_init) result += " asymp";
             else
             {

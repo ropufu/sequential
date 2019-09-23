@@ -46,16 +46,24 @@ namespace ropufu::sequential::hypotheses
         static constexpr char jstr_signal[] = "signal";
         static constexpr char jstr_noise[] = "noise";
         static constexpr char jstr_disable_oc_pass[] = "disable oc pass";
+        static constexpr char jstr_disable_gray_pass[] = "disable gray pass";
+        static constexpr char jstr_do_limiting_distribution[] = "limiting distribution only";
+        static constexpr char jstr_limiting_observations[] = "limiting observations";
+        static constexpr char jstr_limiting_cutoff_time[] = "limiting cutoff time";
         static constexpr char jstr_rule_designs[] = "rules";
         static constexpr char jstr_runs[] = "runs";
 
     private:
         std::filesystem::path m_mat_output_path = "./mat/";
-        bool m_disable_oc_pass = false;
         std::size_t m_count_simulations = 1'000;
         std::size_t m_count_threads = 1;
         signal_type m_signal = {};
         noise_type m_noise = {};
+        bool m_disable_oc_pass = false;
+        bool m_disable_gray_pass = false;
+        bool m_do_limiting_distribution = false;
+        std::size_t m_limiting_observations = 1'000;
+        std::size_t m_limiting_cutoff_time = 5'000;
         std::vector<design_variant_type> m_rule_designs = {};
         std::vector<run_type> m_runs = {};
 
@@ -69,6 +77,10 @@ namespace ropufu::sequential::hypotheses
             signal_type signal = this->m_signal;
             noise_type noise = this->m_noise;
             bool disable_oc_pass = this->m_disable_oc_pass;
+            bool disable_gray_pass = this->m_disable_gray_pass;
+            bool do_limiting_distribution = this->m_do_limiting_distribution;
+            std::size_t limiting_observations = this->m_limiting_observations;
+            std::size_t limiting_cutoff_time = this->m_limiting_cutoff_time;
             std::vector<design_variant_type> rule_designs = this->m_rule_designs;
             std::vector<run_type> runs = this->m_runs;
             
@@ -79,6 +91,10 @@ namespace ropufu::sequential::hypotheses
             aftermath::noexcept_json::required(j, type::jstr_signal, signal, ec);
             aftermath::noexcept_json::required(j, type::jstr_noise, noise, ec);
             aftermath::noexcept_json::optional(j, type::jstr_disable_oc_pass, disable_oc_pass, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_disable_gray_pass, disable_gray_pass, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_do_limiting_distribution, do_limiting_distribution, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_limiting_observations, limiting_observations, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_limiting_cutoff_time, limiting_cutoff_time, ec);
             aftermath::noexcept_json::required(j, type::jstr_rule_designs, rule_designs, ec);
             aftermath::noexcept_json::required(j, type::jstr_runs, runs, ec);
             if (ec.value() != 0) return;
@@ -90,25 +106,31 @@ namespace ropufu::sequential::hypotheses
             this->m_signal = signal;
             this->m_noise = noise;
             this->m_disable_oc_pass = disable_oc_pass;
+            this->m_disable_gray_pass = disable_gray_pass;
+            this->m_do_limiting_distribution = do_limiting_distribution;
+            this->m_limiting_observations = limiting_observations;
+            this->m_limiting_cutoff_time = limiting_cutoff_time;
             this->m_rule_designs = rule_designs;
             this->m_runs = runs;
         } // config(...)
 
         const std::filesystem::path& mat_output_path() const noexcept { return this->m_mat_output_path; }
-        //void set_mat_output_path(const std::string& value) noexcept { this->m_mat_output_path = value; this->m_has_changed = true; }
 
         std::size_t count_simulations() const noexcept { return this->m_count_simulations; }
-        //void set_simulation_count(std::size_t value) noexcept { this->m_count_simulations = value; this->m_has_changed = true; }
 
         std::size_t count_threads() const noexcept { return this->m_count_threads; }
-        //void set_threads(std::size_t value) noexcept { this->m_count_threads = value; this->m_has_changed = true; }
 
         const signal_type& signal() const noexcept { return this->m_signal; }
 
         const noise_type& noise() const noexcept { return this->m_noise; }
         
         bool disable_oc_pass() const noexcept { return this->m_disable_oc_pass; }
-        //void set_disable_oc_pass(bool value) noexcept { this->m_disable_oc_pass = value; this->m_has_changed = true; }
+        bool disable_gray_pass() const noexcept { return this->m_disable_gray_pass; }
+        
+        bool do_limiting_distribution() const noexcept { return this->m_do_limiting_distribution; }
+
+        std::size_t limiting_observations() const noexcept { return this->m_limiting_observations; }
+        std::size_t limiting_cutoff_time() const noexcept { return this->m_limiting_cutoff_time; }
 
         const std::vector<design_variant_type>& rule_designs() const noexcept { return this->m_rule_designs; }
 
@@ -141,6 +163,10 @@ namespace ropufu::sequential::hypotheses
     template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_signal[];
     template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_noise[];
     template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_disable_oc_pass[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_disable_gray_pass[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_do_limiting_distribution[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_limiting_observations[];
+    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_limiting_cutoff_time[];
     template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_rule_designs[];
     template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_runs[];
     
@@ -156,6 +182,10 @@ namespace ropufu::sequential::hypotheses
             {type::jstr_signal, x.signal()},
             {type::jstr_noise, x.noise()},
             {type::jstr_disable_oc_pass, x.disable_oc_pass()},
+            {type::jstr_disable_gray_pass, x.disable_gray_pass()},
+            {type::jstr_do_limiting_distribution, x.do_limiting_distribution()},
+            {type::jstr_limiting_observations, x.limiting_observations()},
+            {type::jstr_limiting_cutoff_time, x.limiting_cutoff_time()},
             {type::jstr_rule_designs, x.rule_designs()},
             {type::jstr_runs, x.runs()}
         };

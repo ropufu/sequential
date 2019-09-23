@@ -120,8 +120,9 @@ namespace ropufu::sequential::hypotheses
 
             value_type null_mu = likelihood.model().mu_under_null();
             value_type alt_mu = likelihood.model().smallest_mu_under_alt();
-            value_type mu_null_hat = likelihood.null_estimator_of_mu().back();
-            [[maybe_unused]] value_type mu_alt_hat = (mu_null_hat < alt_mu) ? alt_mu : mu_null_hat;
+            value_type mu_hat = likelihood.estimator_of_mu().back();
+            [[maybe_unused]] value_type mu_null_hat = (mu_hat < null_mu) ? null_mu : mu_hat;
+            [[maybe_unused]] value_type mu_alt_hat = (mu_hat < alt_mu) ? alt_mu : mu_hat;
             
             if (time_index == 0)
             {
@@ -130,10 +131,10 @@ namespace ropufu::sequential::hypotheses
                     for (std::size_t j = 0; j < this->m_mu_guess_for_alt.width(); ++j)
                     {
                         this->m_init_distance_from_null(i, j) = proc.unscaled_log_likelihood_between(this->m_mu_guess_for_null(i, j), null_mu);
-                        if constexpr (t_flavor == adaptive_sprt_flavor::simple)
+                        if constexpr (t_flavor == adaptive_sprt_flavor::simple || t_flavor == adaptive_sprt_flavor::unconstrained)
                             this->m_init_distance_from_alt(i, j) =
                                 proc.unscaled_log_likelihood_between(this->m_mu_guess_for_alt(i, j), alt_mu);
-                        else
+                        if constexpr (t_flavor == adaptive_sprt_flavor::general)
                             this->m_init_distance_from_alt(i, j) =
                                 proc.unscaled_log_likelihood_between(this->m_mu_guess_for_alt(i, j), null_mu) -
                                 proc.unscaled_log_likelihood_between(mu_alt_hat, null_mu);
@@ -143,16 +144,17 @@ namespace ropufu::sequential::hypotheses
             else
             {
                 this->m_unscaled_offset_distance_from_null += proc.unscaled_log_likelihood_at(time_index, this->m_delayed_mu_null_estimator, null_mu);
-                if constexpr (t_flavor == adaptive_sprt_flavor::simple)
+                if constexpr (t_flavor == adaptive_sprt_flavor::simple || t_flavor == adaptive_sprt_flavor::unconstrained)
                     this->m_unscaled_offset_distance_from_alt += proc.unscaled_log_likelihood_at(time_index, this->m_delayed_mu_null_estimator, alt_mu);
-                else
+                if constexpr (t_flavor == adaptive_sprt_flavor::general)
                     this->m_unscaled_offset_distance_from_alt =
                         this->m_unscaled_offset_distance_from_null - 
                         proc.unscaled_log_likelihood_between(mu_alt_hat, null_mu);
             } // else (...)
 
             // Update the delayed signal "strength" estimators.
-            this->m_delayed_mu_null_estimator = mu_null_hat;
+            if constexpr (t_flavor == adaptive_sprt_flavor::unconstrained) this->m_delayed_mu_null_estimator = mu_hat;
+            else this->m_delayed_mu_null_estimator = mu_null_hat;
         } // on_tic_override(...)
 
         /** @brief Auxiliary function to be executed right before the \c toc() call. */

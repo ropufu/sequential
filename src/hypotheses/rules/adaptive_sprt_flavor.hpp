@@ -16,7 +16,8 @@ namespace ropufu::sequential::hypotheses
     enum struct adaptive_sprt_flavor : char
     {
         general, // Taking most likely density over the entire alternative case.
-        simple // Taking the density at the smallest alternative signal strength.
+        simple, // Taking the density at the smallest alternative signal strength.
+        unconstrained // Signal strength estimators are not constrained by the model.
     }; // enum struct adaptive_sprt_flavor
 
     void to_json(nlohmann::json& j, const adaptive_sprt_flavor& x) noexcept;
@@ -33,6 +34,7 @@ namespace std
         {
             case argument_type::general: return "general";
             case argument_type::simple: return "simple";
+            case argument_type::unconstrained: return "unconstrained";
             default: return "unknown <adaptive_sprt_flavor> " + std::to_string(static_cast<std::size_t>(x));
         } // switch (...)
     } // to_string(...)
@@ -51,6 +53,7 @@ namespace ropufu::aftermath::detail
         {
             if (from == "general") { to = enum_type::general; return true; }
             if (from == "simple") { to = enum_type::simple; return true; }
+            if (from == "unconstrained") { to = enum_type::unconstrained; return true; }
             return false;
         } // try_parse(...)
     }; // struct enum_parser<...>

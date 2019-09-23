@@ -20,6 +20,7 @@
 
 #include "config.hpp"
 #include "sprt_factory.hpp"
+#include "asprt_limiting_distribution.hpp"
 
 #include "init_info.hpp"
 #include "run.hpp"
@@ -117,6 +118,23 @@ namespace ropufu::sequential::hypotheses
             } // if (...)
         } // execute(...)
 
+        void estimate_limiting_distribution(engine_type& engine) noexcept
+        {
+            using limiting_distribution_type = hypotheses::asprt_limiting_distribution<engine_type, value_type>;
+
+            std::size_t count_simulations = this->m_config.count_simulations();
+            std::size_t count_observations = this->m_config.limiting_observations();
+            std::size_t time_cutoff = this->m_config.limiting_cutoff_time();
+
+            for (const run_type& r : this->m_config.runs())
+            {
+                std::cout << "Model " << r.model() << std::endl;
+
+                limiting_distribution_type limit {this->m_config.mat_output_path(), r.model()};
+                limit.touch(engine, count_simulations, count_observations, time_cutoff);
+            } // for (...)
+        } // estimate_limiting_distribution(...)
+
     public:
         explicit automator(const congif_type& config, const std::filesystem::path& config_path) noexcept
             : m_config(config), m_config_path(config_path), m_monte_carlo(config.count_simulations())
@@ -127,6 +145,12 @@ namespace ropufu::sequential::hypotheses
         {
             using matrix_printer_type = matrix_printer<value_type>;
             process_type proc {this->m_config.signal(), this->m_config.noise()};
+
+            if (this->m_config.do_limiting_distribution())
+            {
+                this->estimate_limiting_distribution(engine);
+                return;
+            } // if (...)
 
             for (const run_type& r : this->m_config.runs())
             {
@@ -207,7 +231,7 @@ namespace ropufu::sequential::hypotheses
                 } // if (...)
 
                 // Second, then run the auxiliary simulations.
-                if (!r.signal_strengths().empty())
+                if (!r.signal_strengths().empty() && !this->m_config.disable_gray_pass())
                 {
                     std::cout << "Estimating other characteristics..." << std::endl;
                     for (const change_of_measure_type& mu_pair : r.signal_strengths())

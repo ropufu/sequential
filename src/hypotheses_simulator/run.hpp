@@ -101,7 +101,7 @@ namespace ropufu::sequential::hypotheses
             aftermath::noexcept_json::required(j, type::jstr_model, model, ec);
             aftermath::noexcept_json::optional(j, type::jstr_threshold_spacing, threshold_spacing, ec);
             aftermath::noexcept_json::required(j, type::jstr_threshold_count, threshold_count, ec);
-            aftermath::noexcept_json::required(j, type::jstr_signal_strengths, signal_strengths, ec);
+            aftermath::noexcept_json::optional(j, type::jstr_signal_strengths, signal_strengths, ec);
             aftermath::noexcept_json::required(j, type::jstr_inits, inits, ec);
             if (ec.value() != 0) return;
             

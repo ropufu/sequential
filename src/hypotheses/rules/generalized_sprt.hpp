@@ -107,13 +107,14 @@ namespace ropufu::sequential::hypotheses
         {
             value_type null_mu = likelihood.model().mu_under_null();
             value_type alt_mu = likelihood.model().smallest_mu_under_alt();
-            value_type mu_null_hat = likelihood.null_estimator_of_mu().back();
-            [[maybe_unused]] value_type mu_alt_hat = (mu_null_hat < alt_mu) ? alt_mu : mu_null_hat;
+            value_type mu_hat = likelihood.estimator_of_mu().back();
+            [[maybe_unused]] value_type mu_null_hat = (mu_hat < null_mu) ? null_mu : mu_hat;
+            [[maybe_unused]] value_type mu_alt_hat = (mu_hat < alt_mu) ? alt_mu : mu_hat;
             
             this->m_unscaled_distance_from_null = proc.unscaled_log_likelihood_between(mu_null_hat, null_mu);
             if constexpr (t_flavor == generalized_sprt_flavor::general)
                 this->m_unscaled_distance_from_alt = proc.unscaled_log_likelihood_between(mu_null_hat, mu_alt_hat);
-            else
+            if constexpr (t_flavor == generalized_sprt_flavor::cutoff)
             {
                 this->m_unscaled_distance_from_alt = proc.unscaled_log_likelihood_between(mu_null_hat, alt_mu);
                 for (std::size_t i = 0; i < this->m_mu_cutoff.height(); ++i)
@@ -134,7 +135,7 @@ namespace ropufu::sequential::hypotheses
         {
             if constexpr (t_flavor == generalized_sprt_flavor::general)
                 return this->m_unscaled_distance_from_alt > threshold;
-            else
+            if constexpr (t_flavor == generalized_sprt_flavor::cutoff)
                 return this->m_is_estimator_low(row_index, column_index) && this->m_unscaled_distance_from_alt > threshold;
         } // do_decide_null(...)
 
@@ -142,7 +143,7 @@ namespace ropufu::sequential::hypotheses
         {
             if constexpr (t_flavor == generalized_sprt_flavor::general)
                 return this->m_unscaled_distance_from_null > threshold;
-            else
+            if constexpr (t_flavor == generalized_sprt_flavor::cutoff)
                 return this->m_is_estimator_high(row_index, column_index) && this->m_unscaled_distance_from_null > threshold;
         } // do_decide_alt(...)
 
