@@ -1,6 +1,6 @@
 {
-    "mat output": "~/Dropbox/hypotheses_simulator/mat_all/",
-    "simulations": 500000,
+    "mat output": "~/Downloads/hypotheses_simulator/mat_all/",
+    "simulations": 10,
     "signal": { "type": "const", "level": 1.0 },
     "noise": { "type": "gaussian", "sigma": 1.0 },
     "disable oc pass": false,

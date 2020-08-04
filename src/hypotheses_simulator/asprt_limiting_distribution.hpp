@@ -4,10 +4,9 @@
 
 #include <ropufu/algebra/matrix.hpp>
 #include <ropufu/probability/empirical_measure.hpp>
+#include <ropufu/probability/moment_statistic.hpp>
 #include <ropufu/random/normal_sampler_512.hpp>
 #include <ropufu/format/mat4_ostream.hpp>
-
-#include "../draft/probability/moment_statistic.hpp"
 
 #include "../hypotheses/model.hpp"
 
@@ -40,9 +39,9 @@ namespace ropufu::sequential::hypotheses
 
     private:
         bool m_is_good = false;
+        std::filesystem::path m_root = "."; // Where to write output to.
         std::string m_model_name = "";
         value_type m_initial_value = 0;
-        std::filesystem::path m_root = "."; // Where to write output to.
 
     public:
         explicit asprt_limiting_distribution(

@@ -1,13 +1,13 @@
 
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_FORMAT_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_FORMAT_HPP_INCLUDED
+#ifndef ROPUFU_DRAFT_FORMAT_HPP_INCLUDED
+#define ROPUFU_DRAFT_FORMAT_HPP_INCLUDED
 
 #include <cstddef> // std::size_t
 #include <string>  // std::string, std::to_string
 #include <type_traits> // std::is_floating_point_v
 #include <vector>  // std::vector
 
-namespace ropufu::sequential::hypotheses
+namespace ropufu::draft
 {
     namespace detail
     {
@@ -71,6 +71,6 @@ namespace ropufu::sequential::hypotheses
             return {result.data(), result.size()};
         } // transform(...)
     } // namespace detail
-} // namespace ropufu::sequential::hypotheses
+} // namespace ropufu::draft
 
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_FORMAT_HPP_INCLUDED
+#endif // ROPUFU_DRAFT_FORMAT_HPP_INCLUDED

@@ -6,7 +6,7 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include "format.hpp"
+#include "../draft/format.hpp"
 
 #include <cstddef>  // std::size_t
 #include <iostream> // std::ostream
@@ -132,9 +132,9 @@ namespace ropufu::sequential::hypotheses
         std::string to_path_string(std::size_t decimal_places = 3) const noexcept
         {
             std::string result = "model mu ";
-            result += detail::to_str(this->m_null_mu, decimal_places);
+            result += ropufu::draft::detail::to_str(this->m_null_mu, decimal_places);
             result += " to ";
-            result += detail::to_str(this->m_smallest_alt_mu, decimal_places);
+            result += ropufu::draft::detail::to_str(this->m_smallest_alt_mu, decimal_places);
             return result;
         } // to_path_string(...)
 

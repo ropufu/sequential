@@ -6,7 +6,7 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include "../format.hpp"
+#include "../../draft/format.hpp"
 #include "generalized_sprt_flavor.hpp"
 
 #include <cstddef>   // std::size_t
@@ -148,7 +148,7 @@ namespace ropufu::sequential::hypotheses
             else
             {
                 result += " cutoff ";
-                result += detail::to_str(this->m_relative_mu_cutoff, decimal_places);
+                result += ropufu::draft::detail::to_str(this->m_relative_mu_cutoff, decimal_places);
             } // else (...)
             return result;
         } // to_path_string(...)

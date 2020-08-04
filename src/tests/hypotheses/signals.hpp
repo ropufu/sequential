@@ -14,6 +14,7 @@
 #include <stdexcept>  // std::logic_error
 #include <variant>    // std::variant
 
+
 #define ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_CONSTANT_SIGNAL_TYPES  \
     ropufu::sequential::hypotheses::constant_signal<std::size_t>, \
     ropufu::sequential::hypotheses::constant_signal<float>,       \

@@ -7,7 +7,7 @@
 #include <ropufu/enum_parser.hpp>
 #include <ropufu/enum_array.hpp>
 
-#include "format.hpp"
+#include "../draft/format.hpp"
 
 #include <cstddef>      // std::size_t
 #include <stdexcept>    // std::runtime_error
@@ -70,7 +70,7 @@ namespace ropufu::aftermath::detail
 
         static bool try_parse(const std::string& from, enum_type& to) noexcept
         {
-            std::string x = ropufu::sequential::hypotheses::detail::transform(from,
+            std::string x = ropufu::draft::detail::transform(from,
                 [] (const char& c) { return (c == '_' ? ' ' : c); });
 
             if (x == "unknown") { to = enum_type::unknown; return true; }
@@ -98,7 +98,7 @@ namespace ropufu::sequential::hypotheses
     } // from_json(...)
 
     template <typename t_value_type>
-    using oc_array_t = ropufu::aftermath::enum_array<ropufu::sequential::hypotheses::operating_characteristic, t_value_type>;
+    using oc_array_t = aftermath::enum_array<operating_characteristic, t_value_type>;
 
     namespace detail
     {

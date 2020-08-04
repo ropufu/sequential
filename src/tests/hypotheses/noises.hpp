@@ -13,6 +13,7 @@
 #include <stdexcept>  // std::logic_error
 #include <variant>    // std::variant
 
+
 #define ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_WHITE_NOISE_TYPES                  \
     ropufu::sequential::hypotheses::white_noise<std::ranlux24, float>,        \
     ropufu::sequential::hypotheses::white_noise<std::ranlux48, float>,        \
@@ -35,9 +36,9 @@ TEST_CASE_TEMPLATE("testing white noise", tested_t, ROPUFU_SEQUENTIAL_TESTS_HYPO
     engine_type engine {};
     ropufu::sequential::tests::seed(engine);
 
-    tested_t no_noise {};
-    tested_t white_one {1};
-    tested_t white_two {2};
+    tested_t no_noise {};   // Trivially exact representation.
+    tested_t white_one {1}; // Exact representation.
+    tested_t white_two {2}; // Exact representation.
 
     constexpr std::size_t sample_size = 1'000;
     long double var_one = 0;
@@ -58,6 +59,7 @@ TEST_CASE_TEMPLATE("testing white noise", tested_t, ROPUFU_SEQUENTIAL_TESTS_HYPO
     CHECK(static_cast<double>(var_one) == doctest::Approx(1.0).epsilon(0.10));
     CHECK(static_cast<double>(var_two) == doctest::Approx(4.0).epsilon(0.10));
 
+    // The following are represented exactly by the floating point type.
     CHECK(ropufu::sequential::tests::does_json_round_trip(no_noise));
     CHECK(ropufu::sequential::tests::does_json_round_trip(white_one));
     CHECK(ropufu::sequential::tests::does_json_round_trip(white_two));
@@ -94,7 +96,7 @@ TEST_CASE_TEMPLATE("testing auto-regressive noise", tested_t, ROPUFU_SEQUENTIAL_
     tested_t ar_one_positive {white_one, ar_parameters_a};
     tested_t ar_two_alternating {white_two, ar_parameters_b};
 
-    constexpr std::size_t sample_size = 1'000;
+    constexpr std::size_t sample_size = 5'000;
     long double var_one = 0;
     long double var_two = 0;
     for (std::size_t i = 0; i < sample_size; ++i)
@@ -112,13 +114,16 @@ TEST_CASE_TEMPLATE("testing auto-regressive noise", tested_t, ROPUFU_SEQUENTIAL_
     var_one /= static_cast<long double>(sample_size);
     var_two /= static_cast<long double>(sample_size);
 
-    CHECK(static_cast<double>(var_one) > 0.9);
-    CHECK(static_cast<double>(var_two) > 3.6);
+    CHECK(static_cast<double>(var_one) > 0.9); // Theoretical value should be greater than 1---the no-AR case.
+    CHECK(static_cast<double>(var_two) > 3.6); // Theoretical value should be greater than 4---the no-AR case.
 
+    // The following are represented exactly by the floating point type.
     CHECK(ropufu::sequential::tests::does_json_round_trip(no_noise_a));
     CHECK(ropufu::sequential::tests::does_json_round_trip(no_noise_b));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(ar_one_positive));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(ar_two_alternating));
+
+    // The following are not represented exactly by the floating point type.
+    CHECK(ropufu::sequential::tests::does_json_round_trip(ar_one_positive, 0.01));
+    CHECK(ropufu::sequential::tests::does_json_round_trip(ar_two_alternating, 0.01));
 } // TEST_CASE_TEMPLATE(...)
 
 TEST_CASE_TEMPLATE("testing noise discrimination", value_t, float, long double)

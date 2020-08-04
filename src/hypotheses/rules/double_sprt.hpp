@@ -90,7 +90,7 @@ namespace ropufu::sequential::hypotheses
                         for (std::size_t j = 0; j < n; ++j)
                         {
                             value_type x = 1 + std::sqrt(unscaled_null_thresholds[i] / unscaled_alt_thresholds[j]);
-                            value_type r = standard_normal.quantile(1 / x);
+                            value_type r = standard_normal.numerical_quantile(1 / x);
                             value_type delta_mu_star = mu_diff / x;
 							value_type mu_star = null_mu + delta_mu_star;
                             value_type mu_tilde = mu_star + r * delta_mu_star / std::sqrt(2 * unscaled_null_thresholds[i]);

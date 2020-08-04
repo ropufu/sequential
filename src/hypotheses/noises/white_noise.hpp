@@ -4,13 +4,14 @@
 
 #include <nlohmann/json.hpp>
 #include <ropufu/noexcept_json.hpp>
-#include <ropufu/number_traits.hpp>
 
+#include <ropufu/discrepancy.hpp>
+#include <ropufu/number_traits.hpp>
 #include <ropufu/probability/standard_normal_distribution.hpp>
 #include <ropufu/random/normal_sampler_512.hpp>
 
 #include <iostream>  // std::ostream
-#include <stdexcept> // std::runtime_error
+#include <stdexcept> // std::runtime_error, std::logic_error
 #include <string>    // std::string
 #include <system_error> // std::error_code, std::errc
 
@@ -181,5 +182,25 @@ namespace ropufu::sequential::hypotheses
         if (ec.value() != 0) throw std::runtime_error("Parsing <white_noise> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu::aftermath
+{
+    namespace detail
+    {
+        template <typename t_engine_type, typename t_value_type>
+        struct discrepancy<ropufu::sequential::hypotheses::white_noise<t_engine_type, t_value_type>>
+        {
+            using result_type = t_value_type;
+            using argument_type = ropufu::sequential::hypotheses::white_noise<t_engine_type, t_value_type>;
+
+            result_type operator ()(const argument_type& x, const argument_type& y) const noexcept
+            {
+                result_type total = 0;
+                total += ropufu::aftermath::discrepancy(x.sigma(), y.sigma());
+                return total;
+            } // operator ()(...)
+        }; // struct discrepancy<...>
+    } // namespace detail
+} // namespace ropufu::aftermath
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_WHITE_NOISE_HPP_INCLUDED

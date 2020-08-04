@@ -6,7 +6,7 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include "format.hpp"
+#include "../draft/format.hpp"
 #include "model.hpp"
 #include "operating_characteristic.hpp"
 
@@ -49,7 +49,7 @@ namespace ropufu::sequential::hypotheses
             : m_analyzed(analyzed), m_simulated(simulated)
         {
             if (!aftermath::is_finite(analyzed)) throw std::logic_error("Analyzed mu must be finite.");
-            if (!aftermath::is_finite(simulated)) throw std::logic_error("Analyzed mu must be finite.");
+            if (!aftermath::is_finite(simulated)) throw std::logic_error("Simulated mu must be finite.");
         } // change_of_measure(...)
 
         change_of_measure(const nlohmann::json& j, std::error_code& ec) noexcept
@@ -123,9 +123,9 @@ namespace ropufu::sequential::hypotheses
         std::string to_path_string(std::size_t decimal_places = 3) const noexcept
         {
             std::string result = "analyze ";
-            result += detail::to_str(this->m_analyzed, decimal_places);
+            result += ropufu::draft::detail::to_str(this->m_analyzed, decimal_places);
             result += " simulate ";
-            result += detail::to_str(this->m_simulated, decimal_places);
+            result += ropufu::draft::detail::to_str(this->m_simulated, decimal_places);
             return result;
         } // to_path_string(...)
 

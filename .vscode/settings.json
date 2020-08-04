@@ -78,6 +78,14 @@
         "atomic": "cpp",
         "csignal": "cpp",
         "mutex": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "memory_resource": "cpp",
+        "ranges": "cpp",
+        "stop_token": "cpp",
+        "bit": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "condition_variable": "cpp",
+        "cstdarg": "cpp"
     }
 }

@@ -2,60 +2,48 @@
 #ifndef ROPUFU_MODULES_INTERPOLATOR_HPP_INCLUDED
 #define ROPUFU_MODULES_INTERPOLATOR_HPP_INCLUDED
 
-#include "numbers.hpp"
+#include <ropufu/number_traits.hpp>
 
-#include <system_error> // std::error_code, std::make_error_code
-#include <vector>       // std::vector
+#include <concepts>  // std::floating_point
+#include <stdexcept> // std::logic_error
+#include <vector>    // std::vector
 
 namespace ropufu::modules
 {
-    template <typename t_value_type, typename t_position_type>
+    template <typename t_value_type, std::floating_point t_position_type>
     struct interpolator
     {
         using type = interpolator<t_value_type, t_position_type>;
         using value_type = t_value_type;
         using position_type = t_position_type;
-        using clipper_type = clipper<t_position_type>;
 
-        static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position, std::error_code& ec) noexcept
+        static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position)
         {
-            position_type p = relative_position; // Make a copy of <relative_position>.
-
-            if (!clipper_type::was_finite(p, 0) || !clipper_type::was_between(p, 0, 1)) 
-                ec = std::make_error_code(std::errc::argument_out_of_domain);
-
-            position_type q = 1 - p;
-            return (q) * left + (p) * right;
+            if (!aftermath::is_probability(relative_position)) throw std::logic_error("Relative position not in [0, 1].");
+            return (1 - relative_position) * left + (relative_position) * right;
         } // interpolate(...)
     }; // struct interpolator
 
-    template <typename t_value_type, typename t_position_type>
-    struct interpolator<std::vector<t_value_type>, t_position_type>
+    template <typename t_scalar_type, std::floating_point t_position_type>
+    struct interpolator<std::vector<t_scalar_type>, t_position_type>
     {
-        using type = interpolator<t_value_type, t_position_type>;
-        using value_type = std::vector<t_value_type>;
+        using type = interpolator<t_scalar_type, t_position_type>;
+        using scalar_type = t_scalar_type;
+        using value_type = std::vector<scalar_type>;
         using position_type = t_position_type;
-        using clipper_type = clipper<t_position_type>;
 
-        static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position, std::error_code& ec) noexcept
+        static value_type interpolate(const value_type& left, const value_type& right, const position_type& relative_position)
         {
-            value_type bad {};
             std::size_t count = left.size();
-            if (left.size() != right.size())
-            {
-                ec = std::make_error_code(std::errc::invalid_argument);
-                return bad;
-            } // if (...)
+            if (left.size() != right.size()) throw std::logic_error("Vectors incompatible.");
+            if (!aftermath::is_probability(relative_position)) throw std::logic_error("Relative position not in [0, 1].");
 
-            position_type p = relative_position; // Make a copy of <relative_position>.
+            position_type q = 1 - relative_position;
 
-            if (!clipper_type::was_finite(p, 0) || !clipper_type::was_between(p, 0, 1))
-                ec = std::make_error_code(std::errc::argument_out_of_domain);
-
-            position_type q = 1 - p;
-
-            value_type result(count);
-            for (std::size_t i = 0; i < count; ++i) result[i] = (q) * left[i] + (p) * right[i];
+            value_type result {};
+            result.reserve(count);
+            for (std::size_t i = 0; i < count; ++i) result.push_back((q) * left[i] + (relative_position) * right[i]);
+            result.shrink_to_fit();
             return result;
         } // interpolate(...)
     }; // struct interpolator<...>

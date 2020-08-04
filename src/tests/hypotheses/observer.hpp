@@ -4,10 +4,9 @@
 
 #include <doctest/doctest.h>
 #include <ropufu/algebra/matrix.hpp>
+#include <ropufu/probability/moment_statistic.hpp>
 
 #include "../core.hpp"
-#include "../../draft/probability/moment_statistic.hpp"
-
 #include "../../hypotheses/signals.hpp"
 #include "../../hypotheses/noises.hpp"
 #include "../../hypotheses/simple_process.hpp"
@@ -22,6 +21,7 @@
 #include <random>     // std::mt19937
 #include <stdexcept>  // std::logic_error
 #include <vector>     // std::vector
+
 
 namespace ropufu::sequential::tests
 {

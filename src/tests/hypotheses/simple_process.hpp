@@ -14,6 +14,7 @@
 #include <random>     // std::mt19937
 #include <stdexcept>  // std::logic_error
 
+
 #define ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_PROCESS_NOISE_TYPES                \
     ropufu::sequential::hypotheses::white_noise<std::ranlux24, float>,        \
     ropufu::sequential::hypotheses::white_noise<std::ranlux48, float>,        \

@@ -1,6 +1,6 @@
 
-#ifndef ROPUFU_AFTERMATH_ALGEBRA_MATRIX_MASK_HPP_INCLUDED
-#define ROPUFU_AFTERMATH_ALGEBRA_MATRIX_MASK_HPP_INCLUDED
+#ifndef ROPUFU_DRAFT_ALGEBRA_SPARSE_MATRIX_MASK_HPP_INCLUDED
+#define ROPUFU_DRAFT_ALGEBRA_SPARSE_MATRIX_MASK_HPP_INCLUDED
 
 #include <ropufu/algebra/matrix_index.hpp>
 
@@ -8,7 +8,7 @@
 #include <utility> // std::swap
 #include <vector>  // std::vector
 
-namespace ropufu::aftermath::algebra
+namespace ropufu::draft::algebra
 {
     template <typename t_size_type, typename t_value_type>
     struct sparse_matrix_cell
@@ -16,7 +16,7 @@ namespace ropufu::aftermath::algebra
         using type = sparse_matrix_cell<t_size_type, t_value_type>;
         using size_type = t_size_type;
         using value_type = t_value_type;
-        using index_type = matrix_index<size_type>;
+        using index_type = aftermath::algebra::matrix_index<size_type>;
 
     private:
         index_type m_index = {};
@@ -40,7 +40,7 @@ namespace ropufu::aftermath::algebra
         using type = sparse_matrix_cell<t_size_type, bool>;
         using size_type = t_size_type;
         using value_type = bool;
-        using index_type = matrix_index<size_type>;
+        using index_type = aftermath::algebra::matrix_index<size_type>;
 
     private:
         index_type m_index = {};
@@ -63,9 +63,9 @@ namespace ropufu::aftermath::algebra
     }; // struct sparse_matrix_cell<...>
 
     template <typename t_size_type = std::size_t>
-    struct matrix_mask
+    struct sparse_matrix_mask
     {
-        using type = matrix_mask<t_size_type>;
+        using type = sparse_matrix_mask<t_size_type>;
         using size_type = t_size_type;
         using value_type = sparse_matrix_cell<size_type, bool>;
         using collection_type = std::vector<value_type>;
@@ -77,9 +77,9 @@ namespace ropufu::aftermath::algebra
         std::size_t m_count_completed = 0;
 
     public:
-        matrix_mask() noexcept { }
+        sparse_matrix_mask() noexcept { }
 
-        matrix_mask(size_type height, size_type width) noexcept
+        sparse_matrix_mask(size_type height, size_type width) noexcept
         {
             size_type sz = height * width;
             this->m_todo.reserve(sz);
@@ -88,7 +88,7 @@ namespace ropufu::aftermath::algebra
             {
                 for (size_type j = 0; j < width; ++j) this->m_todo.emplace_back(i, j);
             } // for (...)
-        } // matrix_mask(...)
+        } // sparse_matrix_mask(...)
 
         std::size_t count_completed() const noexcept { return this->m_count_completed; }
         std::size_t count_remaining() const noexcept { return this->m_todo.size() - this->m_count_completed; }
@@ -127,7 +127,7 @@ namespace ropufu::aftermath::algebra
             for (value_type& x : this->m_todo) x.unset();
             this->m_count_completed = 0;
         } // wipe(...)
-    }; // struct matrix_mask
-} // namespace ropufu::aftermath::algebra
+    }; // struct sparse_matrix_mask
+} // namespace ropufu::draft::algebra
 
-#endif // ROPUFU_AFTERMATH_ALGEBRA_MATRIX_MASK_HPP_INCLUDED
+#endif // ROPUFU_DRAFT_ALGEBRA_SPARSE_MATRIX_MASK_HPP_INCLUDED

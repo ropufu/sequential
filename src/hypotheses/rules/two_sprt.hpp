@@ -4,9 +4,9 @@
 
 #include <ropufu/algebra/matrix.hpp>
 #include <ropufu/number_traits.hpp>
+#include <ropufu/probability/moment_statistic.hpp>
 
-#include "../../draft/algebra/matrix_mask.hpp"
-#include "../../draft/probability/moment_statistic.hpp"
+#include "../../draft/algebra/sparse_matrix_mask.hpp"
 
 #include "../likelihood.hpp"
 #include "../model.hpp"
@@ -57,8 +57,8 @@ namespace ropufu::sequential::hypotheses
         using process_type = simple_process<engine_type, value_type>;
         using change_of_measure_type = change_of_measure<value_type>;
 
-        using matrix_mask_type = aftermath::algebra::matrix_mask<std::size_t>;
-        using matrix_cell_type = aftermath::algebra::sparse_matrix_cell<std::size_t, bool>;
+        using matrix_mask_type = draft::algebra::sparse_matrix_mask<std::size_t>;
+        using matrix_cell_type = draft::algebra::sparse_matrix_cell<std::size_t, bool>;
 
         template <typename t_data_type>
         using matrix_t = aftermath::algebra::matrix<t_data_type>;

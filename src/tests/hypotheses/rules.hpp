@@ -5,7 +5,6 @@
 #include <doctest/doctest.h>
 
 #include "../core.hpp"
-
 #include "../../hypotheses/signals.hpp"
 #include "../../hypotheses/noises.hpp"
 #include "../../hypotheses/simple_process.hpp"
@@ -21,6 +20,7 @@
 #include <random>     // std::mt19937
 #include <stdexcept>  // std::logic_error
 #include <vector>     // std::vector
+
 
 #define ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_RULES_NOISE_TYPES                  \
     ropufu::sequential::hypotheses::white_noise<std::ranlux24, float>,        \

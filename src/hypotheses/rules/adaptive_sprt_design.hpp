@@ -6,7 +6,7 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include "../format.hpp"
+#include "../../draft/format.hpp"
 #include "adaptive_sprt_flavor.hpp"
 
 #include <cstddef>   // std::size_t
@@ -166,9 +166,9 @@ namespace ropufu::sequential::hypotheses
             else
             {
                 result += " guess null ";
-                result += detail::to_str(this->m_relative_mu_null_init, decimal_places);
+                result += ropufu::draft::detail::to_str(this->m_relative_mu_null_init, decimal_places);
                 result += " alt ";
-                result += detail::to_str(this->m_relative_mu_alt_init, decimal_places);
+                result += ropufu::draft::detail::to_str(this->m_relative_mu_alt_init, decimal_places);
             } // else (...)
             return result;
         } // to_path_string(...)

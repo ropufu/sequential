@@ -1,9 +1,9 @@
 
 PNAME = simulator.out
 
-CC = g++-9
+CC = g++-10
 
-CFLAGS = -std=c++17 -Wall
+CFLAGS = -std=c++20 -Wall
 
 PATHINC = -I./../../../aftermath/src -I./../../../../include -I./..
 

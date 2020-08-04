@@ -4,9 +4,8 @@
 
 #include <ropufu/number_traits.hpp>
 #include <ropufu/algebra/matrix.hpp>
-#include <ropufu/algebra/range.hpp>
-
-#include "../draft/probability/moment_statistic.hpp"
+#include <ropufu/algebra/interval.hpp>
+#include <ropufu/probability/moment_statistic.hpp>
 
 #include "../hypotheses/signals.hpp"
 #include "../hypotheses/noises.hpp"
@@ -94,17 +93,20 @@ namespace ropufu::sequential::hypotheses
             {
                 for (observer_ptr_type& o : observer_pointers)
                 {
+                    std::size_t m = o->run_lengths().mean().height();
+                    std::size_t n = o->run_lengths().mean().width();
+
                     // Report.
                     std::string rule_name = o->to_path_string(2);
 
                     // ESS.
-                    value_type ess_a = o->run_lengths().mean().front();
-                    value_type ess_b = o->run_lengths().mean().back();
+                    value_type ess_a = o->run_lengths().mean().at(0, 0);
+                    value_type ess_b = o->run_lengths().mean().at(m - 1, n - 1);
                     if (ess_b < ess_a) std::swap(ess_a, ess_b);
 
                     // Errors.
-                    value_type err_a = o->decision_errors().mean().front();
-                    value_type err_b = o->decision_errors().mean().back();
+                    value_type err_a = o->decision_errors().mean().at(0, 0);
+                    value_type err_b = o->decision_errors().mean().at(m - 1, n - 1);
                     if (err_b < err_a) std::swap(err_a, err_b);
 
                     std::cout << "-- Rule " << rule_name

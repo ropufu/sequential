@@ -6,7 +6,7 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include <ropufu/algebra/range.hpp>
+#include <ropufu/algebra/interval.hpp>
 
 #include "../hypotheses/model.hpp"
 #include "../hypotheses/hypothesis_pair.hpp"

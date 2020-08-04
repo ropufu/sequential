@@ -4,18 +4,20 @@
 
 #include <nlohmann/json.hpp>
 #include <ropufu/noexcept_json.hpp>
-#include <ropufu/number_traits.hpp>
 
-#include "../../draft/ropufu/sliding_array.hpp"
+#include <ropufu/discrepancy.hpp>
+#include <ropufu/number_traits.hpp>
+#include <ropufu/sliding_array.hpp>
+
 #include "white_noise.hpp"
 
-#include <array>    // std::array
-#include <cstddef>  // std::size_t
-#include <iostream> // std::ostream
-#include <stdexcept>    // std::runtime_error
-#include <string>   // std::string
+#include <array>     // std::array
+#include <cstddef>   // std::size_t
+#include <iostream>  // std::ostream
+#include <stdexcept> // std::runtime_error
+#include <string>    // std::string
 #include <system_error> // std::error_code, std::errc
-#include <vector>   // std::vector
+#include <vector>    // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
@@ -246,5 +248,26 @@ namespace ropufu::sequential::hypotheses
         if (ec.value() != 0) throw std::runtime_error("Parsing <auto_regressive_noise> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu::aftermath
+{
+    namespace detail
+    {
+        template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
+        struct discrepancy<ropufu::sequential::hypotheses::auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>>
+        {
+            using result_type = t_value_type;
+            using argument_type = ropufu::sequential::hypotheses::auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>;
+
+            result_type operator ()(const argument_type& x, const argument_type& y) const noexcept
+            {
+                result_type total = 0;
+                total += ropufu::aftermath::discrepancy(x.white(), y.white());
+                total += ropufu::aftermath::discrepancy(x.ar_parameters(), y.ar_parameters());
+                return total;
+            } // operator ()(...)
+        }; // struct discrepancy<...>
+    } // namespace detail
+} // namespace ropufu::aftermath
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_AUTO_REGRESSIVE_NOISE_HPP_INCLUDED

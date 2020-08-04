@@ -1,0 +1,61 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "GCC Tests (Debug)",
+            "type": "shell",
+            "command": "g++-10",
+            "args": [
+                "-std=c++2a",
+                "-Wall",
+                "-I${workspaceRoot}/../../include",
+                "-I${workspaceRoot}/../aftermath/src",
+                "${workspaceFolder}/src/tests/main.cpp",
+                "-o",
+                "${workspaceFolder}/src/tests/tests.out",
+                "--debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/src/tests"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "GCC Simulator (Debug)",
+            "type": "shell",
+            "command": "g++-10",
+            "args": [
+                "-std=c++2a",
+                "-Wall",
+                "-I${workspaceRoot}/../../include",
+                "-I${workspaceRoot}/../aftermath/src",
+                "${workspaceFolder}/src/hypotheses_simulator/main.cpp",
+                "-o",
+                "${workspaceFolder}/src/hypotheses_simulator/simulator.out",
+                "--debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/src/hypotheses_simulator"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "silent"
+            }
+        }
+    ]
+}

@@ -3,8 +3,7 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_OBSERVER_HPP_INCLUDED
 
 #include <ropufu/algebra/matrix.hpp>
-
-#include "../draft/probability/moment_statistic.hpp"
+#include <ropufu/probability/moment_statistic.hpp>
 
 #include "operating_characteristic.hpp"
 #include "likelihood.hpp"

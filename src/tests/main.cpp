@@ -2,10 +2,6 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
-// Aftermath Draft Tests:
-#include "ropufu/sliding_array.hpp"
-#include "probability/moment_statistic.hpp"
-
 // Hypotheses Tests:
 #include "hypotheses/signals.hpp"
 #include "hypotheses/noises.hpp"

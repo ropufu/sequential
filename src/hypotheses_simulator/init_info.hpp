@@ -6,9 +6,9 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include <ropufu/algebra/range.hpp>
+#include <ropufu/algebra/interval.hpp>
 
-#include "../hypotheses/format.hpp"
+#include "../draft/format.hpp"
 #include "../hypotheses/hypothesis_pair.hpp"
 #include "spacing.hpp"
 
@@ -34,7 +34,7 @@ namespace ropufu::sequential::hypotheses
     {
         using type = init_info<t_value_type>;
         using value_type = t_value_type;
-        using range_type = aftermath::algebra::range<t_value_type>;
+        using interval_type = aftermath::algebra::interval<t_value_type>;
 
         // ~~ Json names ~~
         static constexpr char jstr_rule_id[] = "id";
@@ -43,7 +43,7 @@ namespace ropufu::sequential::hypotheses
 
     private:
         std::size_t m_rule_id = 0;
-        hypothesis_pair<range_type> m_threshold_range = {};
+        hypothesis_pair<interval_type> m_threshold_range = {};
         value_type m_anticipated_run_length = 0;
 
         static bool is_valid(value_type anticipated_run_length, std::string& message) noexcept
@@ -72,7 +72,7 @@ namespace ropufu::sequential::hypotheses
         {
             // Parse json entries.
             std::size_t rule_id = this->m_rule_id;
-            hypothesis_pair<range_type> threshold_range = this->m_threshold_range;
+            hypothesis_pair<interval_type> threshold_range = this->m_threshold_range;
             value_type anticipated_run_length = this->m_anticipated_run_length;
             aftermath::noexcept_json::required(j, type::jstr_rule_id, rule_id, ec);
             aftermath::noexcept_json::required(j, type::jstr_threshold_range, threshold_range, ec);
@@ -95,11 +95,11 @@ namespace ropufu::sequential::hypotheses
         
         std::size_t rule_id() const noexcept { return this->m_rule_id; }
 
-        const hypothesis_pair<range_type>& threshold_range() const noexcept { return this->m_threshold_range; }
+        const hypothesis_pair<interval_type>& threshold_range() const noexcept { return this->m_threshold_range; }
 
-        void set_threshold_range(const range_type& null_range, const range_type& alt_range) noexcept
+        void set_threshold_range(const interval_type& null_range, const interval_type& alt_range) noexcept
         {
-            this->m_threshold_range = hypothesis_pair<range_type>(null_range, alt_range);
+            this->m_threshold_range = hypothesis_pair<interval_type>(null_range, alt_range);
         } // set_threshold_range(...)
 
         void make_thresholds(
@@ -113,16 +113,16 @@ namespace ropufu::sequential::hypotheses
             switch (threshold_spacing)
             {
                 case spacing::linear:
-                    this->m_threshold_range.null().explode(null_thresholds, count.null(), lin);
-                    this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), lin);
+                    aftermath::algebra::explode(this->m_threshold_range.null(), null_thresholds, count.null(), lin);
+                    aftermath::algebra::explode(this->m_threshold_range.alt(), alt_thresholds, count.alt(), lin);
                     break;
                 case spacing::logarithmic:
-                    this->m_threshold_range.null().explode(null_thresholds, count.null(), log);
-                    this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), log);
+                    aftermath::algebra::explode(this->m_threshold_range.null(), null_thresholds, count.null(), log);
+                    aftermath::algebra::explode(this->m_threshold_range.alt(), alt_thresholds, count.alt(), log);
                     break;
                 case spacing::exponential:
-                    this->m_threshold_range.null().explode(null_thresholds, count.null(), exp);
-                    this->m_threshold_range.alt().explode(alt_thresholds, count.alt(), exp);
+                    aftermath::algebra::explode(this->m_threshold_range.null(), null_thresholds, count.null(), exp);
+                    aftermath::algebra::explode(this->m_threshold_range.alt(), alt_thresholds, count.alt(), exp);
                     break;
                 default:
                     throw std::invalid_argument("Spacing not recognized.");

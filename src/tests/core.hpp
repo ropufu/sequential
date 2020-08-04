@@ -3,6 +3,8 @@
 #define ROPUFU_AFTERMATH_TESTS_CORE_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
+#include <ropufu/discrepancy.hpp>
+#include <ropufu/number_traits.hpp>
 
 #include <array>   // std::array
 #include <chrono>  // std::chrono::steady_clock, std::chrono::system_clock
@@ -57,6 +59,18 @@ namespace ropufu::sequential::tests
             nlohmann::json j = x;
             t_type y = j;
             return x == y;
+        } // try
+        catch (...) { return false; }
+    } // does_json_round_trip(...)
+
+    template <typename t_type>
+    bool does_json_round_trip(const t_type& x, double tolerance) noexcept
+    {
+        try
+        {
+            nlohmann::json j = x;
+            t_type y = j;
+            return static_cast<double>(ropufu::aftermath::discrepancy(x, y)) < tolerance;
         } // try
         catch (...) { return false; }
     } // does_json_round_trip(...)

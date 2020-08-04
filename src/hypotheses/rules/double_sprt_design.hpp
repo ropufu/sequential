@@ -6,7 +6,7 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include "../format.hpp"
+#include "../../draft/format.hpp"
 
 #include <cstddef>   // std::size_t
 #include <iostream>  // std::ostream
@@ -150,7 +150,7 @@ namespace ropufu::sequential::hypotheses
             else
             {
                 result += " intermediate ";
-                result += detail::to_str(this->m_relative_mu_intermediate, decimal_places);
+                result += ropufu::draft::detail::to_str(this->m_relative_mu_intermediate, decimal_places);
             } // else (...)
             return result;
         } // to_path_string(...)

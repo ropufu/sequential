@@ -1,0 +1,54 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Tests Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/tests/tests.out",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/src/tests",
+            "environment": [],
+            "externalConsole": false,
+            "linux": {
+                "MIMode": "gdb",
+                "setupCommands": [
+                    {
+                        "description": "Enable pretty-printing for gdb",
+                        "text": "-enable-pretty-printing",
+                        "ignoreFailures": true
+                    }
+                ],
+                "preLaunchTask": "GCC Tests (Debug)",
+                "miDebuggerPath": "/usr/bin/gdb"
+            }
+        },
+        {
+            "name": "Simulator Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/hypotheses_simulator/simulator.out",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/src/hypotheses_simulator",
+            "environment": [],
+            "externalConsole": false,
+            "linux": {
+                "MIMode": "gdb",
+                "setupCommands": [
+                    {
+                        "description": "Enable pretty-printing for gdb",
+                        "text": "-enable-pretty-printing",
+                        "ignoreFailures": true
+                    }
+                ],
+                "preLaunchTask": "GCC Simulator (Debug)",
+                "miDebuggerPath": "/usr/bin/gdb"
+            }
+        }
+    ]
+}

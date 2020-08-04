@@ -3,9 +3,8 @@
 #define ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_WRITER_HPP_INCLUDED
 
 #include <ropufu/algebra/matrix.hpp>
+#include <ropufu/probability/moment_statistic.hpp>
 #include <ropufu/format/mat4_ostream.hpp>
-
-#include "../draft/probability/moment_statistic.hpp"
 
 #include "../hypotheses/operating_characteristic.hpp"
 #include "../hypotheses/model.hpp"
@@ -133,10 +132,10 @@ namespace ropufu::sequential::hypotheses
             std::filesystem::path mat_path = this->m_mat_subfolder / mat_name;
 
             // Threshold matrices.
-            matrix_t<value_type> unscaled_null_thresholds {rule_ptr->unscaled_null_thresholds()};
-            matrix_t<value_type> unscaled_alt_thresholds {rule_ptr->unscaled_alt_thresholds()};
-            unscaled_null_thresholds.try_reshape(unscaled_null_thresholds.size(), 1);
-            unscaled_alt_thresholds.try_reshape(1, unscaled_alt_thresholds.size());
+            matrix_t<value_type> unscaled_null_thresholds = matrix_t<value_type>::column_vector(rule_ptr->unscaled_null_thresholds());
+            matrix_t<value_type> unscaled_alt_thresholds = matrix_t<value_type>::row_vector(rule_ptr->unscaled_alt_thresholds());
+            //unscaled_null_thresholds.try_reshape(unscaled_null_thresholds.size(), 1);
+            //unscaled_alt_thresholds.try_reshape(1, unscaled_alt_thresholds.size());
 
             matstream_type mat {mat_path};
             // mat.wipe(); // Clear the existing contents.
@@ -170,10 +169,11 @@ namespace ropufu::sequential::hypotheses
             std::filesystem::path mat_path = this->m_mat_subfolder / mat_name;
 
             // Threshold matrices.
-            matrix_t<value_type> unscaled_null_thresholds {rule_ptr->unscaled_null_thresholds()};
-            matrix_t<value_type> unscaled_alt_thresholds {rule_ptr->unscaled_alt_thresholds()};
-            unscaled_null_thresholds.try_reshape(unscaled_null_thresholds.size(), 1);
-            unscaled_alt_thresholds.try_reshape(1, unscaled_alt_thresholds.size());
+            matrix_t<value_type> unscaled_null_thresholds = matrix_t<value_type>::column_vector(rule_ptr->unscaled_null_thresholds());
+            matrix_t<value_type> unscaled_alt_thresholds = matrix_t<value_type>::row_vector(rule_ptr->unscaled_alt_thresholds());
+            //unscaled_null_thresholds.try_reshape(unscaled_null_thresholds.size(), 1);
+            //unscaled_alt_thresholds.try_reshape(1, unscaled_alt_thresholds.size());
+            
             // Observation matrices.
             const moment_statistic_type& decision_errors = rule_ptr->decision_errors();
             const moment_statistic_type& run_lengths = rule_ptr->run_lengths();
