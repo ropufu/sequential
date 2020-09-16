@@ -165,7 +165,7 @@ namespace ropufu::sequential::hypotheses
 
                     factory.initialize_visitor(init, r.model(), r.threshold_spacing(), r.threshold_count());
                     const design_variant_type& v = this->m_config.rule_design_by_id(init.rule_id());
-                    std::visit(factory, static_cast<const typename design_variant_type::base_type&>(v));
+                    std::visit(factory, v);
                 } // for (...)
 
                 // Now that the rules have been set up, treat them as observers.

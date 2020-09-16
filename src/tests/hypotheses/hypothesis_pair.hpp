@@ -10,6 +10,7 @@
 #include <cstddef>    // std::size_t
 #include <functional> // std::hash
 #include <stdexcept>  // std::logic_error
+#include <string>     // std::string
 
 
 TEST_CASE_TEMPLATE("testing hypothesis pair", value_t, float, double, long double)
@@ -23,10 +24,20 @@ TEST_CASE_TEMPLATE("testing hypothesis pair", value_t, float, double, long doubl
 
     CHECK(b != c);
 
-    CHECK(ropufu::sequential::tests::does_json_round_trip(a));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(b));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(c));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(d));
+    std::string xxx {};
+    std::string yyy {};
+
+    ropufu::tests::does_json_round_trip(a, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(b, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(c, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(d, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 } // TEST_CASE_TEMPLATE(...)
 
 #endif // ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_HYPOTHESIS_PAIR_HPP_INCLUDED

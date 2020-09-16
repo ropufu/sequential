@@ -16,19 +16,21 @@
 #include "spacing.hpp"
 #include "init_info.hpp"
 
-#include <algorithm> // std::sort
-#include <cstddef>   // std::size_t
-#include <iostream>  // std::ostream
-#include <stdexcept> // std::runtime_error
-#include <string>    // std::string, std::to_string
-#include <system_error> // std::error_code, std::make_error_code, std::errc
-#include <utility> // std::pair
-#include <vector> // std::vector
+#include <algorithm>   // std::sort
+#include <cstddef>     // std::size_t
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
+#include <utility>     // std::pair
+#include <vector>      // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
     template <typename t_value_type>
     struct run;
+
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const run<t_value_type>& x) noexcept;
     template <typename t_value_type>
@@ -51,11 +53,13 @@ namespace ropufu::sequential::hypotheses
         using init_info_type = hypotheses::init_info<value_type>;
         
         // ~~ Json names ~~
-        static constexpr char jstr_model[] = "model";
-        static constexpr char jstr_threshold_spacing[] = "threshold spacing";
-        static constexpr char jstr_threshold_count[] = "threshold count";
-        static constexpr char jstr_signal_strengths[] = "signal strengths";
-        static constexpr char jstr_inits[] = "inits";
+        static constexpr std::string_view jstr_model = "model";
+        static constexpr std::string_view jstr_threshold_spacing = "threshold spacing";
+        static constexpr std::string_view jstr_threshold_count = "threshold count";
+        static constexpr std::string_view jstr_signal_strengths = "signal strengths";
+        static constexpr std::string_view jstr_inits = "inits";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         model_type m_model = {};
@@ -86,34 +90,6 @@ namespace ropufu::sequential::hypotheses
         run(const model_type& model) noexcept
             : m_model(model)
         {
-        } // run(...)
-
-        run(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            // Populate default values.
-            model_type model = this->m_model;
-            spacing threshold_spacing = this->m_threshold_spacing;
-            hypothesis_pair<std::size_t> threshold_count = this->m_threshold_count;
-            std::vector<change_of_measure_type> signal_strengths = this->m_signal_strengths;
-            std::vector<init_info_type> inits = this->m_inits;
-            
-            // Parse json entries.
-            aftermath::noexcept_json::required(j, type::jstr_model, model, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_threshold_spacing, threshold_spacing, ec);
-            aftermath::noexcept_json::required(j, type::jstr_threshold_count, threshold_count, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_signal_strengths, signal_strengths, ec);
-            aftermath::noexcept_json::required(j, type::jstr_inits, inits, ec);
-            if (ec.value() != 0) return;
-            
-            // Populate values.
-            this->m_model = model;
-            this->m_threshold_spacing = threshold_spacing;
-            this->m_threshold_count = threshold_count;
-            this->m_signal_strengths = signal_strengths;
-            this->m_inits = inits;
-
-            // Misc.
-            this->optimize();
         } // run(...)
 
         const model_type& model() const noexcept { return this->m_model; }
@@ -171,13 +147,6 @@ namespace ropufu::sequential::hypotheses
         } // operator <<(...)
     }; // struct run
 
-    // ~~ Json name definitions ~~
-    template <typename t_value_type> constexpr char run<t_value_type>::jstr_model[];
-    template <typename t_value_type> constexpr char run<t_value_type>::jstr_threshold_spacing[];
-    template <typename t_value_type> constexpr char run<t_value_type>::jstr_threshold_count[];
-    template <typename t_value_type> constexpr char run<t_value_type>::jstr_signal_strengths[];
-    template <typename t_value_type> constexpr char run<t_value_type>::jstr_inits[];
-    
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const run<t_value_type>& x) noexcept
     {
@@ -195,11 +164,33 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type>
     void from_json(const nlohmann::json& j, run<t_value_type>& x)
     {
-        using type = run<t_value_type>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <run> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <run> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_value_type>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::run<t_value_type>>
+    {
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::run<t_value_type>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            // Parse json entries.
+            if (!noexcept_json::required(j, result_type::jstr_model, x.m_model)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_threshold_spacing, x.m_threshold_spacing)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_threshold_count, x.m_threshold_count)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_signal_strengths, x.m_signal_strengths)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_inits, x.m_inits)) return false;
+
+            // Misc.
+            x.optimize();
+
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_RUN_HPP_INCLUDED

@@ -50,7 +50,7 @@ TEST_CASE_TEMPLATE("testing monte carlo", noise_type, ROPUFU_SEQUENTIAL_TESTS_HY
     using rule_dsprt_type = ropufu::sequential::hypotheses::double_sprt<engine_type, value_type>;
 
     engine_type engine {};
-    ropufu::sequential::tests::seed(engine);
+    ropufu::tests::seed(engine);
 
     ropufu::sequential::hypotheses::adaptive_sprt_design<value_type> asprt_simple_design {ropufu::sequential::hypotheses::adaptive_sprt_flavor::simple, 0};
     ropufu::sequential::hypotheses::adaptive_sprt_design<value_type> asprt_general_design {ropufu::sequential::hypotheses::adaptive_sprt_flavor::general, 1};

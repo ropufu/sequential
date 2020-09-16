@@ -63,10 +63,7 @@ namespace ropufu::aftermath::detail
     {
         using enum_type = ropufu::sequential::hypotheses::operating_characteristic;
 
-        static std::string to_string(const enum_type& from) noexcept
-        {
-            return std::to_string(from);
-        } // to_string(...)
+        static std::string to_string(const enum_type& from) noexcept { return std::to_string(from); }
 
         static bool try_parse(const std::string& from, enum_type& to) noexcept
         {
@@ -93,7 +90,7 @@ namespace ropufu::sequential::hypotheses
     void from_json(const nlohmann::json& j, operating_characteristic& x)
     {
         if (!j.is_string()) throw std::runtime_error("Parsing <operating_characteristic> failed: " + j.dump());
-        std::string s = j;
+        std::string s = j.get<std::string>();
         if (!aftermath::detail::try_parse_enum(s, x)) throw std::runtime_error("<operating_characteristic> not recognized: " + j.dump());
     } // from_json(...)
 

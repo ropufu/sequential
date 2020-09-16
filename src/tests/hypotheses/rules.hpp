@@ -3,6 +3,8 @@
 #define ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_RULES_HPP_INCLUDED
 
 #include <doctest/doctest.h>
+#include <nlohmann/json.hpp>
+#include <ropufu/noexcept_json.hpp>
 
 #include "../core.hpp"
 #include "../../hypotheses/signals.hpp"
@@ -19,6 +21,7 @@
 #include <functional> // std::hash
 #include <random>     // std::mt19937
 #include <stdexcept>  // std::logic_error
+#include <string>     // std::string
 #include <vector>     // std::vector
 
 
@@ -40,13 +43,27 @@ TEST_CASE_TEMPLATE("testing rule designs", value_type, float, double, long doubl
 
     dsprt_asymp_design.set_asymptotic_init(true);
     dsprt_huffman_design.set_huffman_correction(true);
+
+    std::string xxx {};
+    std::string yyy {};
     
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(asprt_simple_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(asprt_general_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(gsprt_cutoff_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(gsprt_general_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(dsprt_asymp_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(dsprt_huffman_design));
+    ropufu::tests::does_json_round_trip(asprt_simple_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(asprt_general_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(gsprt_cutoff_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(gsprt_general_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(dsprt_asymp_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(dsprt_huffman_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
 
     asprt_simple_design.set_relative_init(value_type(0.2), value_type(0.8));
     asprt_general_design.set_relative_init(value_type(0.3), value_type(0.7));
@@ -55,12 +72,23 @@ TEST_CASE_TEMPLATE("testing rule designs", value_type, float, double, long doubl
     dsprt_asymp_design.set_relative_mu_intermediate(value_type(0.1));
     dsprt_huffman_design.set_relative_mu_intermediate(value_type(0.9));
     
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(asprt_simple_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(asprt_general_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(gsprt_cutoff_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(gsprt_general_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(dsprt_asymp_design));
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(dsprt_huffman_design));
+    ropufu::tests::does_json_round_trip(asprt_simple_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(asprt_general_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(gsprt_cutoff_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(gsprt_general_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(dsprt_asymp_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(dsprt_huffman_design, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
 } // TEST_CASE_TEMPLATE(...)
 
 TEST_CASE_TEMPLATE("testing rules", noise_type, ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_RULES_NOISE_TYPES)
@@ -81,7 +109,7 @@ TEST_CASE_TEMPLATE("testing rules", noise_type, ROPUFU_SEQUENTIAL_TESTS_HYPOTHES
     using rule_dsprt_type = ropufu::sequential::hypotheses::double_sprt<engine_type, value_type>;
 
     engine_type engine {};
-    ropufu::sequential::tests::seed(engine);
+    ropufu::tests::seed(engine);
 
     ropufu::sequential::hypotheses::adaptive_sprt_design<value_type> asprt_simple_design {ropufu::sequential::hypotheses::adaptive_sprt_flavor::simple, 0};
     ropufu::sequential::hypotheses::adaptive_sprt_design<value_type> asprt_general_design {ropufu::sequential::hypotheses::adaptive_sprt_flavor::general, 1};
@@ -177,25 +205,29 @@ TEST_CASE_TEMPLATE("testing rule discrimination", value_t, float, long double)
     nlohmann::json b_json = b;
     nlohmann::json c_json = c;
 
-    w_type a_var = a_json;
-    w_type b_var = b_json;
-    w_type c_var = c_json;
+    w_type a_var {};
+    w_type b_var {};
+    w_type c_var {};
+    
+    REQUIRE(ropufu::noexcept_json::try_get(a_json, a_var));
+    REQUIRE(ropufu::noexcept_json::try_get(b_json, b_var));
+    REQUIRE(ropufu::noexcept_json::try_get(c_json, c_var));
     REQUIRE(std::holds_alternative<a_type>(a_var));
     REQUIRE(std::holds_alternative<b_type>(b_var));
     REQUIRE(std::holds_alternative<c_type>(c_var));
-    CHECK(a_var.id() == a.id());
-    CHECK(b_var.id() == b.id());
-    CHECK(c_var.id() == c.id());
+    // CHECK(a_var.id() == a.id());
+    // CHECK(b_var.id() == b.id());
+    // CHECK(c_var.id() == c.id());
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_rule_design(a_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(a_json, v));
     REQUIRE(std::holds_alternative<a_type>(v));
     CHECK(std::get<a_type>(v) == a);
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_rule_design(b_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(b_json, v));
     REQUIRE(std::holds_alternative<b_type>(v));
     CHECK(std::get<b_type>(v) == b);
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_rule_design(c_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(c_json, v));
     REQUIRE(std::holds_alternative<c_type>(v));
     CHECK(std::get<c_type>(v) == c);
 } // TEST_CASE_TEMPLATE(...)

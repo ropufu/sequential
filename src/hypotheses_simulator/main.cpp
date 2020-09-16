@@ -1,5 +1,6 @@
 
 #include <nlohmann/json.hpp>
+#include <ropufu/noexcept_json.hpp>
 
 #include "config.hpp"
 #include "automator.hpp"
@@ -64,9 +65,8 @@ int main()
         return 1729;
     } // if (...)
 
-    std::error_code ec {};
-    config_type config {config_json, ec};
-    if (ec.value() != 0)
+    config_type config {};
+    if (!ropufu::noexcept_json::try_get(config_json, config))
     {
         std::cout << "Config file could not be parsed." << std::endl;
         return 87539319;

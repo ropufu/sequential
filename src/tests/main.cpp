@@ -2,6 +2,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include <doctest/doctest.h>
 
+#define JSON_USE_IMPLICIT_CONVERSIONS 0
+
 // Hypotheses Tests:
 #include "hypotheses/signals.hpp"
 #include "hypotheses/noises.hpp"

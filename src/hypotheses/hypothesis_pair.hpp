@@ -5,17 +5,19 @@
 #include <nlohmann/json.hpp>
 #include <ropufu/noexcept_json.hpp>
 
-#include <cstddef>    // std::size_t
-#include <functional> // std::hash
-#include <iostream>   // std::ostream
-#include <stdexcept>  // std::runtime_error
-#include <string>     // std::string
-#include <system_error> // std::error_code, std::errc
+#include <cstddef>     // std::size_t
+#include <functional>  // std::hash
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
 
 namespace ropufu::sequential::hypotheses
 {
     template <typename t_value_type>
     struct hypothesis_pair;
+
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const hypothesis_pair<t_value_type>& x) noexcept;
     template <typename t_value_type>
@@ -29,8 +31,10 @@ namespace ropufu::sequential::hypotheses
         using value_type = t_value_type;
 
         // ~~ Json names ~~
-        static constexpr char jstr_null[] = "null";
-        static constexpr char jstr_alt[] = "alt";
+        static constexpr std::string_view jstr_null = "null";
+        static constexpr std::string_view jstr_alt = "alt";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         value_type m_null = {}; // Null hypothesis value.
@@ -42,36 +46,6 @@ namespace ropufu::sequential::hypotheses
         hypothesis_pair(const value_type& null_value, const value_type& alt_value) noexcept
             : m_null(null_value), m_alt(alt_value)
         {
-        } // hypothesis_pair(...)
-
-        hypothesis_pair(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            if (j.is_array())
-            {
-                std::vector<value_type> pair {};
-                aftermath::noexcept_json::as(j, pair, ec);
-                if (ec.value() != 0) return;
-                if (pair.size() != 2) // Range should be a vector with two entries.
-                {
-                    ec = std::make_error_code(std::errc::bad_message);
-                    return;
-                } // if (...)
-                this->m_null = pair.front();
-                this->m_alt = pair.back();
-            } // if (...)
-            else
-            {
-                // Parse json entries.
-                value_type null = this->m_null;
-                value_type alt = this->m_alt;
-                aftermath::noexcept_json::required(j, type::jstr_null, null, ec);
-                aftermath::noexcept_json::required(j, type::jstr_alt, alt, ec);
-                if (ec.value() != 0) return;
-
-                // Populate values.
-                this->m_null = null;
-                this->m_alt = alt;
-            } // else (...)
         } // hypothesis_pair(...)
 
         /** @brief Value under the null hypothesis. */
@@ -97,10 +71,6 @@ namespace ropufu::sequential::hypotheses
             return os << j;
         } // operator <<(...)
     }; // struct hypothesis_pair
-
-    // ~~ Json name definitions ~~
-    template <typename t_value_type> constexpr char hypothesis_pair<t_value_type>::jstr_null[];
-    template <typename t_value_type> constexpr char hypothesis_pair<t_value_type>::jstr_alt[];
     
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const hypothesis_pair<t_value_type>& x) noexcept
@@ -116,12 +86,40 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type>
     void from_json(const nlohmann::json& j, hypothesis_pair<t_value_type>& x)
     {
-        using type = hypothesis_pair<t_value_type>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <hypothesis_pair> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <hypothesis_pair> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_value_type>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::hypothesis_pair<t_value_type>>
+    {
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::hypothesis_pair<t_value_type>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            if (j.is_array())
+            {
+                std::vector<value_type> pair {};
+                if (!noexcept_json::try_get(j, pair)) return false;
+                if (pair.size() != 2) return false; // Range should be a vector with two entries.
+                
+                x.m_null = pair.front();
+                x.m_alt = pair.back();
+            } // if (...)
+            else
+            {
+                // Parse json entries.
+                if (!noexcept_json::required(j, result_type::jstr_null, x.m_null)) return false;
+                if (!noexcept_json::required(j, result_type::jstr_alt, x.m_alt)) return false;
+            } // if (...)
+            
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 
 namespace std
 {

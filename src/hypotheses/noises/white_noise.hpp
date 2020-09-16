@@ -10,16 +10,18 @@
 #include <ropufu/probability/standard_normal_distribution.hpp>
 #include <ropufu/random/normal_sampler_512.hpp>
 
-#include <iostream>  // std::ostream
-#include <stdexcept> // std::runtime_error, std::logic_error
-#include <string>    // std::string
-#include <system_error> // std::error_code, std::errc
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
 
 namespace ropufu::sequential::hypotheses
 {
     /** White Gaussian noise. */
     template <typename t_engine_type, typename t_value_type>
     struct white_noise;
+
     template <typename t_engine_type, typename t_value_type>
     void to_json(nlohmann::json& j, const white_noise<t_engine_type, t_value_type>& x) noexcept;
     template <typename t_engine_type, typename t_value_type>
@@ -41,29 +43,26 @@ namespace ropufu::sequential::hypotheses
         static constexpr char typename_string[] = "gaussian";
 
         // ~~ Json names ~~
-        static constexpr char jstr_typename[] = "type";
-        static constexpr char jstr_sigma[] = "sigma";
+        static constexpr std::string_view jstr_typename = "type";
+        static constexpr std::string_view jstr_sigma = "sigma";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         value_type m_sigma = 0; // Standard deviation.
         sampler_type m_sampler = {}; // White noise sampler.
         value_type m_current_value = 0; // Latest observed value.
 
-        static bool is_valid(value_type sigma, std::string& message) noexcept
+        std::optional<std::string> error_message() const noexcept
         {
-            if (!aftermath::is_finite(sigma) || sigma < 0)
-            {
-                message = "Sigma must be positive or zero.";
-                return false;
-            } // if (...)
-            return true;
-        } // validate(...)
+            if (!aftermath::is_finite(this->m_sigma) || this->m_sigma < 0) return "Sigma must be positive or zero.";
+            return std::nullopt;
+        } // error_message(...)
 
         void validate() const
         {
-            std::string message {};
-            if (!type::is_valid(this->m_sigma, message))
-                throw std::logic_error(message);
+            std::optional<std::string> message = this->error_message();
+            if (message.has_value()) throw std::logic_error(message.value());
         } // validate(...)
         
     public:
@@ -79,35 +78,6 @@ namespace ropufu::sequential::hypotheses
             : m_sigma(sigma)
         {
             this->validate();
-        } // white_noise(...)
-
-        /** @brief White Gaussian noise. */
-        white_noise(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            // Ensure correct type.
-            std::string typename_str {};
-            aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
-            if (typename_str != type::typename_string)
-            {
-                ec = std::make_error_code(std::errc::bad_message); // Noise type mismatch.
-                return;
-            } // if (...)
-
-            // Parse json entries.
-            value_type sigma = this->m_sigma;
-            aftermath::noexcept_json::optional(j, type::jstr_sigma, sigma, ec);
-            if (ec.value() != 0) return;
-
-            // Validate entries.
-            std::string message {};
-            if (!type::is_valid(sigma, message))
-            {
-                ec = std::make_error_code(std::errc::bad_message);
-                return;
-            } // if (...)
-            
-            // Populate values.
-            this->m_sigma = sigma;
         } // white_noise(...)
 
         /** @brief Standard deviation of the noise. */
@@ -155,11 +125,8 @@ namespace ropufu::sequential::hypotheses
         } // operator <<(...)
     }; // struct white_noise
 
-    // ~~ Some definitions ~~
+    // ~~ Definitions ~~
     template <typename t_engine_type, typename t_value_type> constexpr char white_noise<t_engine_type, t_value_type>::typename_string[];
-    // ~~ Json name definitions ~~
-    template <typename t_engine_type, typename t_value_type> constexpr char white_noise<t_engine_type, t_value_type>::jstr_typename[];
-    template <typename t_engine_type, typename t_value_type> constexpr char white_noise<t_engine_type, t_value_type>::jstr_sigma[];
 
     template <typename t_engine_type, typename t_value_type>
     void to_json(nlohmann::json& j, const white_noise<t_engine_type, t_value_type>& x) noexcept
@@ -176,12 +143,36 @@ namespace ropufu::sequential::hypotheses
     template <typename t_engine_type, typename t_value_type>
     void from_json(const nlohmann::json& j, white_noise<t_engine_type, t_value_type>& x)
     {
-        using type = white_noise<t_engine_type, t_value_type>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <white_noise> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <white_noise> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_engine_type, typename t_value_type>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::white_noise<t_engine_type, t_value_type>>
+    {
+        using engine_type = t_engine_type;
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::white_noise<t_engine_type, t_value_type>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            // Ensure correct type.
+            std::string typename_str {};
+            if (!noexcept_json::required(j, result_type::jstr_typename, typename_str)) return false;
+            if (typename_str != result_type::typename_string) return false; // Noise type mismatch.
+
+            // Parse json entries.
+            if (!noexcept_json::optional(j, result_type::jstr_sigma, x.m_sigma)) return false;
+            
+            // Validate entries.
+            if (x.error_message().has_value()) return false;
+
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 
 namespace ropufu::aftermath
 {

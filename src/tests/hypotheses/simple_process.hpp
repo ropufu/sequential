@@ -30,7 +30,7 @@ TEST_CASE_TEMPLATE("testing simple process", noise_type, ROPUFU_SEQUENTIAL_TESTS
     using process_t = ropufu::sequential::hypotheses::simple_process<engine_type, value_type>;
 
     engine_type engine {};
-    ropufu::sequential::tests::seed(engine);
+    ropufu::tests::seed(engine);
 
     signal_t signal_one {1};
     noise_type white_two {2};

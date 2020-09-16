@@ -11,6 +11,7 @@
 #include <functional> // std::hash
 #include <random>     // std::mt19937
 #include <stdexcept>  // std::logic_error
+#include <string>     // std::string
 #include <variant>    // std::variant
 
 
@@ -34,7 +35,7 @@ TEST_CASE_TEMPLATE("testing white noise", tested_t, ROPUFU_SEQUENTIAL_TESTS_HYPO
     // using value_type = typename tested_t::value_type;
 
     engine_type engine {};
-    ropufu::sequential::tests::seed(engine);
+    ropufu::tests::seed(engine);
 
     tested_t no_noise {};   // Trivially exact representation.
     tested_t white_one {1}; // Exact representation.
@@ -59,10 +60,18 @@ TEST_CASE_TEMPLATE("testing white noise", tested_t, ROPUFU_SEQUENTIAL_TESTS_HYPO
     CHECK(static_cast<double>(var_one) == doctest::Approx(1.0).epsilon(0.10));
     CHECK(static_cast<double>(var_two) == doctest::Approx(4.0).epsilon(0.10));
 
+    std::string xxx {};
+    std::string yyy {};
+
     // The following are represented exactly by the floating point type.
-    CHECK(ropufu::sequential::tests::does_json_round_trip(no_noise));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(white_one));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(white_two));
+    ropufu::tests::does_json_round_trip(no_noise, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(white_one, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(white_two, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 } // TEST_CASE_TEMPLATE(...)
 
 TEST_CASE_TEMPLATE("testing auto-regressive noise", tested_t, ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_AR_NOISE_TYPES)
@@ -85,7 +94,7 @@ TEST_CASE_TEMPLATE("testing auto-regressive noise", tested_t, ROPUFU_SEQUENTIAL_
     } // for (...)
 
     engine_type engine {};
-    ropufu::sequential::tests::seed(engine);
+    ropufu::tests::seed(engine);
 
     white_type white_zero {};
     white_type white_one {1};
@@ -117,13 +126,19 @@ TEST_CASE_TEMPLATE("testing auto-regressive noise", tested_t, ROPUFU_SEQUENTIAL_
     CHECK(static_cast<double>(var_one) > 0.9); // Theoretical value should be greater than 1---the no-AR case.
     CHECK(static_cast<double>(var_two) > 3.6); // Theoretical value should be greater than 4---the no-AR case.
 
+    std::string xxx {};
+    std::string yyy {};
+
     // The following are represented exactly by the floating point type.
-    CHECK(ropufu::sequential::tests::does_json_round_trip(no_noise_a));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(no_noise_b));
+    ropufu::tests::does_json_round_trip(no_noise_a, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(no_noise_b, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 
     // The following are not represented exactly by the floating point type.
-    CHECK(ropufu::sequential::tests::does_json_round_trip(ar_one_positive, 0.01));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(ar_two_alternating, 0.01));
+    CHECK(ropufu::tests::does_json_round_trip(ar_one_positive, 0.01));
+    CHECK(ropufu::tests::does_json_round_trip(ar_two_alternating, 0.01));
 } // TEST_CASE_TEMPLATE(...)
 
 TEST_CASE_TEMPLATE("testing noise discrimination", value_t, float, long double)
@@ -153,19 +168,19 @@ TEST_CASE_TEMPLATE("testing noise discrimination", value_t, float, long double)
     nlohmann::json c_json = c;
     nlohmann::json x_json = x;
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_noise(a_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(a_json, v));
     REQUIRE(std::holds_alternative<a_type>(v));
     CHECK(std::get<a_type>(v) == a);
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_noise(b_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(b_json, v));
     REQUIRE(std::holds_alternative<b_type>(v));
     CHECK(std::get<b_type>(v) == b);
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_noise(c_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(c_json, v));
     REQUIRE(std::holds_alternative<c_type>(v));
     CHECK(std::get<c_type>(v) == c);
 
-    REQUIRE(!ropufu::sequential::hypotheses::try_discriminate_noise(x_json, v));
+    REQUIRE(!ropufu::noexcept_json::try_get(x_json, v));
 } // TEST_CASE_TEMPLATE(...)
 
 #endif // ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_NOISES_HPP_INCLUDED

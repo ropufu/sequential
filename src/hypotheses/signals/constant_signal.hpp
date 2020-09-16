@@ -6,16 +6,18 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include <cstddef>   // std::size_t
-#include <iostream>  // std::ostream
-#include <stdexcept> // std::runtime_error
-#include <string>    // std::string
-#include <system_error> // std::error_code, std::errc
+#include <cstddef>     // std::size_t
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
 
 namespace ropufu::sequential::hypotheses
 {
     template <typename t_value_type>
     struct constant_signal;
+
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const constant_signal<t_value_type>& x) noexcept;
     template <typename t_value_type>
@@ -31,27 +33,24 @@ namespace ropufu::sequential::hypotheses
         static constexpr char typename_string[] = "const";
 
         // ~~ Json names ~~
-        static constexpr char jstr_typename[] = "type";
-        static constexpr char jstr_level[] = "level";
+        static constexpr std::string_view jstr_typename = "type";
+        static constexpr std::string_view jstr_level = "level";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         value_type m_level = 0;
 
-        static bool is_valid(value_type level, std::string& message) noexcept
+        std::optional<std::string> error_message() const noexcept
         {
-            if (!aftermath::is_finite(level))
-            {
-                message = "Signal level must be finite.";
-                return false;
-            } // if (...)
-            return true;
-        } // validate(...)
+            if (!aftermath::is_finite(this->m_level)) return "Signal level must be finite.";
+            return std::nullopt;
+        } // error_message(...)
 
         void validate() const
         {
-            std::string message {};
-            if (!type::is_valid(this->m_level, message))
-                throw std::logic_error(message);
+            std::optional<std::string> message = this->error_message();
+            if (message.has_value()) throw std::logic_error(message.value());
         } // validate(...)
 
     public:
@@ -65,34 +64,6 @@ namespace ropufu::sequential::hypotheses
             : m_level(level)
         {
             this->validate();
-        } // constant_signal(...)
-
-        constant_signal(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            // Ensure correct type.
-            std::string typename_str {};
-            aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
-            if (typename_str != type::typename_string)
-            {
-                ec = std::make_error_code(std::errc::bad_message); // Signal type mismatch.
-                return;
-            } // if (...)
-
-            // Parse json entries.
-            value_type level = this->m_level;
-            aftermath::noexcept_json::required(j, type::jstr_level, level, ec);
-            if (ec.value() != 0) return;
-
-            // Validate entries.
-            std::string message {};
-            if (!type::is_valid(level, message))
-            {
-                ec = std::make_error_code(std::errc::bad_message);
-                return;
-            } // if (...)
-            
-            // Populate values.
-            this->m_level = level;
         } // constant_signal(...)
 
         /** @brief Signal level. */
@@ -136,9 +107,6 @@ namespace ropufu::sequential::hypotheses
 
     // ~~ Some definitions ~~
     template <typename t_value_type> constexpr char constant_signal<t_value_type>::typename_string[];
-    // ~~ Json name definitions ~~
-    template <typename t_value_type> constexpr char constant_signal<t_value_type>::jstr_typename[];
-    template <typename t_value_type> constexpr char constant_signal<t_value_type>::jstr_level[];
     
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const constant_signal<t_value_type>& x) noexcept
@@ -155,11 +123,34 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type>
     void from_json(const nlohmann::json& j, constant_signal<t_value_type>& x)
     {
-        using type = constant_signal<t_value_type>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <constant_signal> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <constant_signal> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_value_type>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::constant_signal<t_value_type>>
+    {
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::constant_signal<t_value_type>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            // Ensure correct type.
+            std::string typename_str {};
+            if (!noexcept_json::required(j, result_type::jstr_typename, typename_str)) return false;
+            if (typename_str != result_type::typename_string) return false; // Signal type mismatch.
+
+            // Parse json entries.
+            if (!noexcept_json::required(j, result_type::jstr_level, x.m_level)) return false;
+            
+            // Validate entries.
+            if (x.error_message().has_value()) return false;
+
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_CONSTANT_SIGNAL_HPP_INCLUDED

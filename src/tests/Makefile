@@ -3,7 +3,7 @@ PNAME = tests.out
 
 CC = g++-10
 
-CFLAGS = -std=c++20 -Wall
+CFLAGS = -std=c++20 -Wall -O3
 
 PATHINC = -I./../../../aftermath/src -I./../../../../include -I./..
 

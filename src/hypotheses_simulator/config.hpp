@@ -13,14 +13,15 @@
 #include "homedir.hpp"
 #include "run.hpp"
 
-#include <cstddef>      // std::size_t
-#include <iostream>     // std::ostream
-#include <filesystem>   // std::filesystem::path
-#include <stdexcept>    // std::runtime_error
-#include <string>       // std::string
-#include <system_error> // std::error_code, std::errc
-#include <variant>      // std::variant
-#include <vector>       // std::vector
+#include <cstddef>     // std::size_t
+#include <filesystem>  // std::filesystem::path
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
+#include <variant>     // std::variant, std::visit
+#include <vector>      // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
@@ -40,18 +41,20 @@ namespace ropufu::sequential::hypotheses
         using run_type = hypotheses::run<value_type>;
 
         // ~~ Json names ~~
-        static constexpr char jstr_mat_output_path[] = "mat output";
-        static constexpr char jstr_count_simulations[] = "simulations";
-        static constexpr char jstr_count_threads[] = "threads";
-        static constexpr char jstr_signal[] = "signal";
-        static constexpr char jstr_noise[] = "noise";
-        static constexpr char jstr_disable_oc_pass[] = "disable oc pass";
-        static constexpr char jstr_disable_gray_pass[] = "disable gray pass";
-        static constexpr char jstr_do_limiting_distribution[] = "limiting distribution only";
-        static constexpr char jstr_limiting_observations[] = "limiting observations";
-        static constexpr char jstr_limiting_cutoff_time[] = "limiting cutoff time";
-        static constexpr char jstr_rule_designs[] = "rules";
-        static constexpr char jstr_runs[] = "runs";
+        static constexpr std::string_view jstr_mat_output_path = "mat output";
+        static constexpr std::string_view jstr_count_simulations = "simulations";
+        static constexpr std::string_view jstr_count_threads = "threads";
+        static constexpr std::string_view jstr_signal = "signal";
+        static constexpr std::string_view jstr_noise = "noise";
+        static constexpr std::string_view jstr_disable_oc_pass = "disable oc pass";
+        static constexpr std::string_view jstr_disable_gray_pass = "disable gray pass";
+        static constexpr std::string_view jstr_do_limiting_distribution = "limiting distribution only";
+        static constexpr std::string_view jstr_limiting_observations = "limiting observations";
+        static constexpr std::string_view jstr_limiting_cutoff_time = "limiting cutoff time";
+        static constexpr std::string_view jstr_rule_designs = "rules";
+        static constexpr std::string_view jstr_runs = "runs";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         std::filesystem::path m_mat_output_path = "./mat/";
@@ -68,52 +71,6 @@ namespace ropufu::sequential::hypotheses
         std::vector<run_type> m_runs = {};
 
     public:
-        config(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            // Populate default values.
-            std::string mat_output_path = this->m_mat_output_path.string();
-            std::size_t count_simulations = this->m_count_simulations;
-            std::size_t count_threads = this->m_count_threads;
-            signal_type signal = this->m_signal;
-            noise_type noise = this->m_noise;
-            bool disable_oc_pass = this->m_disable_oc_pass;
-            bool disable_gray_pass = this->m_disable_gray_pass;
-            bool do_limiting_distribution = this->m_do_limiting_distribution;
-            std::size_t limiting_observations = this->m_limiting_observations;
-            std::size_t limiting_cutoff_time = this->m_limiting_cutoff_time;
-            std::vector<design_variant_type> rule_designs = this->m_rule_designs;
-            std::vector<run_type> runs = this->m_runs;
-            
-            // Parse json entries.
-            aftermath::noexcept_json::optional(j, type::jstr_mat_output_path, mat_output_path, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_count_simulations, count_simulations, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_count_threads, count_threads, ec);
-            aftermath::noexcept_json::required(j, type::jstr_signal, signal, ec);
-            aftermath::noexcept_json::required(j, type::jstr_noise, noise, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_disable_oc_pass, disable_oc_pass, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_disable_gray_pass, disable_gray_pass, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_do_limiting_distribution, do_limiting_distribution, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_limiting_observations, limiting_observations, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_limiting_cutoff_time, limiting_cutoff_time, ec);
-            aftermath::noexcept_json::required(j, type::jstr_rule_designs, rule_designs, ec);
-            aftermath::noexcept_json::required(j, type::jstr_runs, runs, ec);
-            if (ec.value() != 0) return;
-
-            // Populate values.
-            this->m_mat_output_path = detail::format_homedir_path(mat_output_path);
-            this->m_count_simulations = count_simulations;
-            this->m_count_threads = count_threads;
-            this->m_signal = signal;
-            this->m_noise = noise;
-            this->m_disable_oc_pass = disable_oc_pass;
-            this->m_disable_gray_pass = disable_gray_pass;
-            this->m_do_limiting_distribution = do_limiting_distribution;
-            this->m_limiting_observations = limiting_observations;
-            this->m_limiting_cutoff_time = limiting_cutoff_time;
-            this->m_rule_designs = rule_designs;
-            this->m_runs = runs;
-        } // config(...)
-
         const std::filesystem::path& mat_output_path() const noexcept { return this->m_mat_output_path; }
 
         std::size_t count_simulations() const noexcept { return this->m_count_simulations; }
@@ -136,13 +93,21 @@ namespace ropufu::sequential::hypotheses
 
         const design_variant_type& rule_design_by_id(std::size_t id) const
         {
-            for (const design_variant_type& v : this->m_rule_designs) if (v.id() == id) return v;
+            for (const design_variant_type& v : this->m_rule_designs)
+            {
+                std::size_t rule_id = std::visit([] (auto&& arg) { return arg.id(); }, v);
+                if (rule_id == id) return v;
+            } // for (...)
             throw std::runtime_error("Rule design with id " + std::to_string(id) + " not found.");
         } // rule_design_by_id(...)
 
         bool has_rule_design(std::size_t id) const noexcept
         {
-            for (const design_variant_type& v : this->m_rule_designs) if (v.id() == id) return true;
+            for (const design_variant_type& v : this->m_rule_designs)
+            {
+                std::size_t rule_id = std::visit([] (auto&& arg) { return arg.id(); }, v);
+                if (rule_id == id) return true;
+            } // for (...)
             return false;
         } // has_rule_design(...)
 
@@ -156,20 +121,6 @@ namespace ropufu::sequential::hypotheses
         } // operator <<(...)
     }; // struct config
 
-    // ~~ Json name definitions ~~
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_mat_output_path[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_count_simulations[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_count_threads[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_signal[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_noise[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_disable_oc_pass[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_disable_gray_pass[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_do_limiting_distribution[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_limiting_observations[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_limiting_cutoff_time[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_rule_designs[];
-    template <typename t_engine_type, typename t_value_type> constexpr char config<t_engine_type, t_value_type>::jstr_runs[];
-    
     template <typename t_engine_type, typename t_value_type>
     void to_json(nlohmann::json& j, const config<t_engine_type, t_value_type>& x) noexcept
     {
@@ -194,11 +145,43 @@ namespace ropufu::sequential::hypotheses
     template <typename t_engine_type, typename t_value_type>
     void from_json(const nlohmann::json& j, config<t_engine_type, t_value_type>& x)
     {
-        using type = config<t_engine_type, t_value_type>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <config> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <config> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_engine_type, typename t_value_type>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::config<t_engine_type, t_value_type>>
+    {
+        using engine_type = t_engine_type;
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::config<t_engine_type, t_value_type>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            std::string mat_output_path {};
+            
+            // Parse json entries.
+            if (!noexcept_json::optional(j, result_type::jstr_mat_output_path, mat_output_path)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_count_simulations, x.m_count_simulations)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_count_threads, x.m_count_threads)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_signal, x.m_signal)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_noise, x.m_noise)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_disable_oc_pass, x.m_disable_oc_pass)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_disable_gray_pass, x.m_disable_gray_pass)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_do_limiting_distribution, x.m_do_limiting_distribution)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_limiting_observations, x.m_limiting_observations)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_limiting_cutoff_time, x.m_limiting_cutoff_time)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_rule_designs, x.m_rule_designs)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_runs, x.m_runs)) return false;
+
+            // Populate values.
+            x.m_mat_output_path = ropufu::sequential::hypotheses::detail::format_homedir_path(mat_output_path);
+            
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_CONFIG_INCLUDED

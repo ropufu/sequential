@@ -66,7 +66,7 @@ namespace ropufu::sequential::hypotheses
     void from_json(const nlohmann::json& j, generalized_sprt_flavor& x)
     {
         if (!j.is_string()) throw std::runtime_error("Parsing <generalized_sprt_flavor> failed: " + j.dump());
-        std::string s = j;
+        std::string s = j.get<std::string>();
         if (!aftermath::detail::try_parse_enum(s, x)) throw std::runtime_error("<generalized_sprt_flavor> not recognized: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses

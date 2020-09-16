@@ -86,6 +86,7 @@
         "compare": "cpp",
         "concepts": "cpp",
         "condition_variable": "cpp",
-        "cstdarg": "cpp"
+        "cstdarg": "cpp",
+        "numbers": "cpp"
     }
 }

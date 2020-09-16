@@ -4,7 +4,9 @@
 
 #include <nlohmann/json.hpp>
 #include <ropufu/noexcept_json.hpp>
+
 #include <ropufu/enum_parser.hpp>
+#include <ropufu/enum_array.hpp>
 
 #include <cstddef>      // std::size_t
 #include <stdexcept>    // std::runtime_error
@@ -48,10 +50,7 @@ namespace ropufu::aftermath::detail
     {
         using enum_type = ropufu::sequential::hypotheses::spacing;
 
-        static std::string to_string(const enum_type& from) noexcept
-        {
-            return std::to_string(from);
-        } // to_string(...)
+        static std::string to_string(const enum_type& from) noexcept { return std::to_string(from); }
 
         static bool try_parse(const std::string& from, enum_type& to) noexcept
         {
@@ -73,7 +72,7 @@ namespace ropufu::sequential::hypotheses
     void from_json(const nlohmann::json& j, spacing& x)
     {
         if (!j.is_string()) throw std::runtime_error("Parsing <spacing> failed: " + j.dump());
-        std::string s = j;
+        std::string s = j.get<std::string>();
         if (!aftermath::detail::try_parse_enum(s, x)) throw std::runtime_error("<spacing> not recognized: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses

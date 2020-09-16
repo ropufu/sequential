@@ -12,17 +12,19 @@
 #include "../hypotheses/hypothesis_pair.hpp"
 #include "spacing.hpp"
 
-#include <cstddef>   // std::size_t
-#include <iostream>  // std::ostream
-#include <stdexcept> // std::runtime_error
-#include <string>    // std::string
-#include <system_error> // std::error_code
-#include <vector>    // std::vector
+#include <cstddef>     // std::size_t
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
+#include <vector>      // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
     template <typename t_value_type>
     struct init_info;
+
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const init_info<t_value_type>& x) noexcept;
     template <typename t_value_type>
@@ -37,60 +39,35 @@ namespace ropufu::sequential::hypotheses
         using interval_type = aftermath::algebra::interval<t_value_type>;
 
         // ~~ Json names ~~
-        static constexpr char jstr_rule_id[] = "id";
-        static constexpr char jstr_threshold_range[] = "threshold range";
-        static constexpr char jstr_anticipated_run_length[] = "anticipated run length";
+        static constexpr std::string_view jstr_rule_id = "id";
+        static constexpr std::string_view jstr_threshold_range = "threshold range";
+        static constexpr std::string_view jstr_anticipated_run_length = "anticipated run length";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         std::size_t m_rule_id = 0;
         hypothesis_pair<interval_type> m_threshold_range = {};
         value_type m_anticipated_run_length = 0;
 
-        static bool is_valid(value_type anticipated_run_length, std::string& message) noexcept
+        std::optional<std::string> error_message() const noexcept
         {
-            if (!aftermath::is_finite(anticipated_run_length) || anticipated_run_length < 0)
-            {
-                message = "Anticipated run length must be positive or zero.";
-                return false;
-            } // if (...)
-            return true;
-        } // validate(...)
+            if (!aftermath::is_finite(this->m_anticipated_run_length) || this->m_anticipated_run_length < 0)
+                return "Anticipated run length must be positive or zero.";
+            return std::nullopt;
+        } // error_message(...)
 
         void validate() const
         {
-            std::string message {};
-            if (!type::is_valid(this->m_anticipated_run_length, message))
-                throw std::logic_error(message);
+            std::optional<std::string> message = this->error_message();
+            if (message.has_value()) throw std::logic_error(message.value());
         } // validate(...)
 
     public:
         init_info() noexcept { }
 
-        explicit init_info(std::size_t id) noexcept : m_rule_id(id) { }
-
-        init_info(const nlohmann::json& j, std::error_code& ec) noexcept
+        explicit init_info(std::size_t id) noexcept : m_rule_id(id)
         {
-            // Parse json entries.
-            std::size_t rule_id = this->m_rule_id;
-            hypothesis_pair<interval_type> threshold_range = this->m_threshold_range;
-            value_type anticipated_run_length = this->m_anticipated_run_length;
-            aftermath::noexcept_json::required(j, type::jstr_rule_id, rule_id, ec);
-            aftermath::noexcept_json::required(j, type::jstr_threshold_range, threshold_range, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_anticipated_run_length, anticipated_run_length, ec);
-            if (ec.value() != 0) return;
-
-            // Validate entries.
-            std::string message {};
-            if (!type::is_valid(anticipated_run_length, message))
-            {
-                ec = std::make_error_code(std::errc::bad_message);
-                return;
-            } // if (...)
-            
-            // Populate values.
-            this->m_rule_id = rule_id;
-            this->m_threshold_range = threshold_range;
-            this->m_anticipated_run_length = anticipated_run_length;
         } // init_info(...)
         
         std::size_t rule_id() const noexcept { return this->m_rule_id; }
@@ -158,11 +135,6 @@ namespace ropufu::sequential::hypotheses
         } // operator <<(...)
     }; // struct model
 
-    // ~~ Json name definitions ~~
-    template <typename t_value_type> constexpr char init_info<t_value_type>::jstr_rule_id[];
-    template <typename t_value_type> constexpr char init_info<t_value_type>::jstr_threshold_range[];
-    template <typename t_value_type> constexpr char init_info<t_value_type>::jstr_anticipated_run_length[];
-    
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const init_info<t_value_type>& x) noexcept
     {
@@ -178,11 +150,31 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type>
     void from_json(const nlohmann::json& j, init_info<t_value_type>& x)
     {
-        using type = init_info<t_value_type>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <init_info> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <init_info> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_value_type>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::init_info<t_value_type>>
+    {
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::init_info<t_value_type>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            // Parse json entries.
+            if (!noexcept_json::required(j, result_type::jstr_rule_id, x.m_rule_id)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_threshold_range, x.m_threshold_range)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_anticipated_run_length, x.m_anticipated_run_length)) return false;
+
+            // Validate entries.
+            if (x.error_message().has_value()) return false;
+
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIMULATOR_INIT_INFO_HPP_INCLUDED

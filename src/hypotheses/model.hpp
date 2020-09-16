@@ -8,16 +8,18 @@
 
 #include "../draft/format.hpp"
 
-#include <cstddef>  // std::size_t
-#include <iostream> // std::ostream
-#include <stdexcept>    // std::runtime_error
-#include <string>   // std::string
-#include <system_error> // std::error_code, std::errc
+#include <cstddef>     // std::size_t
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
 
 namespace ropufu::sequential::hypotheses
 {
     template <typename t_value_type>
     struct model;
+    
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const model<t_value_type>& x) noexcept;
     template <typename t_value_type>
@@ -31,38 +33,27 @@ namespace ropufu::sequential::hypotheses
         using value_type = t_value_type;
 
         // ~~ Json names ~~
-        static constexpr char jstr_null_mu[] = "null mu";
-        static constexpr char jstr_smallest_alt_mu[] = "smallest alt mu";
+        static constexpr std::string_view jstr_null_mu = "null mu";
+        static constexpr std::string_view jstr_smallest_alt_mu = "smallest alt mu";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         value_type m_null_mu = 0; // Signal strength under the null hypothesis.
         value_type m_smallest_alt_mu = 1; // Minimal signal strength under the alternative hypothesis.
 
-        static bool is_valid(value_type null_mu, value_type smallest_alt_mu, std::string& message) noexcept
+        std::optional<std::string> error_message() const noexcept
         {
-            if (!aftermath::is_finite(null_mu))
-            {
-                message = "Null mu must be finite.";
-                return false;
-            } // if (...)
-            if (!aftermath::is_finite(smallest_alt_mu))
-            {
-                message = "Smallest alternative mu must be finite.";
-                return false;
-            } // if (...)
-            if (null_mu >= smallest_alt_mu)
-            {
-                message = "Smallest alternative mu must be greater than null mu.";
-                return false;
-            } // if (...)
-            return true;
-        } // validate(...)
+            if (!aftermath::is_finite(this->m_null_mu)) return "Null mu must be finite.";
+            if (!aftermath::is_finite(this->m_smallest_alt_mu)) return "Smallest alternative mu must be finite.";
+            if (this->m_null_mu >= this->m_smallest_alt_mu) return "Smallest alternative mu must be greater than null mu.";
+            return std::nullopt;
+        } // error_message(...)
 
         void validate() const
         {
-            std::string message {};
-            if (!type::is_valid(this->m_null_mu, this->m_smallest_alt_mu, message))
-                throw std::logic_error(message);
+            std::optional<std::string> message = this->error_message();
+            if (message.has_value()) throw std::logic_error(message.value());
         } // validate(...)
 
     public:
@@ -78,28 +69,6 @@ namespace ropufu::sequential::hypotheses
             : m_null_mu(null_mu), m_smallest_alt_mu(smallest_alt_mu)
         {
             this->validate();
-        } // model(...)
-        
-        model(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            // Parse json entries.
-            value_type null_mu = this->m_null_mu;
-            value_type smallest_alt_mu = this->m_smallest_alt_mu;
-            aftermath::noexcept_json::optional(j, type::jstr_null_mu, null_mu, ec);
-            aftermath::noexcept_json::required(j, type::jstr_smallest_alt_mu, smallest_alt_mu, ec);
-            if (ec.value() != 0) return;
-            
-            // Validate entries.
-            std::string message {};
-            if (!type::is_valid(null_mu, smallest_alt_mu, message))
-            {
-                ec = std::make_error_code(std::errc::bad_message);
-                return;
-            } // if (...)
-            
-            // Populate values.
-            this->m_null_mu = null_mu;
-            this->m_smallest_alt_mu = smallest_alt_mu;
         } // model(...)
 
         /** @brief Linear combination of \c mu_under_null and \c mu_under_alt with weights (1 - \p p) and (\p p). */
@@ -157,10 +126,6 @@ namespace ropufu::sequential::hypotheses
             return os << j;
         } // operator <<(...)
     }; // struct model
-
-    // ~~ Json name definitions ~~
-    template <typename t_value_type> constexpr char model<t_value_type>::jstr_null_mu[];
-    template <typename t_value_type> constexpr char model<t_value_type>::jstr_smallest_alt_mu[];
     
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const model<t_value_type>& x) noexcept
@@ -176,11 +141,30 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type>
     void from_json(const nlohmann::json& j, model<t_value_type>& x)
     {
-        using type = model<t_value_type>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <model> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <model> failed: " + j.dump());
     } // from_json(...)
+} // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_value_type>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::model<t_value_type>>
+    {
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::model<t_value_type>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            // Parse json entries.
+            if (!noexcept_json::optional(j, result_type::jstr_null_mu, x.m_null_mu)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_smallest_alt_mu, x.m_smallest_alt_mu)) return false;
+
+            // Validate entries.
+            if (x.error_message().has_value()) return false;
+            
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
 } // namespace ropufu
 
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_MODEL_HPP_INCLUDED

@@ -6,13 +6,14 @@
 #include <ropufu/noexcept_json.hpp>
 #include <ropufu/number_traits.hpp>
 
-#include <array>     // std::array
-#include <cstddef>   // std::size_t
-#include <iostream>  // std::ostream
-#include <stdexcept> // std::runtime_error, std::logic_error
-#include <string>    // std::string
-#include <system_error> // std::error_code, std::errc
-#include <vector>    // std::vector
+#include <array>       // std::array
+#include <cstddef>     // std::size_t
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
+#include <vector>      // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
@@ -35,6 +36,7 @@ namespace ropufu::sequential::hypotheses
 
     template <typename t_value_type, std::size_t t_transition_size>
     struct transitionary_signal;
+
     template <typename t_value_type, std::size_t t_transition_size>
     void to_json(nlohmann::json& j, const transitionary_signal<t_value_type, t_transition_size>& x) noexcept;
     template <typename t_value_type, std::size_t t_transition_size>
@@ -52,37 +54,30 @@ namespace ropufu::sequential::hypotheses
         static constexpr std::size_t transition_size = t_transition_size;
 
         // ~~ Json names ~~
-        static constexpr char jstr_typename[] = "type";
-        static constexpr char jstr_transition[] = "transition";
-        static constexpr char jstr_stationary_level[] = "stationary level";
+        static constexpr std::string_view jstr_typename = "type";
+        static constexpr std::string_view jstr_transition = "transition";
+        static constexpr std::string_view jstr_stationary_level = "stationary level";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         value_type m_stationary_level = 0;
         transition_container_type m_transition = {};
 
-        static bool is_valid(value_type stationary_level, const transition_container_type& transition, std::string& message) noexcept
+        std::optional<std::string> error_message() const noexcept
         {
-            if (!aftermath::is_finite(stationary_level))
+            if (!aftermath::is_finite(this->m_stationary_level)) return "Signal level must be finite.";
+            for (const value_type& x : this->m_transition)
             {
-                message = "Signal level must be finite.";
-                return false;
-            } // if (...)
-            for (const value_type& x : transition)
-            {
-                if (!aftermath::is_finite(x))
-                {
-                    message = "Signal level must be finite.";
-                    return false;
-                } // if (...)
+                if (!aftermath::is_finite(x)) return "Signal level must be finite.";
             } // for (...)
-            return true;
-        } // validate(...)
+            return std::nullopt;
+        } // error_message(...)
 
         void validate() const
         {
-            std::string message {};
-            if (!type::is_valid(this->m_stationary_level, this->m_transition, message))
-                throw std::logic_error(message);
+            std::optional<std::string> message = this->error_message();
+            if (message.has_value()) throw std::logic_error(message.value());
         } // validate(...)
 
     public:
@@ -107,37 +102,6 @@ namespace ropufu::sequential::hypotheses
             : m_stationary_level(stationary_level), m_transition(transition)
         {
             this->validate();
-        } // transitionary_signal(...)
-        
-        transitionary_signal(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            // Ensure correct type.
-            std::string typename_str {};
-            aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
-            if (typename_str != type::typename_string)
-            {
-                ec = std::make_error_code(std::errc::bad_message); // Signal type mismatch.
-                return;
-            } // if (...)
-
-            // Parse json entries.
-            value_type stationary_level = this->m_stationary_level;
-            transition_container_type transition = this->m_transition;
-            aftermath::noexcept_json::required(j, type::jstr_stationary_level, stationary_level, ec);
-            aftermath::noexcept_json::required(j, type::jstr_transition, transition, ec);
-            if (ec.value() != 0) return;
-
-            // Validate entries.
-            std::string message {};
-            if (!type::is_valid(stationary_level, transition, message))
-            {
-                ec = std::make_error_code(std::errc::bad_message);
-                return;
-            } // if (...)
-            
-            // Populate values.
-            this->m_stationary_level = stationary_level;
-            this->m_transition = transition;
         } // transitionary_signal(...)
 
         /** @brief Signal level when in stationary mode. */
@@ -201,11 +165,6 @@ namespace ropufu::sequential::hypotheses
         } // operator <<(...)
     }; // struct transitionary_signal
 
-    // ~~ Json name definitions ~~
-    template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_typename[];
-    template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_transition[];
-    template <typename t_value_type, std::size_t t_transition_size> constexpr char transitionary_signal<t_value_type, t_transition_size>::jstr_stationary_level[];
-    
     template <typename t_value_type, std::size_t t_transition_size>
     void to_json(nlohmann::json& j, const transitionary_signal<t_value_type, t_transition_size>& x) noexcept
     {
@@ -222,11 +181,35 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type, std::size_t t_transition_size>
     void from_json(const nlohmann::json& j, transitionary_signal<t_value_type, t_transition_size>& x)
     {
-        using type = transitionary_signal<t_value_type, t_transition_size>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <transitionary_signal> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <transitionary_signal> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
 
+namespace ropufu
+{
+    template <typename t_value_type, std::size_t t_transition_size>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::transitionary_signal<t_value_type, t_transition_size>>
+    {
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::transitionary_signal<t_value_type, t_transition_size>;
+        static constexpr std::size_t transition_size = t_transition_size;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            // Ensure correct type.
+            std::string typename_str {};
+            if (!noexcept_json::required(j, result_type::jstr_typename, typename_str)) return false;
+            if (typename_str != result_type::typename_string) return false; // Signal type mismatch.
+
+            // Parse json entries.
+            if (!noexcept_json::required(j, result_type::jstr_stationary_level, x.m_stationary_level)) return false;
+            if (!noexcept_json::required(j, result_type::jstr_transition, x.m_transition)) return false;
+
+            // Validate entries.
+            if (x.error_message().has_value()) return false;
+
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 #endif // ROPUFU_SEQUENTIAL_HYPOTHESES_SIGNALS_TRANSITIONARY_SIGNAL_HPP_INCLUDED

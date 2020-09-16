@@ -11,6 +11,7 @@
 #include "../../hypotheses_simulator/run.hpp"
 
 #include <cstddef> // std::size_t
+#include <string>  // std::string
 #include <vector>  // std::vector
 
 
@@ -35,8 +36,14 @@ TEST_CASE_TEMPLATE("testing run", value_t, float, double, long double)
 
     CHECK(a != b);
 
-    CHECK(ropufu::sequential::tests::does_json_round_trip(a));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(b));
+    std::string xxx {};
+    std::string yyy {};
+
+    ropufu::tests::does_json_round_trip(a, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(b, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 
     b.study(1, 1); b.study(2, 3);
     c.study(2, 3); c.study(1, 1);
@@ -50,9 +57,14 @@ TEST_CASE_TEMPLATE("testing run", value_t, float, double, long double)
     a.set_thresholds(5, 8, ropufu::sequential::hypotheses::spacing::linear);
     CHECK(a.threshold_count() == hypothesis_pair_type(5, 8));
 
-    CHECK(ropufu::sequential::tests::does_json_round_trip(a));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(b));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(c));
+    ropufu::tests::does_json_round_trip(a, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(b, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(c, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 } // TEST_CASE_TEMPLATE(...)
 
 #endif // ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_SIMULATOR_RUN_HPP_INCLUDED

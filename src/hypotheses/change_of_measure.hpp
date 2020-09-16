@@ -10,18 +10,20 @@
 #include "model.hpp"
 #include "operating_characteristic.hpp"
 
-#include <cstddef>    // std::size_t
-#include <functional> // std::hash
-#include <iostream>   // std::ostream
-#include <stdexcept>  // std::invalid_argument
-#include <string>     // std::string, std::to_string
-#include <system_error> // std::error_code, std::errc
-#include <vector>     // std::vector
+#include <cstddef>     // std::size_t
+#include <functional>  // std::hash
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
+#include <vector>      // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
     template <typename t_value_type>
     struct change_of_measure;
+
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const change_of_measure<t_value_type>& x) noexcept;
     template <typename t_value_type>
@@ -35,12 +37,27 @@ namespace ropufu::sequential::hypotheses
         using model_type = hypotheses::model<t_value_type>;
 
         // ~~ Json names ~~
-        static constexpr char jstr_analyzed[] = "analyzed";
-        static constexpr char jstr_simulated[] = "simulated";
+        static constexpr std::string_view jstr_analyzed = "analyzed";
+        static constexpr std::string_view jstr_simulated = "simulated";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         value_type m_analyzed = {};
         value_type m_simulated = {};
+
+        std::optional<std::string> error_message() const noexcept
+        {
+            if (!aftermath::is_finite(this->m_analyzed)) return "Analyzed mu must be finite.";
+            if (!aftermath::is_finite(this->m_simulated)) return "Simulated mu must be finite.";
+            return std::nullopt;
+        } // error_message(...)
+
+        void validate() const
+        {
+            std::optional<std::string> message = this->error_message();
+            if (message.has_value()) throw std::logic_error(message.value());
+        } // validate(...)
 
     public:
         change_of_measure() noexcept { }
@@ -48,44 +65,8 @@ namespace ropufu::sequential::hypotheses
         change_of_measure(value_type analyzed, value_type simulated)
             : m_analyzed(analyzed), m_simulated(simulated)
         {
-            if (!aftermath::is_finite(analyzed)) throw std::logic_error("Analyzed mu must be finite.");
-            if (!aftermath::is_finite(simulated)) throw std::logic_error("Simulated mu must be finite.");
+            this->validate();
         } // change_of_measure(...)
-
-        change_of_measure(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            if (j.is_array())
-            {
-                std::vector<value_type> pair {};
-                aftermath::noexcept_json::as(j, pair, ec);
-                if (ec.value() != 0) return;
-                if (pair.size() != 2) // Range should be a vector with two entries.
-                {
-                    ec = std::make_error_code(std::errc::bad_message);
-                    return;
-                } // if (...)
-                this->m_analyzed = pair.front();
-                this->m_simulated = pair.back();
-            } // if (...)
-            else
-            {
-                // Parse json entries.
-                value_type analyzed = this->m_analyzed;
-                value_type simulated = this->m_simulated;
-                aftermath::noexcept_json::required(j, type::jstr_analyzed, analyzed, ec);
-                aftermath::noexcept_json::required(j, type::jstr_simulated, simulated, ec);
-                if (ec.value() != 0) return;
-
-                // Validate entries.
-                if (!aftermath::is_finite(analyzed)) ec = std::make_error_code(std::errc::bad_message);
-                if (!aftermath::is_finite(simulated)) ec = std::make_error_code(std::errc::bad_message);
-                if (ec.value() != 0) return;
-
-                // Populate values.
-                this->m_analyzed = analyzed;
-                this->m_simulated = simulated;
-            } // else (...)
-        } // hypothesis_pair(...)
 
         static type from_oc(operating_characteristic oc, const model_type& model)
         {
@@ -148,10 +129,6 @@ namespace ropufu::sequential::hypotheses
             return os << j;
         } // operator <<(...)
     }; // struct change_of_measure
-
-    // ~~ Json name definitions ~~
-    template <typename t_value_type> constexpr char change_of_measure<t_value_type>::jstr_analyzed[];
-    template <typename t_value_type> constexpr char change_of_measure<t_value_type>::jstr_simulated[];
     
     template <typename t_value_type>
     void to_json(nlohmann::json& j, const change_of_measure<t_value_type>& x) noexcept
@@ -167,12 +144,43 @@ namespace ropufu::sequential::hypotheses
     template <typename t_value_type>
     void from_json(const nlohmann::json& j, change_of_measure<t_value_type>& x)
     {
-        using type = change_of_measure<t_value_type>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <change_of_measure> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <change_of_measure> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_value_type>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::change_of_measure<t_value_type>>
+    {
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::change_of_measure<t_value_type>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            if (j.is_array())
+            {
+                std::vector<value_type> pair {};
+                if (!noexcept_json::try_get(j, pair)) return false;
+                if (pair.size() != 2) return false; // Range should be a vector with two entries.
+
+                x.m_analyzed = pair.front();
+                x.m_simulated = pair.back();
+            } // if (...)
+            else
+            {
+                // Parse json entries.
+                if (!noexcept_json::required(j, result_type::jstr_analyzed, x.m_analyzed)) return false;
+                if (!noexcept_json::required(j, result_type::jstr_simulated, x.m_simulated)) return false;
+            } // if (...)
+            
+            // Validate entries.
+            if (x.error_message().has_value()) return false;
+
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 
 namespace std
 {

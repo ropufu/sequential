@@ -20,17 +20,18 @@
 #include <functional> // std::hash
 #include <random>     // std::mt19937
 #include <stdexcept>  // std::logic_error
+#include <string>     // std::string
 #include <vector>     // std::vector
 
 
-namespace ropufu::sequential::tests
+namespace ropufu::tests
 {
     template <typename t_engine_type, typename t_value_type, std::size_t t_stopping_time>
-    struct september : hypotheses::observer<t_engine_type, t_value_type>
+    struct september : ropufu::sequential::hypotheses::observer<t_engine_type, t_value_type>
     {
-        using process_type = hypotheses::simple_process<t_engine_type, t_value_type>;
-        using likelihood_type = hypotheses::likelihood<t_value_type>;
-        using change_of_measure_type = hypotheses::change_of_measure<t_value_type>;
+        using process_type = ropufu::sequential::hypotheses::simple_process<t_engine_type, t_value_type>;
+        using likelihood_type = ropufu::sequential::hypotheses::likelihood<t_value_type>;
+        using change_of_measure_type = ropufu::sequential::hypotheses::change_of_measure<t_value_type>;
 
         template <typename t_data_type>
         using matrix_t = aftermath::algebra::matrix<t_data_type>;
@@ -52,7 +53,7 @@ namespace ropufu::sequential::tests
         const moment_statistic_type& decision_errors() const noexcept override { return this->empty_statistic; }
         const moment_statistic_type& run_lengths() const noexcept override { return this->empty_statistic; }
     }; // struct september
-} // namespace ropufu::sequential::tests
+} // namespace ropufu::tests
 
 #define ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_PROCESS_NOISE_TYPES                \
     ropufu::sequential::hypotheses::white_noise<std::ranlux24, float>,        \
@@ -73,7 +74,7 @@ TEST_CASE_TEMPLATE("testing observer", noise_type, ROPUFU_SEQUENTIAL_TESTS_HYPOT
     using observer_type = ropufu::sequential::hypotheses::observer<engine_type, value_type>;
 
     engine_type engine {};
-    ropufu::sequential::tests::seed(engine);
+    ropufu::tests::seed(engine);
 
     signal_type signal_one {1};
     noise_type white_two {2};
@@ -82,10 +83,14 @@ TEST_CASE_TEMPLATE("testing observer", noise_type, ROPUFU_SEQUENTIAL_TESTS_HYPOT
     process_type process {signal_one, white_two, mod.mu_under_null()};
     change_of_measure_type change_of_measure {mod.mu_under_null(), process.signal_strength()};
 
-    REQUIRE(ropufu::sequential::tests::does_json_round_trip(mod));
+    std::string xxx {};
+    std::string yyy {};
+
+    ropufu::tests::does_json_round_trip(mod, xxx, yyy);
+    REQUIRE_EQ(xxx, yyy);
     
-    ropufu::sequential::tests::september<engine_type, value_type, 17> o1 {};
-    ropufu::sequential::tests::september<engine_type, value_type, 8> o2 {};
+    ropufu::tests::september<engine_type, value_type, 17> o1 {};
+    ropufu::tests::september<engine_type, value_type, 8> o2 {};
     std::vector<observer_type*> os {&o1, &o2};
 
     bool is_listening = observer_type::any_listening(os);

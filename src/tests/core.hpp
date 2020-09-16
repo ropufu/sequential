@@ -3,6 +3,7 @@
 #define ROPUFU_AFTERMATH_TESTS_CORE_HPP_INCLUDED
 
 #include <nlohmann/json.hpp>
+#include <ropufu/noexcept_json.hpp>
 #include <ropufu/discrepancy.hpp>
 #include <ropufu/number_traits.hpp>
 
@@ -14,25 +15,10 @@
 #include <sstream> // std::ostringstream
 #include <vector>  // std::vector
 
-namespace ropufu::sequential::tests
+namespace ropufu::tests
 {
     static int g_aux_test_counter = 0;
     
-    template <typename t_left_type, typename t_right_type>
-    struct type_pair
-    {
-        using left_type = t_left_type;
-        using right_type = t_right_type;
-    }; // struct type_pair
-    
-    template <typename t_left_type, typename t_middle_type, typename t_right_type>
-    struct type_triplet
-    {
-        using left_type = t_left_type;
-        using middle_type = t_middle_type;
-        using right_type = t_right_type;
-    }; // struct type_triplet
-
     template <typename t_test_type>
     double benchmark(t_test_type&& test) noexcept
     {
@@ -47,32 +33,35 @@ namespace ropufu::sequential::tests
     void seed(t_engine_type& engine) noexcept
     {
         int time_seed = static_cast<int>(std::chrono::system_clock::now().time_since_epoch().count());
-        std::seed_seq sequence { 1, 1, 2, 3, 5, 8, 1729, time_seed, ++ropufu::sequential::tests::g_aux_test_counter };
+        std::seed_seq sequence { 1, 1, 2, 3, 5, 8, 1729, time_seed, ++ropufu::tests::g_aux_test_counter };
         engine.seed(sequence);
     } // seed(...)
 
     template <typename t_type>
-    bool does_json_round_trip(const t_type& x) noexcept
+    bool does_json_round_trip(const t_type& x, std::string& a, std::string& b) noexcept
     {
-        try
-        {
-            nlohmann::json j = x;
-            t_type y = j;
-            return x == y;
-        } // try
-        catch (...) { return false; }
+        a = "Processing...";
+        b = "Processing...";
+
+        nlohmann::json j = x;
+        a = j.dump();
+
+        t_type y {};
+        if (!noexcept_json::try_get(j, y)) return false;
+
+        nlohmann::json k = y;
+        b = k.dump();
+
+        return x == y;
     } // does_json_round_trip(...)
 
     template <typename t_type>
     bool does_json_round_trip(const t_type& x, double tolerance) noexcept
     {
-        try
-        {
-            nlohmann::json j = x;
-            t_type y = j;
-            return static_cast<double>(ropufu::aftermath::discrepancy(x, y)) < tolerance;
-        } // try
-        catch (...) { return false; }
+        nlohmann::json j = x;
+        t_type y {};
+        if (!noexcept_json::try_get(j, y)) return false;
+        return static_cast<double>(ropufu::aftermath::discrepancy(x, y)) < tolerance;
     } // does_json_round_trip(...)
 
     template <typename t_type>
@@ -89,6 +78,6 @@ namespace ropufu::sequential::tests
         } // try
         catch (...) { return false; }
     } // are_ostream_equal(...)
-} // namespace ropufu::sequential::tests
+} // namespace ropufu::tests
 
 #endif // ROPUFU_AFTERMATH_TESTS_CORE_HPP_INCLUDED

@@ -12,6 +12,7 @@
 #include <functional> // std::hash
 #include <random>     // std::mt19937
 #include <stdexcept>  // std::logic_error
+#include <string>     // std::string
 #include <variant>    // std::variant
 
 
@@ -51,9 +52,17 @@ TEST_CASE_TEMPLATE("testing constant signal", tested_t, ROPUFU_SEQUENTIAL_TESTS_
         CHECK(constant_two(i) == two);
     } // for (...)
 
-    CHECK(ropufu::sequential::tests::does_json_round_trip(no_signal));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(constant_one));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(constant_two));
+    std::string xxx {};
+    std::string yyy {};
+
+    ropufu::tests::does_json_round_trip(no_signal, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(constant_one, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(constant_two, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 } // TEST_CASE_TEMPLATE(...)
 
 TEST_CASE_TEMPLATE("testing transitionary signal", tested_t, ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_TRANSITIONARY_SIGNAL_TYPES)
@@ -98,11 +107,23 @@ TEST_CASE_TEMPLATE("testing transitionary signal", tested_t, ROPUFU_SEQUENTIAL_T
         CHECK(jitter_to_two(i) == two);
     } // for (...)
 
-    CHECK(ropufu::sequential::tests::does_json_round_trip(no_signal));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(constant_one));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(constant_two));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(jitter_to_one));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(jitter_to_two));
+    std::string xxx {};
+    std::string yyy {};
+
+    ropufu::tests::does_json_round_trip(no_signal, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(constant_one, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(constant_two, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(jitter_to_one, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(jitter_to_two, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 } // TEST_CASE_TEMPLATE(...)
 
 TEST_CASE_TEMPLATE("testing signal discrimination", value_t, float, long double)
@@ -129,19 +150,19 @@ TEST_CASE_TEMPLATE("testing signal discrimination", value_t, float, long double)
     nlohmann::json c_json = c;
     nlohmann::json x_json = x;
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_signal(a_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(a_json, v));
     REQUIRE(std::holds_alternative<a_type>(v));
     CHECK(std::get<a_type>(v) == a);
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_signal(b_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(b_json, v));
     REQUIRE(std::holds_alternative<b_type>(v));
     CHECK(std::get<b_type>(v) == b);
 
-    REQUIRE(ropufu::sequential::hypotheses::try_discriminate_signal(c_json, v));
+    REQUIRE(ropufu::noexcept_json::try_get(c_json, v));
     REQUIRE(std::holds_alternative<c_type>(v));
     CHECK(std::get<c_type>(v) == c);
 
-    REQUIRE(!ropufu::sequential::hypotheses::try_discriminate_signal(x_json, v));
+    REQUIRE(!ropufu::noexcept_json::try_get(x_json, v));
 } // TEST_CASE_TEMPLATE(...)
 
 #endif // ROPUFU_SEQUENTIAL_TESTS_HYPOTHESES_SIGNALS_HPP_INCLUDED

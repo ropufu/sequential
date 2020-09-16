@@ -8,6 +8,7 @@
 #include "../../hypotheses_simulator/init_info.hpp"
 
 #include <cstddef> // std::size_t
+#include <string>  // std::string
 #include <vector>  // std::vector
 
 
@@ -22,15 +23,26 @@ TEST_CASE_TEMPLATE("testing init info", value_t, float, double, long double)
     CHECK(a != b);
     CHECK(b == c);
 
-    CHECK(ropufu::sequential::tests::does_json_round_trip(a));
-    CHECK(ropufu::sequential::tests::does_json_round_trip(b));
+    std::string xxx {};
+    std::string yyy {};
+
+    ropufu::tests::does_json_round_trip(a, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
+    ropufu::tests::does_json_round_trip(b, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
+
 
     c.set_threshold_range({1, 2}, {3, 4});
     CHECK(b != c);
-    CHECK(ropufu::sequential::tests::does_json_round_trip(c));
+
+    ropufu::tests::does_json_round_trip(c, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 
     a.set_anticipated_run_length(1729);
-    CHECK(ropufu::sequential::tests::does_json_round_trip(a));
+    
+    ropufu::tests::does_json_round_trip(a, xxx, yyy);
+    CHECK_EQ(xxx, yyy);
 
     std::size_t m = 17;
     std::size_t n = 29;

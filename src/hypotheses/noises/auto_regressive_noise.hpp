@@ -11,13 +11,14 @@
 
 #include "white_noise.hpp"
 
-#include <array>     // std::array
-#include <cstddef>   // std::size_t
-#include <iostream>  // std::ostream
-#include <stdexcept> // std::runtime_error
-#include <string>    // std::string
-#include <system_error> // std::error_code, std::errc
-#include <vector>    // std::vector
+#include <array>       // std::array
+#include <cstddef>     // std::size_t
+#include <iostream>    // std::ostream
+#include <optional>    // std::optional, std::nullopt
+#include <stdexcept>   // std::runtime_error
+#include <string>      // std::string
+#include <string_view> // std::string_view
+#include <vector>      // std::vector
 
 namespace ropufu::sequential::hypotheses
 {
@@ -41,6 +42,7 @@ namespace ropufu::sequential::hypotheses
     /** Auto-regressive (AR) process over white Gaussian noise. */
     template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
     struct auto_regressive_noise;
+
     template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
     void to_json(nlohmann::json& j, const auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>& x) noexcept;
     template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
@@ -66,9 +68,11 @@ namespace ropufu::sequential::hypotheses
         static constexpr std::size_t ar_size = t_ar_size;
 
         // ~~ Json names ~~
-        static constexpr char jstr_typename[] = "type";
-        static constexpr char jstr_white[] = "white noise";
-        static constexpr char jstr_ar_parameters[] = "AR parameters";
+        static constexpr std::string_view jstr_typename = "type";
+        static constexpr std::string_view jstr_white = "white noise";
+        static constexpr std::string_view jstr_ar_parameters = "AR parameters";
+
+        friend ropufu::noexcept_json_serializer<type>;
 
     private:
         white_noise_type m_white = {}; // White noise.
@@ -76,31 +80,19 @@ namespace ropufu::sequential::hypotheses
         time_window_type m_history = {}; // Brief history of AR noise used to generate observations.
         value_type m_current_value = 0; // Latest observed value.
 
-        static bool is_valid(const ar_container_type& ar_parameters, std::string& message) noexcept
+        std::optional<std::string> error_message() const noexcept
         {
-            value_type sum_squared = 0;
-            for (const value_type& x : ar_parameters)
+            for (const value_type& x : this->m_ar_parameters)
             {
-                if (!aftermath::is_finite(x))
-                {
-                    message = "AR parameters must be finite.";
-                    return false;
-                } // if (...)
-                sum_squared += (x * x);
+                if (!aftermath::is_finite(x)) return "AR parameters must be finite.";
             } // for (...)
-            if (!aftermath::is_finite(sum_squared) || sum_squared >= 1)
-            {
-                message = "AR parameters must lie inside a unit sphere.";
-                return false;
-            } // if (...)
-            return true;
-        } // validate(...)
+            return std::nullopt;
+        } // error_message(...)
 
         void validate() const
         {
-            std::string message {};
-            if (!type::is_valid(this->m_ar_parameters, message))
-                throw std::logic_error(message);
+            std::optional<std::string> message = this->error_message();
+            if (message.has_value()) throw std::logic_error(message.value());
         } // validate(...)
 
     public:
@@ -122,37 +114,6 @@ namespace ropufu::sequential::hypotheses
             this->validate();
         } // auto_regressive_noise(...)
         
-        auto_regressive_noise(const nlohmann::json& j, std::error_code& ec) noexcept
-        {
-            // Ensure correct type.
-            std::string typename_str {};
-            aftermath::noexcept_json::required(j, type::jstr_typename, typename_str, ec);
-            if (typename_str != type::typename_string)
-            {
-                ec = std::make_error_code(std::errc::bad_message); // Noise type mismatch.
-                return;
-            } // if (...)
-
-            // Parse json entries.
-            white_noise_type white = this->m_white;
-            ar_container_type ar_parameters = this->m_ar_parameters;
-            aftermath::noexcept_json::optional(j, type::jstr_white, white, ec);
-            aftermath::noexcept_json::optional(j, type::jstr_ar_parameters, ar_parameters, ec);
-            if (ec.value() != 0) return;
-
-            // Validate entries.
-            std::string message {};
-            if (!type::is_valid(ar_parameters, message))
-            {
-                ec = std::make_error_code(std::errc::bad_message);
-                return;
-            } // if (...)
-            
-            // Populate values.
-            this->m_white = white;
-            this->m_ar_parameters = ar_parameters;
-        } // auto_regressive_noise(...)
-
         /** @brief White noise driving the AR. */
         const white_noise_type& white() const noexcept { return this->m_white; }
         /** @brief White noise driving the AR. */
@@ -221,11 +182,6 @@ namespace ropufu::sequential::hypotheses
         } // operator <<(...)
     }; // struct auto_regressive_noise
 
-    // ~~ Json name definitions ~~
-    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>::jstr_typename[];
-    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>::jstr_white[];
-    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size> constexpr char auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>::jstr_ar_parameters[];
-
     template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
     void to_json(nlohmann::json& j, const auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>& x) noexcept
     {
@@ -242,12 +198,37 @@ namespace ropufu::sequential::hypotheses
     template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
     void from_json(const nlohmann::json& j, auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>& x)
     {
-        using type = auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>;
-        std::error_code ec {};
-        x = type(j, ec);
-        if (ec.value() != 0) throw std::runtime_error("Parsing <auto_regressive_noise> failed: " + j.dump());
+        if (!noexcept_json::try_get(j, x)) throw std::runtime_error("Parsing <auto_regressive_noise> failed: " + j.dump());
     } // from_json(...)
 } // namespace ropufu::sequential::hypotheses
+
+namespace ropufu
+{
+    template <typename t_engine_type, typename t_value_type, std::size_t t_ar_size>
+    struct noexcept_json_serializer<ropufu::sequential::hypotheses::auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>>
+    {
+        using engine_type = t_engine_type;
+        using value_type = t_value_type;
+        using result_type = ropufu::sequential::hypotheses::auto_regressive_noise<t_engine_type, t_value_type, t_ar_size>;
+
+        static bool try_get(const nlohmann::json& j, result_type& x) noexcept
+        {
+            // Ensure correct type.
+            std::string typename_str {};
+            if (!noexcept_json::required(j, result_type::jstr_typename, typename_str)) return false;
+            if (typename_str != result_type::typename_string) return false; // Noise type mismatch.
+
+            // Parse json entries.
+            if (!noexcept_json::optional(j, result_type::jstr_white, x.m_white)) return false;
+            if (!noexcept_json::optional(j, result_type::jstr_ar_parameters, x.m_ar_parameters)) return false;
+
+            // Validate entries.
+            if (x.error_message().has_value()) return false;
+
+            return true;
+        } // try_get(...)
+    }; // struct noexcept_json_serializer<...>
+} // namespace ropufu
 
 namespace ropufu::aftermath
 {
