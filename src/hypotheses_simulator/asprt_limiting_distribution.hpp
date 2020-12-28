@@ -74,14 +74,14 @@ namespace ropufu::sequential::hypotheses
             // mat.wipe(); // Clear the existing contents.
 
             sampler_type sampler {};
-            matrix_t<value_type> distribution {count_simulations, count_observations, this->m_initial_value};
-            if (distribution.empty()) return;
+            matrix_t<value_type> dist {count_simulations, count_observations, this->m_initial_value};
+            if (dist.empty()) return;
 
             for (std::size_t i = 0; i < count_simulations; ++i)
             {
                 for (value_type n = 1; n <= time_cutoff; ++n)
                 {
-                    for (value_type& x : distribution.row(i))
+                    for (value_type& x : dist.row(i))
                     {
                         value_type epsilon = sampler(engine);
                         value_type negative_part = 0;
@@ -101,7 +101,7 @@ namespace ropufu::sequential::hypotheses
                 mat << "time_cutoff" << matrix_t<value_type>(1, 1, static_cast<value_type>(time_cutoff));
                 mat << "iv" << matrix_t<value_type>(1, 1, this->m_initial_value);
                 // Write results.
-                mat << "distribution" << distribution;
+                mat << "distribution" << dist;
             } // if (...)
 
             // Visual output.
@@ -109,7 +109,7 @@ namespace ropufu::sequential::hypotheses
             value_type support_resolution = value_type(0.1);
             for (std::size_t i = 0; i < count_simulations; ++i)
             {
-                for (const value_type& x : distribution.row(i))
+                for (const value_type& x : dist.row(i))
                 {
                     int bin_index = static_cast<int>(std::floor(x / support_resolution));
                     law << bin_index;
