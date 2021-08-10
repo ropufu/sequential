@@ -87,6 +87,9 @@
         "concepts": "cpp",
         "condition_variable": "cpp",
         "cstdarg": "cpp",
-        "numbers": "cpp"
+        "numbers": "cpp",
+        "span": "cpp",
+        "charconv": "cpp",
+        "format": "cpp"
     }
 }

@@ -1,0 +1,23 @@
+{
+  "$schema": "./config.schema.json",
+  "simulations": 10000,
+  "stopping times": [
+    {
+      "type": "FMA",
+      "window": 5,
+      "thresholds": {
+        "range": [0.5, 2.0],
+        "count": 100,
+        "spacing": "linear"
+      }
+    },
+    {
+      "type": "CUSUM",
+      "thresholds": {
+        "range": [1.0, 7.0],
+        "count": 100,
+        "spacing": "linear"
+      }
+    }
+  ]
+}
