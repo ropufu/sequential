@@ -1,0 +1,17 @@
+
+{
+    "simulations": 10000,
+    "model": {
+        "type": "Gaussian mean hypotheses",
+        "weakest signal strength": 1.0
+    },
+    "anticipated sample size": { "first": 20.0, "second": 30.0 },
+    "ASPRT thresholds": {
+        "first": {"range": [0.5, 8.0], "count": 128, "spacing": "logarithmic"},
+        "second": {"range": [1.5, 12.0], "count": 128, "spacing": "logarithmic"}
+    },
+    "GSPRT thresholds": {
+        "first": {"range": [0.5, 8.0], "count": 128, "spacing": "logarithmic"},
+        "second": {"range": [1.5, 12.0], "count": 128, "spacing": "logarithmic"}
+    }
+}

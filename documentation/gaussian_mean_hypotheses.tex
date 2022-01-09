@@ -1,0 +1,158 @@
+
+\documentclass{article}
+\usepackage[intlimits]{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts,amstext,amsthm}
+\usepackage{paralist}        % {inparaenum} environment
+\usepackage{mathtools}       % {dcases} environment
+\usepackage{wasysym}         % \clock
+\usepackage[normalem]{ulem}  % \sout
+\usepackage[usenames,dvipsnames]{xcolor} % Named colors
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage[margin=2.5cm]{geometry}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{decorations.pathmorphing}
+\usetikzlibrary{patterns}
+
+% ~~ Styling ~~
+\renewcommand{\geq}{\geqslant}
+\renewcommand{\leq}{\leqslant}
+
+\newcommand{\ignore}[1]{}
+\newcommand{\nolabel}[1]{}
+\newcommand{\set}[1]{\left\{ #1 \right\}}
+% Set with condition and automatically scaled braces: {... | ...}.
+\newcommand{\cset}[3][:]{\left\{#2 \,#1\, #3\right\}}
+
+\renewcommand{\Pr}{{\sf P}}           % Probability measure.
+\DeclareMathOperator{\EV}{{\sf E}}    % Expected value.
+\DeclareMathOperator{\Var}{{\sf Var}} % Variance.
+\DeclareMathOperator{\Cov}{{\sf Cov}} % Covariance.
+\DeclareMathOperator{\SE}{{\sf SE}}   % Standard error.
+\DeclareMathOperator{\Hyp}{\mathcal{H}}
+\DeclareMathOperator{\DNormal}{\mathcal{N}} % Normal distribution.
+
+% ~~ Linear Algebra ~~
+\renewcommand{\vec}[1]{\boldsymbol{#1}}
+\newcommand{\One}{\mathchoice{\rm 1\mskip-4.2mu l}{\rm 1\mskip-4.2mu l}{\rm 1\mskip-4.6mu l}{\rm 1\mskip-5.2mu l}}
+\newenvironment{algorithm}[1][]{\paragraph*{Algorithm#1.}}{\vspace{1ex}}
+
+% ~~ Paper-specific ~~
+\newcommand{\hlambda}{\hat{\lambda}}
+\newcommand{\hmu}{\hat{\mu}}
+\newcommand{\htau}{\hat{\tau}}
+\newcommand{\ESS}{\mathrm{ESS}}
+\newcommand{\PFA}{\mathrm{PFA}}
+\newcommand{\PMS}{\mathrm{PMS}}
+\newcommand{\PrFA}{\Pr _\mathrm{FA}}
+\newcommand{\PrMS}{\Pr _\mathrm{MS}}
+
+% Styling.
+\hypersetup{
+    colorlinks=true,%
+    bookmarksnumbered=true,%
+    bookmarksopen=true,%
+    citecolor=blue,%
+    urlcolor=blue,%
+    unicode=true,           % enable unicode encoded PDF strings
+    breaklinks=true         % allow links to break over lines by making
+                            % links over multiple lines into PDF
+                            % links to the same target
+}
+
+\begin{document}
+
+
+\section*{Formulation.}
+
+The objective of this project is to simulate target detection in a noisy environment.
+The signal, $S_n$, $n \geq 1$, is assumed to be known and deterministic.
+To model the environment we assume additive i.i.d.\ standard Gaussian noise $W_n$.
+The observed process $X_n$, $n \geq 1$, is defined by
+\begin{align*} \nolabel{eq:observed_process}
+    X_n = \mu S_n + W_n,
+\end{align*}
+where $\mu$ is unknown (representing signal strength).
+%Note that $X_n$ are independent $\DNormal(\mu S_n, 1)$.
+
+We are now in position to formulate the hypothesis testing problem.
+%
+Let $\mu_0 = 0$, and $\mu_1 > \mu_0$ be given. We are interested in testing
+\begin{align} \label{eq:model}
+    \Hyp_0 : \mu = \mu_0
+    \quad \text{vs.} \quad
+    \Hyp_1 : \mu \geq \mu_1.
+\end{align}
+In what follows we will also need to introduce auxiliary hypotheses $\set{\Hyp_\theta : \mu = \theta }$.
+%
+It is not hard to see that the log-likelihood ratio (LLR) process between $\Hyp_\mu$ and $\Hyp_{\mu'}$ has the form
+\begin{align} \label{eq:LLR:general}
+    \lambda_n(\mu, \mu')
+        &= (\mu - \mu') \sum_{i = 1}^{n} S_i X_i
+        - \frac{\mu^2 - {\mu'}^2}{2} \sum_{i = 1}^{n} S_i^2.
+\end{align}
+
+\section*{Estimation and Stopping.}
+
+Let $\hmu_n$ denote the unconstrained maximum likelihood estimator (MLE) of $\mu$:
+\begin{align*} \nolabel{eq:mle:unconstrained}
+    \hmu_n &= \max\set{0, \frac{\sum_{i = 1}^n S_i X_i}{\sum_{i = 1}^n S_i^2}}.
+\end{align*}
+Furthermore, let $\hmu_{n, j}$ be the constrained MLE's under $\Hyp_j$, $j = 0, 1$:
+\begin{align*} \nolabel{eq:mle:constrained}
+    \hmu_{n, 0} = \mu_0 = 0, \quad
+    \hmu_{n, 1} = \max \set{\mu_1, \hmu_n}.
+\end{align*}
+
+The adaptive versions of log-likelihood ratio \eqref{eq:LLR:general} are given by
+\begin{align} \label{eq:LLR:adaptive}
+    \hlambda_{n, j}
+        &= \sum_{i = 1}^{n} (\hmu_{i - 1} - \hmu_{n, j}) S_i X_i
+        - \frac{1}{2} \sum_{i = 1}^{n} (\hmu_{i - 1}^2 - \hmu_{n, j}^{2}) S_i^2 \\
+        %&= \sum_{i = 1}^{n} \hmu_{i - 1} S_i (X_i - \hmu_{i - 1} S_i / 2)
+        %- \hmu_{n, j} \sum_{i = 1}^{n} S_i X_i
+        %+ \frac{\hmu_{n, j}^2}{2} \sum_{i = 1}^{n} S_i^2 \nonumber \\
+        &= \sum_{i = 1}^{n} \hmu_{i - 1} S_i (X_i - \hmu_{i - 1} S_i / 2)
+        + \lambda_n(0, \hmu_{n, j}) \nonumber
+\end{align}
+for $j = 0, 1$. The initial estimator $\hmu_0$ is chosen differently for $\hlambda_{n, 0}$ and $\hlambda_{n, 1}$, so that $\hlambda_{1, 0} = \hlambda_{1, 1} = 0$.
+
+We consider the following decision rules.
+The stopping time of the adaptive two-SPRT detection procedure is $\htau = \min\set{\htau_0,\htau_1}$, where
+\begin{align} \label{eq:sprt:adaptive}
+    \begin{split}
+        \htau_0 &= \inf \cset{n \geq 1}{\hlambda_{n, 1} \geq a_0}, \\
+        \htau_1 &= \inf \cset{n \geq 1}{\hlambda_{n, 0} \geq a_1}.
+    \end{split}
+\end{align}
+The stopping time of the generalized two-SPRT detection procedure is $\tau = \min\set{\tau_0,\tau_1}$, where
+\begin{align} \label{eq:sprt:adaptive}
+    \begin{split}
+        \tau_0 &= \inf \cset{n \geq 1}{\lambda_n(\hmu_n, \hmu_{n, 1}) \geq a_0}, \\
+        \tau_1 &= \inf \cset{n \geq 1}{\lambda_n(\hmu_n, \hmu_{n, 0}) \geq a_1}.
+    \end{split}
+\end{align}
+
+
+\paragraph*{Change of measure.}
+Suppose $(t, d)$ is the decision rule, and let
+\begin{align*}
+    \PFA &= \Pr_{\mu_0} (d \neq 0), \\
+    \PMS &= \sup_{\mu \geq \mu_1} \Pr_{\mu} (d \neq 1) = \Pr_{\mu_1} (d \neq 1)
+\end{align*}
+denote the probability of false alarm and probability of missed signal, respectively.
+To facilitate assessing error probabilities, we employ the change of measure approach. Expected sample sizes $\ESS_j = \EV_{\mu_j}(t)$, $j = 0, 1$, do not require importance sampling. The following table summarizes the strategies (simulated signal strength vs.\ analyzed signal strength) in use:
+\begin{center}
+    \begin{tabular}{@{} l l l @{}} \toprule
+                  & \multicolumn{2}{c}{Analyzed} \\ \cmidrule{2-3}
+        Simulated & $\mu_0$           & $\mu_1$         \\ \midrule
+        $\mu_0$   & $\ESS_0$          & $\PMS $         \\
+        $\mu_1$   & $\PFA $           & $\ESS_1$        \\ \bottomrule
+    \end{tabular}
+\end{center}
+
+
+\end{document}

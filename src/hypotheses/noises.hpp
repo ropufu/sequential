@@ -1,8 +1,0 @@
-
-#ifndef ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_HPP_INCLUDED
-#define ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_HPP_INCLUDED
-
-#include "noises/auto_regressive_noise.hpp"
-#include "noises/white_noise.hpp"
-
-#endif // ROPUFU_SEQUENTIAL_HYPOTHESES_NOISES_HPP_INCLUDED

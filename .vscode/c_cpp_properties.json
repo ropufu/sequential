@@ -29,7 +29,7 @@
         {
             "name": "Linux",
             "includePath": [
-                "/usr/include/c++/10",
+                "/usr/include/c++/11",
                 "/usr/local/include",
                 "/usr/include",
                 "${workspaceRoot}",
@@ -38,7 +38,7 @@
             ],
             "defines": [],
             "intelliSenseMode": "gcc-x64",
-            "compilerPath": "/usr/bin/g++-10",
+            "compilerPath": "/usr/bin/g++-11",
             "cppStandard": "c++20",
             "browse": {
                 "path": [
@@ -56,8 +56,7 @@
         {
             "name": "Win32",
             "includePath": [
-                "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.29.30037/include",
-                "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/ucrt",
+                "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.30.30705/include",
                 "${workspaceRoot}",
                 "${workspaceRoot}/../../include",
                 "${workspaceRoot}/../aftermath/src"
@@ -70,8 +69,7 @@
             "cppStandard": "c++20",
             "browse": {
                 "path": [
-                    "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.29.30037/include/*",
-                    "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/ucrt/*",
+                    "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.30.30705/include",
                     "${workspaceRoot}",
                     "${workspaceRoot}/../../include",
                     "${workspaceRoot}/../aftermath/src"

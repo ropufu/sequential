@@ -90,6 +90,9 @@
         "numbers": "cpp",
         "span": "cpp",
         "charconv": "cpp",
-        "format": "cpp"
+        "format": "cpp",
+        "future": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp"
     }
 }
